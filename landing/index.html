@@ -353,25 +353,6 @@
             text-decoration: none;
         }
 
-        .tab-btn {
-            background: #111;
-            color: #888;
-            border: 1px solid #333;
-            padding: 12px 28px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-        .tab-btn:first-child { border-radius: 10px 0 0 10px; }
-        .tab-btn:last-child { border-radius: 0 10px 10px 0; border-left: none; }
-        .tab-btn.active {
-            background: #fff;
-            color: #000;
-            border-color: #fff;
-        }
-
         @media (max-width: 600px) {
             h1 { font-size: 36px; }
             .features { grid-template-columns: 1fr; }
@@ -395,7 +376,7 @@
             </div>
             <p style="color:#4ade80; font-size:15px; margin-top:12px; margin-bottom:20px;">24-hour free trial — no credit card needed</p>
             <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-                <a href="#instructions" class="cta-button" onclick="showTab('trial')" style="background:#4ade80; color:#000;">Try Free for 24 Hours</a>
+                <a href="#instructions" class="cta-button" style="background:#4ade80; color:#000;">Try Free for 24 Hours</a>
                 <a href="#" id="checkout-btn" class="cta-button">Buy for $4.99</a>
             </div>
         </div>
@@ -507,10 +488,6 @@
         <div class="section" id="instructions">
             <h2>Get Started</h2>
 
-            <div style="display:flex; justify-content:center; gap:0; margin-bottom:32px;">
-                <button class="tab-btn active" id="tab-trial-btn" onclick="showTab('trial')">Free Trial</button>
-                <button class="tab-btn" id="tab-paid-btn" onclick="showTab('paid')">I Bought a License</button>
-            </div>
 
             <!-- TRIAL INSTRUCTIONS -->
             <div id="tab-trial" class="tab-content">
@@ -560,42 +537,6 @@
                 </div>
             </div>
 
-            <!-- PAID INSTRUCTIONS -->
-            <div id="tab-paid" class="tab-content" style="display:none;">
-                <div class="installer-box">
-                    <h3>Step 1: Open Terminal</h3>
-                    <p>Press <strong style="color:#fff;">Cmd + Space</strong>, type "Terminal", hit Enter.</p>
-                </div>
-
-                <div class="installer-box">
-                    <h3>Step 2: Install GhostReply</h3>
-                    <p>Paste this and hit Enter:</p>
-                    <div class="installer-command" onclick="navigator.clipboard.writeText('curl -sL hrampell.github.io/ghostreply/install.sh | bash'); this.querySelector('.copy-hint').textContent = 'Copied!';">
-                        <span>curl -sL hrampell.github.io/ghostreply/install.sh | bash</span>
-                        <span class="copy-hint">click to copy</span>
-                    </div>
-                </div>
-
-                <div class="installer-box">
-                    <h3>Step 3: Run it</h3>
-                    <p>Close and reopen Terminal, then type:</p>
-                    <div class="installer-command" onclick="navigator.clipboard.writeText('ghostreply'); this.querySelector('.copy-hint').textContent = 'Copied!';">
-                        <span>ghostreply</span>
-                        <span class="copy-hint">click to copy</span>
-                    </div>
-                </div>
-
-                <div class="installer-box">
-                    <h3>Step 4: Follow the setup</h3>
-                    <p style="color:#aaa; text-align:left; line-height:1.8;">
-                        <strong style="color:#fff;">License key:</strong> Paste the license key you received after buying.<br>
-                        <strong style="color:#fff;">AI key:</strong> It opens Groq in your browser — sign up with Google, create a key, come back. Free, takes 30 seconds.<br>
-                        <strong style="color:#fff;">Pick a contact:</strong> Choose who the bot replies to.<br>
-                        <strong style="color:#fff;">Customize:</strong> Tell the bot how you want it to talk, or skip for your natural style.<br>
-                        <strong style="color:#fff;">Done!</strong> The bot is now replying for you. Close the terminal to stop it.
-                    </p>
-                </div>
-            </div>
         </div>
 
         <!-- What it does -->
@@ -727,12 +668,6 @@
             window.location.href = LEMONSQUEEZY_CHECKOUT;
         });
 
-        function showTab(tab) {
-            document.getElementById('tab-trial').style.display = tab === 'trial' ? 'block' : 'none';
-            document.getElementById('tab-paid').style.display = tab === 'paid' ? 'block' : 'none';
-            document.getElementById('tab-trial-btn').classList.toggle('active', tab === 'trial');
-            document.getElementById('tab-paid-btn').classList.toggle('active', tab === 'paid');
-        }
     </script>
 </body>
 </html>
