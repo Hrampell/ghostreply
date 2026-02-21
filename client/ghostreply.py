@@ -24,6 +24,16 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+# --- Terminal Colors ---
+GREEN = "\033[92m"
+BLUE = "\033[94m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
+GRAY = "\033[90m"
+WHITE = "\033[97m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".ghostreply"
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -203,25 +213,27 @@ def get_clipboard() -> str:
 
 def setup_groq_key() -> str:
     print()
-    print("=== AI Setup ===")
-    print("GhostReply needs a free AI key from Groq (no credit card, takes 30 seconds).")
+    print(f"{BOLD}=== AI Setup ==={RESET}")
+    print(f"GhostReply needs a free AI key from Groq {GREEN}(no credit card, takes 30 seconds){RESET}.")
     print()
+    print(f"  {WHITE}1.{RESET} {GRAY}Sign up with Google (one click){RESET}")
+    print(f"  {WHITE}2.{RESET} {GRAY}Click \"Create API Key\"{RESET}")
+    print(f"  {WHITE}3.{RESET} {GRAY}Copy it — come back here and hit Enter{RESET}")
+    print()
+
+    input(f"  {YELLOW}Press Enter to open groq.com in your browser...{RESET}")
 
     # Open directly to the API keys page
     try:
         subprocess.run(["open", "https://console.groq.com/keys"], check=False)
-        print("  Opening groq.com in your browser...")
+        print(f"  {GREEN}Opening groq.com...{RESET}")
     except Exception:
-        print("  Go to: https://console.groq.com/keys")
+        print(f"  Go to: {BLUE}https://console.groq.com/keys{RESET}")
 
-    print()
-    print('  1. Sign up with Google (one click)')
-    print('  2. Click "Create API Key"')
-    print('  3. Copy it — come back here and hit Enter')
     print()
 
     while True:
-        input("  Hit Enter after you've copied the key...")
+        input(f"  Hit Enter after you've copied the key...")
 
         # Try to read from clipboard first
         clip = get_clipboard()
@@ -774,30 +786,30 @@ def first_time_setup():
     global config, profile
 
     print()
-    print("=== GhostReply Setup ===")
+    print(f"{BOLD}=== GhostReply Setup ==={RESET}")
     print()
 
     # --- Step 1: License key or free trial ---
     while True:
-        key = input("Enter your license key (or 'trial' for 24hr free trial): ").strip()
+        key = input(f"Enter your license key (or '{GREEN}trial{RESET}' for 24hr free trial): ").strip()
         if not key:
             continue
         if key.lower() == "trial":
             config["trial_started_at"] = time.time()
-            print("Free trial activated! You have 24 hours.")
-            print("Buy a license at https://hrampell.github.io/ghostreply to keep using it.")
+            print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
+            print(f"{GRAY}Buy a license at https://hrampell.github.io/ghostreply to keep using it.{RESET}")
             break
         machine_id = get_machine_id()
         print("Activating...", end=" ", flush=True)
         result = activate_license(key, machine_id)
         if result["status"] == "valid":
-            print("OK")
+            print(f"{GREEN}OK{RESET}")
             config["license_key"] = key
             config["machine_id"] = machine_id
             config["instance_id"] = result.get("instance_id", "")
             break
         else:
-            print("FAILED")
+            print(f"{RED}FAILED{RESET}")
             print(f"  {result['message']}")
 
     # --- Step 2: Groq API key ---
@@ -812,91 +824,91 @@ def first_time_setup():
     mac_name = get_mac_user_name()
     if mac_name:
         profile["name"] = mac_name.split()[0]  # first name
-        print(f"\nDetected your name: {mac_name}")
+        print(f"\n{GRAY}Detected your name:{RESET} {WHITE}{mac_name}{RESET}")
 
     # --- Step 4: Scan messages + conversations (fully automatic) ---
     print()
-    print("=== Scanning Your Messages ===")
-    print("Reading your iMessage history to learn how you text...")
+    print(f"{BOLD}=== Scanning Your Messages ==={RESET}")
+    print(f"{GRAY}Reading your iMessage history to learn how you text...{RESET}")
     print()
 
     # 4a: Scan sent messages for style
-    print("  [1/3] Pulling your sent messages...", end=" ", flush=True)
+    print(f"  {GRAY}[1/3] Pulling your sent messages...{RESET}", end=" ", flush=True)
     my_texts = scan_my_messages(500)
     if my_texts:
-        print(f"{len(my_texts)} texts found.")
+        print(f"{GREEN}{len(my_texts)} texts found.{RESET}")
     else:
-        print("none found.")
+        print(f"{YELLOW}none found.{RESET}")
 
     # 4b: Scan conversations with top contacts
-    print("  [2/3] Reading your conversations...", end=" ", flush=True)
+    print(f"  {GRAY}[2/3] Reading your conversations...{RESET}", end=" ", flush=True)
     contacts = get_contacts_with_names()
     convos = scan_conversations_with_contacts(contacts, msgs_per_contact=40)
-    print(f"{len(convos)} conversations loaded.")
+    print(f"{GREEN}{len(convos)} conversations loaded.{RESET}")
 
     # 4c: Analyze texting style
     if my_texts:
-        print("  [3/3] Analyzing your texting style...", end=" ", flush=True)
+        print(f"  {GRAY}[3/3] Analyzing your texting style...{RESET}", end=" ", flush=True)
         style = analyze_texting_style(my_texts)
         profile["texting_style"] = style
-        print("done!")
+        print(f"{GREEN}done!{RESET}")
     else:
-        print("  [3/3] No texts to analyze, using default style.")
+        print(f"  {GRAY}[3/3] No texts to analyze, using default style.{RESET}")
 
     # --- Step 5: Build life profile from conversations ---
     if convos:
         print()
-        print("Building your profile from your conversations...", end=" ", flush=True)
+        print(f"{GRAY}Building your profile from your conversations...{RESET}", end=" ", flush=True)
         user_name = profile.get("name", mac_name or "")
         life = build_life_profile(my_texts or [], convos, user_name)
         profile["life_profile"] = life
         # Use the name AI found if we didn't get one from macOS
         if life.get("name") and not profile.get("name"):
             profile["name"] = life["name"]
-        print("done!")
+        print(f"{GREEN}done!{RESET}")
 
         # Show what was learned
         print()
-        print("=== Here's What I Learned About You ===")
+        print(f"{BOLD}=== Here's What I Learned About You ==={RESET}")
         print()
         name = life.get("name", profile.get("name", "?"))
-        print(f"  Name: {name}")
+        print(f"  {GRAY}Name:{RESET} {WHITE}{name}{RESET}")
         if life.get("background"):
-            print(f"  Background: {life['background'][:150]}")
+            print(f"  {GRAY}Background:{RESET} {WHITE}{life['background'][:150]}{RESET}")
         if life.get("friends"):
             friend_names = [f.get("name", f) if isinstance(f, dict) else f
                            for f in life["friends"][:8]]
-            print(f"  Friends: {', '.join(friend_names)}")
+            print(f"  {GRAY}Friends:{RESET} {BLUE}{', '.join(friend_names)}{RESET}")
         if life.get("interests"):
-            print(f"  Interests: {', '.join(life['interests'][:8])}")
+            print(f"  {GRAY}Interests:{RESET} {WHITE}{', '.join(life['interests'][:8])}{RESET}")
         if life.get("places"):
-            print(f"  Places: {', '.join(life['places'][:6])}")
+            print(f"  {GRAY}Places:{RESET} {WHITE}{', '.join(life['places'][:6])}{RESET}")
 
     # Show texting style summary
     style = profile.get("texting_style", {})
     if style:
         print()
-        print("  Texting style:")
+        print(f"  {GRAY}Texting style:{RESET}")
         if style.get("style_rules"):
-            # Wrap long text
             rules = style["style_rules"][:180]
-            print(f"    {rules}")
+            print(f"    {WHITE}{rules}{RESET}")
         if style.get("abbreviations"):
-            print(f"    Abbreviations: {', '.join(style['abbreviations'][:10])}")
+            print(f"    {GRAY}Abbreviations:{RESET} {WHITE}{', '.join(style['abbreviations'][:10])}{RESET}")
         if style.get("example_texts"):
-            print(f"    Example texts:")
+            print(f"    {GRAY}Example texts:{RESET}")
             for ex in style["example_texts"][:5]:
-                print(f"      \"{ex}\"")
+                print(f"      {GREEN}\"{ex}\"{RESET}")
 
     # --- Step 6: Pick who to auto-reply to ---
     print()
-    print("=== Who should GhostReply text for you? ===")
+    print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
     print()
     contacts = get_contacts_with_names()
     recent = contacts[:10]
     for i, c in enumerate(recent):
-        label = f"{c['name']} ({c['handle']})" if c["name"] else c["handle"]
-        print(f"  {i+1}. {label}")
+        name_str = c['name'] or c['handle']
+        handle_str = f" ({c['handle']})" if c['name'] else ""
+        print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}{GRAY}{handle_str}{RESET}")
     print()
 
     while True:
@@ -1252,8 +1264,8 @@ def handle_incoming(contact: str, text: str):
         reply_log.append({"them": text, "you": reply})
         if len(reply_log) > 20:
             reply_log.pop(0)
-        print(f"[REPLY] them: {text[:60]}")
-        print(f"        you:  {reply[:60]}")
+        print(f"{GRAY}[REPLY]{RESET} {WHITE}them:{RESET} {text[:60]}")
+        print(f"        {GREEN}you:{RESET}  {reply[:60]}")
 
 
 
@@ -1287,14 +1299,14 @@ def main():
     global config, profile
 
     print()
-    print("  ╔══════════════════════════════════╗")
-    print("  ║      GhostReply v1.0             ║")
-    print("  ║   iMessage Auto-Reply Bot        ║")
-    print("  ╚══════════════════════════════════╝")
+    print(f"  {GRAY}╔══════════════════════════════════╗{RESET}")
+    print(f"  {GRAY}║{RESET}  {BOLD}{WHITE}    GhostReply v1.0{RESET}             {GRAY}║{RESET}")
+    print(f"  {GRAY}║{RESET}  {GREEN}  iMessage Auto-Reply Bot{RESET}        {GRAY}║{RESET}")
+    print(f"  {GRAY}╚══════════════════════════════════╝{RESET}")
     print()
 
     if not DB_PATH.exists():
-        print(f"[ERROR] iMessage database not found at {DB_PATH}")
+        print(f"{RED}[ERROR]{RESET} iMessage database not found at {DB_PATH}")
         print("Make sure you're running this on a Mac with iMessage set up.")
         sys.exit(1)
 
@@ -1335,48 +1347,49 @@ def main():
         elapsed = time.time() - config["trial_started_at"]
         hours_left = max(0, 24 - elapsed / 3600)
         if hours_left <= 0:
-            print("Free trial expired!")
-            print("Buy a license at https://hrampell.github.io/ghostreply")
-            key = input("Enter your license key: ").strip()
+            print(f"{YELLOW}Free trial expired!{RESET}")
+            print(f"{GRAY}Buy a license at{RESET} {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+            print()
+            key = input(f"Enter your license key: ").strip()
             if not key:
                 sys.exit(1)
             machine_id = get_machine_id()
             result = activate_license(key, machine_id)
             if result["status"] != "valid":
-                print(f"  {result['message']}")
+                print(f"  {RED}{result['message']}{RESET}")
                 sys.exit(1)
             config["license_key"] = key
             config["machine_id"] = machine_id
             config["instance_id"] = result.get("instance_id", "")
             config.pop("trial_started_at", None)
             save_config(config)
-            print("License activated!")
+            print(f"{GREEN}License activated!{RESET}")
         else:
-            print(f"Free trial — {hours_left:.1f} hours left")
+            print(f"{GREEN}Free trial{RESET} — {YELLOW}{hours_left:.1f} hours left{RESET}")
     else:
-        print("Checking license...", end=" ", flush=True)
+        print(f"{GRAY}Checking license...{RESET}", end=" ", flush=True)
         instance_id = config.get("instance_id", "")
         result = validate_license(config["license_key"], instance_id)
         if result["status"] != "valid":
-            print("FAILED")
+            print(f"{RED}FAILED{RESET}")
             print(f"  {result['message']}")
-            print("  Buy a license at https://hrampell.github.io/ghostreply")
+            print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
             config.pop("license_key", None)
             save_config(config)
             sys.exit(1)
-        print("OK")
+        print(f"{GREEN}OK{RESET}")
 
     # Load saved custom tone
     if config.get("custom_tone"):
         custom_tone = config["custom_tone"]
 
     # Initialize AI
-    print("Initializing AI...", end=" ", flush=True)
+    print(f"{GRAY}Initializing AI...{RESET}", end=" ", flush=True)
     try:
         init_groq_client()
-        print("OK")
+        print(f"{GREEN}OK{RESET}")
     except Exception as e:
-        print(f"FAILED: {e}")
+        print(f"{RED}FAILED: {e}{RESET}")
         sys.exit(1)
 
     # Show profile summary
@@ -1385,17 +1398,17 @@ def main():
     style = profile.get("texting_style", {})
     friends = [f.get("name", f) if isinstance(f, dict) else f
               for f in life.get("friends", [])[:5]]
-    parts = [f"Profile: {name}"]
+    parts = [f"{GRAY}Profile:{RESET} {WHITE}{name}{RESET}"]
     if style:
-        parts.append(f"avg {style.get('avg_words', '?')} words/text")
+        parts.append(f"{GRAY}avg{RESET} {WHITE}{style.get('avg_words', '?')}{RESET} {GRAY}words/text{RESET}")
     if friends:
-        parts.append(f"friends: {', '.join(friends)}")
+        parts.append(f"{GRAY}friends:{RESET} {BLUE}{', '.join(friends)}{RESET}")
     print(" | ".join(parts))
 
     target_name = config.get("target_name", "?")
     print()
-    print(f"GhostReply is running! Replying to {target_name}.")
-    print("Press Ctrl+C to stop.")
+    print(f"{GREEN}{BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
+    print(f"{GRAY}Press Ctrl+C to stop.{RESET}")
     print()
 
     try:

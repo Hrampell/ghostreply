@@ -52,10 +52,7 @@ fi
 echo ""
 echo "  ✓ GhostReply installed successfully!"
 echo ""
-echo "  To get started:"
-echo "    1. Open a new terminal (or run: source $SHELL_RC)"
-echo "    2. Run: ghostreply"
-echo "    3. Enter your license key and follow the setup"
+echo "  Starting GhostReply..."
 echo ""
-echo "  Questions? support@ghostreply.com"
-echo ""
+
+python3 ~/.ghostreply/ghostreply.py
