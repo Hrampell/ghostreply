@@ -196,6 +196,7 @@ def verify_groq_key(api_key: str) -> bool:
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
+                "User-Agent": "GhostReply/1.0",
             },
         )
         resp = urllib.request.urlopen(req, timeout=15)
@@ -240,7 +241,7 @@ def setup_groq_key() -> str:
     print(f"  {WHITE}3.{RESET} {GRAY}Copy it — come back here and hit Enter{RESET}")
     print()
 
-    input(f"  {YELLOW}Press Enter to open groq.com in your browser...{RESET}")
+    input(f"  {BLUE}Press Enter to open groq.com in your browser...{RESET}")
 
     # Open directly to the API keys page
     try:
@@ -252,7 +253,7 @@ def setup_groq_key() -> str:
     print()
 
     while True:
-        input(f"  {YELLOW}Hit Enter after you've copied the key...{RESET}")
+        input(f"  {BLUE}Press Enter once you've copied the key (you can close groq.com after)...{RESET}")
 
         # Try to read from clipboard first
         clip = get_clipboard().strip()
@@ -1123,6 +1124,7 @@ def init_groq_client():
     groq_client = OpenAI(
         api_key=config["groq_api_key"],
         base_url="https://api.groq.com/openai/v1",
+        default_headers={"User-Agent": "GhostReply/1.0"},
     )
 
 
@@ -1437,8 +1439,12 @@ def main():
     try:
         poll_loop()
     except KeyboardInterrupt:
-        print("\n[INFO] GhostReply stopped.")
+        print(f"\n{GRAY}GhostReply stopped.{RESET}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(f"\n{GRAY}GhostReply stopped.{RESET}")
+        sys.exit(0)
