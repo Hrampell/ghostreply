@@ -62,9 +62,9 @@
         }
 
         /* Price */
-        @keyframes glow-spin {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
+        @keyframes neon-pulse {
+            0%, 100% { box-shadow: 0 0 10px #4ade80, 0 0 30px rgba(74, 222, 128, 0.4), 0 0 60px rgba(74, 222, 128, 0.15); border-color: #4ade80; }
+            50% { box-shadow: 0 0 15px #4ade80, 0 0 40px rgba(74, 222, 128, 0.5), 0 0 80px rgba(74, 222, 128, 0.2); border-color: #6ee7a0; }
         }
 
         .price-tag {
@@ -72,34 +72,9 @@
             border-radius: 16px;
             padding: 16px 32px;
             margin-bottom: 24px;
-            position: relative;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
-            z-index: 1;
-        }
-
-        .price-tag::before {
-            content: '';
-            position: absolute;
-            inset: -2px;
-            border-radius: 18px;
-            background: linear-gradient(90deg, #4ade80, #60a5fa, #a78bfa, #f472b6, #4ade80);
-            background-size: 200% 100%;
-            animation: glow-spin 3s linear infinite;
-            z-index: -1;
-            opacity: 0.8;
-        }
-
-        .price-tag::after {
-            content: '';
-            position: absolute;
-            inset: -6px;
-            border-radius: 22px;
-            background: linear-gradient(90deg, #4ade80, #60a5fa, #a78bfa, #f472b6, #4ade80);
-            background-size: 200% 100%;
-            animation: glow-spin 3s linear infinite;
-            z-index: -2;
-            opacity: 0.3;
-            filter: blur(12px);
+            border: 2px solid #4ade80;
+            animation: neon-pulse 2s ease-in-out infinite;
         }
 
         .price {
