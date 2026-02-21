@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostReply — iMessage Auto-Reply Bot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 80px 0 20px;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: 52px;
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: #888;
+            max-width: 520px;
+            margin: 0 auto 40px;
+            line-height: 1.5;
+        }
+
+        /* Sections */
+        .section {
+            padding: 60px 0;
+        }
+
+        h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        /* Price */
+        .price-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px solid #333;
+            border-radius: 16px;
+            padding: 16px 32px;
+            margin-bottom: 24px;
+        }
+
+        .price {
+            font-size: 36px;
+            font-weight: 700;
+        }
+
+        .price-period {
+            font-size: 16px;
+            color: #888;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: #fff;
+            color: #000;
+            font-size: 18px;
+            font-weight: 600;
+            padding: 16px 48px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255,255,255,0.15);
+        }
+
+        /* Terminal Demo */
+        .terminal {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 24px 28px;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            overflow-x: auto;
+            margin: 32px 0;
+        }
+
+        .terminal .prompt { color: #4ade80; }
+        .terminal .cmd { color: #fff; }
+        .terminal .output { color: #888; }
+        .terminal .success { color: #4ade80; }
+        .terminal .label { color: #fbbf24; }
+        .terminal .name { color: #60a5fa; }
+
+        /* Installer Box */
+        .installer-box {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .installer-box h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .installer-box p {
+            color: #888;
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+
+        .installer-command {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 16px 24px;
+            font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+            font-size: 15px;
+            color: #4ade80;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            user-select: all;
+        }
+
+        .installer-command:hover {
+            border-color: #4ade80;
+        }
+
+        .installer-command .copy-hint {
+            color: #555;
+            font-size: 12px;
+            flex-shrink: 0;
+            font-family: -apple-system, sans-serif;
+        }
+
+        .installer-note {
+            color: #555;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        /* Steps */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .step {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            background: #fff;
+            color: #000;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-content h3 {
+            font-size: 18px;
+            margin-bottom: 6px;
+        }
+
+        .step-content p {
+            color: #888;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .step-content code {
+            background: #222;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 14px;
+            color: #4ade80;
+        }
+
+        /* iMessage Demo */
+        .imessage-demo {
+            max-width: none;
+            margin: 24px 0;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 20px;
+            padding: 24px 16px;
+        }
+
+        .imessage-demo .demo-header {
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #222;
+        }
+
+        .imessage-demo .demo-header strong {
+            color: #fff;
+            display: block;
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+
+        .bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.4;
+            margin-bottom: 6px;
+            clear: both;
+        }
+
+        .bubble-blue {
+            background: #0b84fe;
+            color: #fff;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+            float: right;
+        }
+
+        .bubble-gray {
+            background: #333;
+            color: #fff;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+            float: left;
+        }
+
+        .bubble-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+            margin-top: 12px;
+            clear: both;
+        }
+
+        .bubble-label.right { text-align: right; }
+        .bubble-label.left { text-align: left; }
+
+        .demo-divider {
+            clear: both;
+            text-align: center;
+            color: #444;
+            font-size: 12px;
+            padding: 16px 0 8px;
+            letter-spacing: 1px;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .feature {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .feature h3 {
+            font-size: 16px;
+            margin-bottom: 6px;
+        }
+
+        .feature p {
+            color: #888;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        /* FAQ */
+        .faq-item {
+            border-bottom: 1px solid #222;
+            padding: 20px 0;
+        }
+
+        .faq-item h3 {
+            font-size: 17px;
+            margin-bottom: 8px;
+        }
+
+        .faq-item p {
+            color: #888;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 60px 0 40px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .footer a {
+            color: #888;
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 36px; }
+            .features { grid-template-columns: 1fr; }
+            .installer-command { font-size: 12px; }
+            .demos-row { flex-direction: column !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- Hero + Price -->
+        <div class="hero">
+            <div class="logo">👻</div>
+            <h1>GhostReply</h1>
+            <p class="subtitle">AI that texts back for you on iMessage. It reads your messages, learns how you talk, and replies like you.</p>
+
+            <div class="price-tag">
+                <span class="price">$4.99</span>
+                <span class="price-period">one-time</span>
+            </div>
+            <br><br>
+            <a href="#" id="checkout-btn" class="cta-button">Buy GhostReply</a>
+        </div>
+
+        <!-- Terminal — the hook -->
+        <div class="terminal">
+            <span class="prompt">$</span> <span class="cmd">curl -sL ghostreply.com/install | bash</span><br>
+            <span class="success">  ✓ Installed</span><br>
+            <br>
+            <span class="prompt">$</span> <span class="cmd">ghostreply</span><br>
+            <span class="output">Enter your license key: </span><span class="cmd">38b1460a-5104-4067-a91d-77b872934d51</span><br>
+            <span class="success">  ✓ License valid</span><br>
+            <br>
+            <span class="output">Scanning your iMessages...</span><br>
+            <span class="output">  Found 347 sent texts. Analyzing your style...</span><br>
+            <span class="output">  Reading 12 conversations for context...</span><br>
+            <span class="success">  ✓ Learned your texting style</span><br>
+            <br>
+            <span class="output">Who do you want to auto-reply to?</span><br>
+            <span class="output">  1. <span class="name">Andrew</span>  2. <span class="name">Kieran</span>  3. <span class="name">Mom</span>  4. <span class="name">Nikhil</span></span><br>
+            <span class="output">Pick a number or search: </span><span class="cmd">1</span><br>
+            <span class="success">  ✓ Auto-replying to Andrew</span><br>
+            <br>
+            <span class="success">GhostReply is running! Replying to Andrew.</span><br>
+            <span class="output">Press Ctrl+C to stop.</span>
+        </div>
+
+        <!-- Example conversations — the sell -->
+        <div class="section">
+            <h2>See It In Action</h2>
+            <p style="text-align:center; color:#888; margin-bottom:8px;">Real examples of GhostReply texting for you.</p>
+
+            <div class="demos-row" style="display:flex; gap:16px; overflow-x:auto; padding-bottom:8px;">
+
+            <!-- Example 1: casual -->
+            <div class="imessage-demo" style="flex:1; min-width:280px; margin:24px 0;">
+                <div class="demo-header">
+                    <strong>Andrew</strong>
+                    iMessage
+                </div>
+
+                <div class="bubble bubble-gray">Yo wanna play rocket league</div>
+                <div style="clear:both"></div>
+                <div class="bubble-label right">GhostReply:</div>
+                <div class="bubble bubble-blue">Yeah gimme like 20 min</div>
+                <div style="clear:both"></div>
+
+                <div class="bubble bubble-gray">Bet. Also did u do the history essay</div>
+                <div style="clear:both"></div>
+                <div class="bubble bubble-blue">Nah not yet</div>
+                <div style="clear:both"></div>
+
+                <div class="bubble bubble-gray">Its due tmrw bro</div>
+                <div style="clear:both"></div>
+                <div class="bubble bubble-blue">I know ill do it later</div>
+                <div style="clear:both"></div>
+            </div>
+
+            <!-- Example 2: someone asking if it's AI -->
+            <div class="imessage-demo" style="flex:1; min-width:280px; margin:24px 0;">
+                <div class="demo-header">
+                    <strong>Kieran</strong>
+                    iMessage
+                </div>
+
+                <div class="bubble bubble-gray">Bro are you using that AI bot thing again</div>
+                <div style="clear:both"></div>
+                <div class="bubble-label right">GhostReply:</div>
+                <div class="bubble bubble-blue">Bro what lmao</div>
+                <div style="clear:both"></div>
+
+                <div class="bubble bubble-gray">You're replying way too fast</div>
+                <div style="clear:both"></div>
+                <div class="bubble bubble-blue">Im literally on my phone rn</div>
+                <div style="clear:both"></div>
+            </div>
+
+            <!-- Example 3: making plans -->
+            <div class="imessage-demo" style="flex:1; min-width:280px; margin:24px 0;">
+                <div class="demo-header">
+                    <strong>Mom</strong>
+                    iMessage
+                </div>
+
+                <div class="bubble bubble-gray">When are you coming home for dinner?</div>
+                <div style="clear:both"></div>
+                <div class="bubble-label right">GhostReply:</div>
+                <div class="bubble bubble-blue">Like 6</div>
+                <div style="clear:both"></div>
+
+                <div class="bubble bubble-gray">Ok I'm making pasta</div>
+                <div style="clear:both"></div>
+                <div class="bubble bubble-blue">Sounds good</div>
+                <div style="clear:both"></div>
+            </div>
+
+            </div><!-- end flex row -->
+        </div>
+
+
+        <!-- Install -->
+        <div class="section">
+            <h2>Install in One Command</h2>
+
+            <div class="installer-box">
+                <h3>Paste this into Terminal on your Mac:</h3>
+                <p>Open Terminal: press <strong style="color:#fff;">Cmd + Space</strong>, type "Terminal", hit Enter.</p>
+                <div class="installer-command" onclick="navigator.clipboard.writeText('curl -sL ghostreply.com/install | bash'); this.querySelector('.copy-hint').textContent = 'Copied!';">
+                    <span>curl -sL ghostreply.com/install | bash</span>
+                    <span class="copy-hint">click to copy</span>
+                </div>
+                <p class="installer-note">Requires macOS with iMessage. That's it.</p>
+            </div>
+        </div>
+
+        <!-- What it does -->
+        <div class="section">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Scans your iMessages</h3>
+                        <p>Reads your texting history to learn your style — your abbreviations, your slang, how short you keep it. Also figures out your friends, interests, and life from your conversations.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>You pick who to reply to</h3>
+                        <p>Choose a contact during setup. The bot only replies to that person. It loads your recent conversation with them so it knows what you've been talking about.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Replies as you</h3>
+                        <p>When that person texts you, the AI replies in your exact texting style. Short messages, your words, your vibe. It even waits a bit before sending so it looks natural.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="section">
+            <h2>Features</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>Learns Your Style</h3>
+                    <p>Scans your real texts to match how you actually type. Your abbreviations, your slang, your vibe.</p>
+                </div>
+                <div class="feature">
+                    <h3>Knows Your Life</h3>
+                    <p>Reads your conversations to learn your friends, interests, and what you talk about. Replies with context.</p>
+                </div>
+                <div class="feature">
+                    <h3>Free AI</h3>
+                    <p>Uses Groq — free, no credit card. Setup handles it automatically.</p>
+                </div>
+                <div class="feature">
+                    <h3>Runs on Your Mac</h3>
+                    <p>Everything stays local. Your messages never touch any server.</p>
+                </div>
+                <div class="feature">
+                    <h3>Typing Delay</h3>
+                    <p>Waits before replying so it doesn't look instant and robotic.</p>
+                </div>
+                <div class="feature">
+                    <h3>Denies Being AI</h3>
+                    <p>If someone asks "are you a bot?" it denies it, just like you would.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ -->
+        <div class="section">
+            <h2>FAQ</h2>
+            <div class="faq-item">
+                <h3>Does it reply to everyone?</h3>
+                <p>No. You pick one person during setup. The bot only auto-replies to them. Want to switch? Just re-run <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:14px;">ghostreply</code> in Terminal.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Does this work on Windows?</h3>
+                <p>No. It needs macOS because it reads your iMessage database directly. Your Mac needs to be on and running GhostReply.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Can people tell it's a bot?</h3>
+                <p>It learns from hundreds of your real texts — your exact style, abbreviations, message length. It also knows your friends and what you talk about. Most people can't tell.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Is this a subscription?</h3>
+                <p>No. $4.99 one-time. You own it forever.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Do my messages go through your servers?</h3>
+                <p>No. Messages go from your Mac to Groq's AI and back. We never see your texts.</p>
+            </div>
+        </div>
+
+        <!-- Final CTA -->
+        <div style="text-align:center; padding: 40px 0 20px;">
+            <div class="price-tag">
+                <span class="price">$4.99</span>
+                <span class="price-period">one-time</span>
+            </div>
+            <br><br>
+            <a href="#" id="checkout-btn-2" class="cta-button">Get GhostReply</a>
+            <p style="color:#555; font-size:14px; margin-top:16px;">Works on any Mac with iMessage.</p>
+        </div>
+
+        <div class="footer">
+            <p>GhostReply &copy; 2026 &middot; <a href="mailto:support@ghostreply.com">Support</a></p>
+        </div>
+    </div>
+
+    <script>
+        // TODO: Replace with your LemonSqueezy checkout URL
+        const LEMONSQUEEZY_CHECKOUT = 'https://ghostreply.lemonsqueezy.com/checkout/buy/a9edf9b8-832e-46d4-b790-af7968e13240';
+
+        document.getElementById('checkout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = LEMONSQUEEZY_CHECKOUT;
+        });
+        document.getElementById('checkout-btn-2').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = LEMONSQUEEZY_CHECKOUT;
+        });
+    </script>
+</body>
+</html>
