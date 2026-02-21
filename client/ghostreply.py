@@ -196,9 +196,17 @@ def verify_groq_key(api_key: str) -> bool:
                 "Authorization": f"Bearer {api_key}",
             },
         )
-        resp = urllib.request.urlopen(req, timeout=10)
+        resp = urllib.request.urlopen(req, timeout=15)
         return resp.status == 200
-    except Exception:
+    except urllib.error.HTTPError as e:
+        print(f"\n  {YELLOW}API error: {e.code} {e.reason}{RESET}")
+        return False
+    except urllib.error.URLError as e:
+        print(f"\n  {YELLOW}Connection error: {e.reason}{RESET}")
+        print(f"  {GRAY}Check your internet connection.{RESET}")
+        return False
+    except Exception as e:
+        print(f"\n  {YELLOW}Error: {e}{RESET}")
         return False
 
 
@@ -233,33 +241,33 @@ def setup_groq_key() -> str:
     print()
 
     while True:
-        input(f"  Hit Enter after you've copied the key...")
+        input(f"  {YELLOW}Hit Enter after you've copied the key...{RESET}")
 
         # Try to read from clipboard first
         clip = get_clipboard()
         if clip.startswith("gsk_"):
-            print(f"  Found key in clipboard: {clip[:12]}...")
-            print("  Verifying...", end=" ", flush=True)
+            print(f"  {GRAY}Found key in clipboard:{RESET} {GREEN}{clip[:12]}...{RESET}")
+            print(f"  {GRAY}Verifying...{RESET}", end=" ", flush=True)
             if verify_groq_key(clip):
-                print("OK")
+                print(f"{GREEN}OK{RESET}")
                 return clip
             else:
-                print("FAILED — that key didn't work.")
+                print(f"{RED}FAILED{RESET} — that key didn't work.")
 
         # Fallback: ask them to paste
-        key = input("  Paste your Groq API key here: ").strip()
+        key = input(f"  {WHITE}Paste your Groq API key here:{RESET} ").strip()
         if not key:
             continue
         if not key.startswith("gsk_"):
-            print("  That doesn't look right (should start with 'gsk_'). Try again.")
+            print(f"  {YELLOW}That doesn't look right (should start with 'gsk_'). Try again.{RESET}")
             continue
-        print("  Verifying...", end=" ", flush=True)
+        print(f"  {GRAY}Verifying...{RESET}", end=" ", flush=True)
         if verify_groq_key(key):
-            print("OK")
+            print(f"{GREEN}OK{RESET}")
             return key
         else:
-            print("FAILED")
-            print("  Key didn't work. Make sure you copied the full key.")
+            print(f"{RED}FAILED{RESET}")
+            print(f"  {YELLOW}Key didn't work. Make sure you copied the full key.{RESET}")
 
 
 # ============================================================
@@ -912,7 +920,7 @@ def first_time_setup():
     print()
 
     while True:
-        choice = input("Pick a number or search by name: ").strip()
+        choice = input(f"{WHITE}Pick a number or search by name:{RESET} ").strip()
         if not choice:
             continue
 
@@ -921,17 +929,19 @@ def first_time_setup():
             break
 
         # AI search
+        print(f"  {GRAY}Searching...{RESET}")
         matches = ai_find_contact(choice, contacts)
         if not matches:
-            print("No matches found. Try again.")
+            print(f"  {YELLOW}No matches found. Try again.{RESET}")
             continue
 
         print()
         for i, c in enumerate(matches):
-            label = f"{c['name']} ({c['handle']})" if c["name"] else c["handle"]
-            print(f"  {i+1}. {label}")
+            name_str = c['name'] or c['handle']
+            handle_str = f" ({c['handle']})" if c['name'] else ""
+            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}{GRAY}{handle_str}{RESET}")
         print()
-        pick = input("Pick a number: ").strip()
+        pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
         if pick.isdigit() and 1 <= int(pick) <= len(matches):
             selected = matches[int(pick) - 1]
             break
@@ -939,31 +949,31 @@ def first_time_setup():
     target_label = selected["name"] or selected["handle"]
     config["target_contact"] = selected["handle"]
     config["target_name"] = target_label
-    print(f"\n  Auto-replying to {target_label}")
+    print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_label}{RESET}")
 
     # Load recent conversation with this contact for context
     recent_convo = load_recent_conversation(selected["handle"], limit=20)
     if recent_convo:
         conversation_history[selected["handle"]] = recent_convo
-        print(f"  Loaded {len(recent_convo)} recent messages for context")
+        print(f"  {GRAY}Loaded {len(recent_convo)} recent messages for context{RESET}")
 
     # --- Step 7: Personality customization ---
     print()
-    customize = input("Want to customize how the bot talks? (y/n): ").strip().lower()
+    customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
     if customize in ("y", "yes"):
         tone = run_personality_chat(target_label)
         if tone:
             custom_tone = tone
             config["custom_tone"] = tone
     else:
-        print("  Using your natural texting style.")
+        print(f"  {GRAY}Using your natural texting style.{RESET}")
 
     # Save everything
     save_profile(profile)
     save_config(config)
 
     print()
-    print("Setup complete! Everything was learned from your messages.")
+    print(f"{GREEN}Setup complete!{RESET} {GRAY}Everything was learned from your messages.{RESET}")
     print()
 
 
@@ -1276,7 +1286,7 @@ def handle_incoming(contact: str, text: str):
 def poll_loop():
     baseline = get_latest_rowid()
     target_name = config.get("target_name", "?")
-    print(f"[INFO] Listening for messages from {target_name}...")
+    print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{target_name}{RESET}...")
     print()
 
     while True:
