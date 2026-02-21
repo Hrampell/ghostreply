@@ -55,4 +55,4 @@ echo ""
 echo "  Starting GhostReply..."
 echo ""
 
-python3 ~/.ghostreply/ghostreply.py
+python3 ~/.ghostreply/ghostreply.py </dev/tty
