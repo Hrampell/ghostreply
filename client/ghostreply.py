@@ -182,6 +182,8 @@ def check_for_updates():
 
 
 def verify_groq_key(api_key: str) -> bool:
+    # Strip any invisible/whitespace characters
+    api_key = "".join(c for c in api_key if c.isprintable() and not c.isspace())
     try:
         data = json.dumps({
             "model": "llama-3.1-8b-instant",
@@ -199,7 +201,16 @@ def verify_groq_key(api_key: str) -> bool:
         resp = urllib.request.urlopen(req, timeout=15)
         return resp.status == 200
     except urllib.error.HTTPError as e:
-        print(f"\n  {YELLOW}API error: {e.code} {e.reason}{RESET}")
+        body = ""
+        try:
+            body = e.read().decode()
+        except Exception:
+            pass
+        if e.code == 403:
+            print(f"\n  {YELLOW}Groq rejected the key (403).{RESET}")
+            print(f"  {GRAY}This can happen if the key just got created. Wait 30 seconds and try again.{RESET}")
+        else:
+            print(f"\n  {YELLOW}API error: {e.code} {e.reason}{RESET}")
         return False
     except urllib.error.URLError as e:
         print(f"\n  {YELLOW}Connection error: {e.reason}{RESET}")
@@ -244,7 +255,8 @@ def setup_groq_key() -> str:
         input(f"  {YELLOW}Hit Enter after you've copied the key...{RESET}")
 
         # Try to read from clipboard first
-        clip = get_clipboard()
+        clip = get_clipboard().strip()
+        clip = "".join(c for c in clip if c.isprintable() and not c.isspace())
         if clip.startswith("gsk_"):
             print(f"  {GRAY}Found key in clipboard:{RESET} {GREEN}{clip[:12]}...{RESET}")
             print(f"  {GRAY}Verifying...{RESET}", end=" ", flush=True)
@@ -256,6 +268,7 @@ def setup_groq_key() -> str:
 
         # Fallback: ask them to paste
         key = input(f"  {WHITE}Paste your Groq API key here:{RESET} ").strip()
+        key = "".join(c for c in key if c.isprintable() and not c.isspace())
         if not key:
             continue
         if not key.startswith("gsk_"):
