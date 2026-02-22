@@ -1088,9 +1088,9 @@ def first_time_setup():
         print(f"{GRAY}Send or receive at least one iMessage first, then run ghostreply again.{RESET}")
         sys.exit(1)
     recent = contacts[:5]
-    for i, c in enumerate(recent):
-        name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
-        print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
+    display_names = format_contact_list(recent)
+    for i, label in enumerate(display_names):
+        print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
     print()
 
     while True:
@@ -1110,9 +1110,9 @@ def first_time_setup():
             continue
 
         print()
-        for i, c in enumerate(matches):
-            name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
-            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
+        match_names = format_contact_list(matches)
+        for i, label in enumerate(match_names):
+            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
         print()
         pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
         if pick.isdigit() and 1 <= int(pick) <= len(matches):
@@ -1283,6 +1283,35 @@ def get_contacts_with_names() -> list[dict]:
         return contacts
     finally:
         conn.close()
+
+
+def format_contact_list(contacts: list[dict]) -> list[str]:
+    """Format contact names for display, adding (phone)/(email) for duplicates."""
+    # Get first names
+    names = []
+    for c in contacts:
+        name = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
+        names.append(name)
+
+    # Find duplicates
+    name_counts: dict[str, int] = {}
+    for n in names:
+        name_counts[n] = name_counts.get(n, 0) + 1
+
+    # Format with disambiguation
+    result = []
+    for c, name in zip(contacts, names):
+        if name_counts.get(name, 0) > 1:
+            handle = c['handle']
+            if '@' in handle:
+                result.append(f"{name} {GRAY}(email){RESET}")
+            elif handle.startswith('+') or handle.replace('-', '').replace(' ', '').isdigit():
+                result.append(f"{name} {GRAY}(phone){RESET}")
+            else:
+                result.append(f"{name} {GRAY}({handle}){RESET}")
+        else:
+            result.append(name)
+    return result
 
 
 def ai_find_contact(query: str, contacts: list[dict]) -> list[dict]:
@@ -1921,9 +1950,9 @@ def main():
             print(f"{GRAY}Send or receive at least one iMessage first, then run ghostreply again.{RESET}")
             sys.exit(1)
         recent = contacts[:5]
-        for i, c in enumerate(recent):
-            name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
-            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
+        display_names = format_contact_list(recent)
+        for i, label in enumerate(display_names):
+            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
         print()
 
         while True:
@@ -1939,9 +1968,9 @@ def main():
                 print(f"  {GRAY}No matches found. Try again.{RESET}")
                 continue
             print()
-            for i, c in enumerate(matches):
-                name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
-                print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
+            match_names = format_contact_list(matches)
+            for i, label in enumerate(match_names):
+                print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
             print()
             pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
             if pick.isdigit() and 1 <= int(pick) <= len(matches):
