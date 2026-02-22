@@ -39,6 +39,7 @@ RESET = "\033[0m"
 SANDY = "\033[38;5;215m"       # #ffaf5f — bot personality chat label
 LIGHT_GRAY = "\033[38;5;250m"  # #bcbcbc — reply log "them"
 SILVER = "\033[38;5;188m"      # #d7d7d7 — bot personality chat text
+WHEAT = "\033[38;5;223m"       # #ffd787 — personality summary text
 
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".ghostreply"
@@ -789,14 +790,36 @@ def run_personality_chat(contact_name: str) -> str:
 
         chat_history.append({"role": "user", "content": user_input})
 
-        # After each input, ask if that's everything
+        # Generate a summary so far
+        summary_msgs = chat_history + [{"role": "user", "content": "OK wrap it up. Give me the READY summary now."}]
+        summary_ai = ai_call(summary_msgs, max_tokens=300)
+
+        # Parse tone from summary
+        summary_tone = ""
+        for line in summary_ai.split("\n"):
+            if line.strip().upper().startswith("TONE:"):
+                summary_tone = line.strip()[5:].strip()
+                break
+        if not summary_tone:
+            parts_split = summary_ai.split("READY")
+            if len(parts_split) > 1:
+                summary_tone = parts_split[1].strip()
+
+        # Show summary, truncated with ...
+        if summary_tone:
+            display = summary_tone[:80] + "..." if len(summary_tone) > 80 else summary_tone
+            print()
+            print(f"  {SANDY}Personality:{RESET} {WHEAT}{display}{RESET}")
+
+        # Ask if that's everything
         print()
         done_check = input(f"  {GRAY}Is that everything? (y = done, n = add more):{RESET} ").strip().lower()
         if done_check in ("y", "yes", ""):
-            # Generate summary
+            if summary_tone:
+                return summary_tone
+            # Generate if we didn't get one
             chat_history.append({"role": "user", "content": "OK wrap it up. Give me the READY summary now."})
             ai_msg = ai_call(chat_history, max_tokens=300)
-            chat_history.append({"role": "assistant", "content": ai_msg})
             break
         else:
             # AI responds to continue the conversation
@@ -804,6 +827,13 @@ def run_personality_chat(contact_name: str) -> str:
             chat_history.append({"role": "assistant", "content": ai_msg})
 
             if "READY" in ai_msg:
+                # Parse and return
+                for line in ai_msg.split("\n"):
+                    if line.strip().upper().startswith("TONE:"):
+                        return line.strip()[5:].strip()
+                parts_split = ai_msg.split("READY")
+                if len(parts_split) > 1:
+                    return parts_split[1].strip()
                 break
 
             print(f"  {SANDY}Bot:{RESET} {SILVER}{wrap(ai_msg, 7).lstrip()}{RESET}")
@@ -819,14 +849,6 @@ def run_personality_chat(contact_name: str) -> str:
         parts = ai_msg.split("READY")
         if len(parts) > 1:
             tone = parts[1].strip()
-
-    if tone:
-        print()
-        print(f"  {WHITE}Personality:{RESET} {wrap(tone[:150], 15).lstrip()}{'...' if len(tone) > 150 else ''}")
-        confirm = input(f"  {GRAY}Look good? (y/n):{RESET} ").strip().lower()
-        if confirm not in ("y", "yes", ""):
-            print(f"  {GRAY}OK, using default mode instead.{RESET}")
-            return ""
 
     return tone
 
