@@ -1390,41 +1390,69 @@ def poll_loop():
 
 
 # ============================================================
-# Permissions Check
+# Permissions Setup (first run only)
 # ============================================================
 
-def check_permissions() -> bool:
-    """Check macOS permissions needed for GhostReply. Returns True if all good."""
-    all_good = True
+def setup_permissions():
+    """Guide user through macOS permissions on first run only.
 
-    # 1. Full Disk Access — needed to read chat.db
-    print(f"{GRAY}Checking permissions...{RESET}")
+    - Full Disk Access: must be granted manually (no auto-popup exists)
+    - Contacts: macOS auto-prompts with Allow button — we just trigger it
+    - Messages Automation: macOS auto-prompts with Allow button on first send
+    """
+    # Already done? Skip forever.
+    if config.get("permissions_done"):
+        # Still verify Full Disk Access works (in case they revoked it)
+        try:
+            conn = sqlite3.connect(str(DB_PATH), timeout=5)
+            conn.execute("SELECT COUNT(*) FROM message LIMIT 1")
+            conn.close()
+            return
+        except Exception:
+            # They revoked it — fall through to guide them again
+            pass
+
+    # Try reading chat.db — if it works, FDA is already granted
+    fda_ok = False
     try:
         conn = sqlite3.connect(str(DB_PATH), timeout=5)
         conn.execute("SELECT COUNT(*) FROM message LIMIT 1")
         conn.close()
-        print(f"  {GREEN}✓{RESET} {GRAY}iMessage database{RESET}")
+        fda_ok = True
     except Exception:
-        all_good = False
-        print(f"  {RED}✗{RESET} {WHITE}Full Disk Access required{RESET}")
+        pass
+
+    if not fda_ok:
+        # This is the only permission that needs manual setup
+        print(f"{WHITE}One quick thing before we start:{RESET}")
         print()
-        print(wrap(f"  {YELLOW}Terminal needs Full Disk Access to read your iMessages.{RESET}"))
+        print(wrap(f"  GhostReply reads your iMessages to learn how you text. macOS needs you to allow this — it takes 30 seconds.", 2))
         print()
-        print(f"  {WHITE}How to fix:{RESET}")
-        print(f"  {GRAY}1.{RESET} Open {WHITE}System Settings{RESET}")
-        print(f"  {GRAY}2.{RESET} Go to {WHITE}Privacy & Security → Full Disk Access{RESET}")
-        print(f"  {GRAY}3.{RESET} Turn on {WHITE}Terminal{RESET} (or add it with the + button)")
-        print(f"  {GRAY}4.{RESET} Quit Terminal and reopen it, then run {GREEN}ghostreply{RESET} again")
+        print(f"  {WHITE}1.{RESET} {GRAY}I'll open System Settings for you{RESET}")
+        print(f"  {WHITE}2.{RESET} {GRAY}Find {WHITE}Terminal{GRAY} in the list and turn it on{RESET}")
+        print(f"  {WHITE}3.{RESET} {GRAY}It'll ask you to quit Terminal — do it, then reopen and run {GREEN}ghostreply{RESET} {GRAY}again{RESET}")
         print()
+
         try:
-            open_settings = input(f"  {GRAY}Press Enter to open System Settings (or 'skip' to continue):{RESET} ").strip()
-            if open_settings.lower() != "skip":
-                subprocess.run(["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"], check=False)
+            input(f"  {GRAY}Press Enter to open System Settings...{RESET}")
         except EOFError:
             pass
 
-    # 2. Contacts — needed to resolve phone numbers to names
-    contacts_db_found = False
+        # Open directly to Full Disk Access
+        subprocess.run(
+            ["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"],
+            check=False,
+        )
+        print()
+        print(f"  {GRAY}After you turn on Terminal, quit Terminal and reopen it.{RESET}")
+        print(f"  {GRAY}Then run {GREEN}ghostreply{RESET} {GRAY}again and you're good to go.{RESET}")
+        print()
+        sys.exit(0)
+
+    # FDA is good — now silently trigger Contacts and Automation popups
+    # These will show macOS "Allow" buttons automatically
+
+    # Trigger Contacts popup by reading the DB
     ab_dir = Path.home() / "Library" / "Application Support" / "AddressBook" / "Sources"
     if ab_dir.exists():
         try:
@@ -1434,48 +1462,22 @@ def check_permissions() -> bool:
                     conn = sqlite3.connect(str(db_file), timeout=5)
                     conn.execute("SELECT COUNT(*) FROM ZABCDRECORD LIMIT 1")
                     conn.close()
-                    contacts_db_found = True
                     break
         except Exception:
-            pass
+            pass  # they'll just see phone numbers instead of names
 
-    if contacts_db_found:
-        print(f"  {GREEN}✓{RESET} {GRAY}Contacts access{RESET}")
-    else:
-        print(f"  {YELLOW}⚠{RESET} {GRAY}Contacts not accessible (contacts will show as phone numbers){RESET}")
-        print(f"    {GRAY}Fix: System Settings → Privacy & Security → Contacts → enable Terminal{RESET}")
-
-    # 3. Automation (Messages app) — test by running a harmless AppleScript
+    # Trigger Messages automation popup with a harmless AppleScript
     try:
-        result = subprocess.run(
+        subprocess.run(
             ["osascript", "-e", 'tell application "Messages" to get name'],
             capture_output=True, text=True, timeout=10,
         )
-        if result.returncode == 0:
-            print(f"  {GREEN}✓{RESET} {GRAY}Messages automation{RESET}")
-        else:
-            # Could be "not allowed" error
-            if "not allowed" in result.stderr.lower() or "assistive" in result.stderr.lower():
-                raise PermissionError("denied")
-            # Might just be Messages not running — that's fine
-            print(f"  {GREEN}✓{RESET} {GRAY}Messages automation{RESET}")
-    except (PermissionError, Exception) as e:
-        if "denied" in str(e).lower() or "not allowed" in str(e).lower():
-            print(f"  {RED}✗{RESET} {WHITE}Messages automation required{RESET}")
-            print(f"    {GRAY}macOS should prompt you to allow Terminal to control Messages.{RESET}")
-            print(f"    {GRAY}If you denied it: System Settings → Privacy & Security → Automation → Terminal → Messages{RESET}")
-            all_good = False
-        else:
-            print(f"  {GREEN}✓{RESET} {GRAY}Messages automation{RESET}")
+    except Exception:
+        pass  # popup will appear on first real send anyway
 
-    print()
-
-    if not all_good:
-        print(wrap(f"{YELLOW}Fix the permissions above, then run ghostreply again.{RESET}"))
-        print()
-        sys.exit(1)
-
-    return True
+    # Mark as done — never show again
+    config["permissions_done"] = True
+    save_config(config)
 
 
 # ============================================================
@@ -1503,8 +1505,11 @@ def main():
         print("Make sure you're running this on a Mac with iMessage set up.")
         sys.exit(1)
 
-    # Check permissions before anything else
-    check_permissions()
+    # Load config early so permissions check can use it
+    config = load_config()
+
+    # Permissions setup (first run only)
+    setup_permissions()
 
     # Discover contacts DB
     discover_contacts_db()
