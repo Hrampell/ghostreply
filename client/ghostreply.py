@@ -36,6 +36,8 @@ GRAY = "\033[90m"
 WHITE = "\033[97m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
+SANDY = "\033[38;5;215m"       # #ffaf5f — bot personality chat
+LIGHT_GRAY = "\033[38;5;250m"  # #bcbcbc — reply log "them"
 
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".ghostreply"
@@ -777,7 +779,7 @@ def run_personality_chat(contact_name: str) -> str:
     # Start the conversation
     ai_msg = ai_call(chat_history, max_tokens=150)
     chat_history.append({"role": "assistant", "content": ai_msg})
-    print(f"  {GRAY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
+    print(f"  {SANDY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
 
     while True:
         user_input = input(f"  {WHITE}You:{RESET} ").strip()
@@ -803,7 +805,7 @@ def run_personality_chat(contact_name: str) -> str:
             if "READY" in ai_msg:
                 break
 
-            print(f"  {GRAY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
+            print(f"  {SANDY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
 
     # Parse the tone from the final output
     tone = ""
@@ -871,18 +873,13 @@ def first_time_setup():
     # Initialize AI client so we can use it for the next steps
     init_groq_client()
 
-    # --- Step 3: Swearing preference ---
+    # --- Step 3: Swearing preference (asked once, saved forever) ---
     print()
     swear_input = input(f"{WHITE}Do you usually swear with your friends?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
     if swear_input in ("n", "no", "never"):
-        config["swearing"] = "never" if swear_input == "never" else "off"
-        if swear_input == "never":
-            print(f"  {GREEN}✓{RESET} {GRAY}Swearing disabled.{RESET}")
-        else:
-            print(f"  {GREEN}✓{RESET} {GRAY}Swearing off. Type '{WHITE}swear{RESET}{GRAY}' anytime while the bot is running to toggle it on.{RESET}")
+        config["swearing"] = "never"
     else:
         config["swearing"] = "on"
-        print(f"  {GREEN}✓{RESET} {GRAY}Swearing on (natural mode). Type '{WHITE}swear{RESET}{GRAY}' anytime while the bot is running to toggle it off.{RESET}")
     save_config(config)
 
     # --- Step 4: Auto-detect user's name from macOS ---
@@ -1323,7 +1320,7 @@ def handle_incoming(contact: str, text: str):
         reply_log.append({"them": text, "you": reply})
         if len(reply_log) > 20:
             reply_log.pop(0)
-        print(f"{GRAY}[REPLY]{RESET} {WHITE}them:{RESET} {text[:60]}")
+        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {text[:60]}")
         print(f"        {GREEN}you:{RESET}  {reply[:60]}")
 
 
@@ -1334,7 +1331,6 @@ def handle_incoming(contact: str, text: str):
 
 def stdin_listener():
     """Listen for typed commands while the bot is running."""
-    global custom_tone
     while not stop_event.is_set():
         try:
             cmd = input().strip().lower()
@@ -1344,21 +1340,8 @@ def stdin_listener():
             print(f"\n{GRAY}GhostReply stopped.{RESET}")
             stop_event.set()
             break
-        elif cmd == "swear":
-            current = config.get("swearing", "on")
-            if current == "never":
-                print(f"  {GRAY}Swearing is permanently off. Change it in setup.{RESET}")
-            elif current == "on":
-                config["swearing"] = "off"
-                save_config(config)
-                print(f"  {GREEN}✓{RESET} {GRAY}Swearing toggled off.{RESET}")
-            else:
-                config["swearing"] = "on"
-                save_config(config)
-                print(f"  {GREEN}✓{RESET} {GRAY}Swearing toggled on.{RESET}")
-        else:
-            if cmd:
-                print(f"  {GRAY}Commands: 'stop' to quit, 'swear' to toggle swearing{RESET}")
+        elif cmd:
+            print(f"  {GRAY}Type 'stop' to quit.{RESET}")
 
 
 def poll_loop():
@@ -1572,10 +1555,9 @@ def main():
         init_groq_client()
 
     target_name = config.get("target_name", "?")
-    swear_status = config.get("swearing", "on")
     print()
     print(f"{GREEN}{BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-    print(f"{GRAY}Type '{WHITE}stop{GRAY}' to quit" + (f", '{WHITE}swear{GRAY}' to toggle swearing (currently {swear_status})" if swear_status != "never" else "") + f".{RESET}")
+    print(f"{GRAY}Type '{WHITE}stop{GRAY}' to quit.{RESET}")
     print()
 
     # Start stdin listener in background thread
