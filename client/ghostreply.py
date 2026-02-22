@@ -1442,6 +1442,30 @@ def is_attachment_only(text: str) -> bool:
 
 
 
+def check_user_sent_message(since_rowid: int, target_handle: str) -> int:
+    """Check if the user manually sent a message to the target contact.
+
+    Returns the new max ROWID if found, or 0 if no manual message detected.
+    """
+    if not target_handle:
+        return 0
+    conn = get_db_connection()
+    try:
+        cur = conn.execute("""
+            SELECT m.ROWID
+            FROM message m
+            JOIN handle h ON m.handle_id = h.ROWID
+            WHERE m.ROWID > ? AND m.is_from_me = 1 AND h.id = ?
+            ORDER BY m.ROWID ASC
+        """, (since_rowid, target_handle))
+        rows = cur.fetchall()
+        if rows:
+            return max(row["ROWID"] for row in rows)
+        return 0
+    finally:
+        conn.close()
+
+
 def fetch_new_messages(since_rowid: int) -> list[dict]:
     conn = get_db_connection()
     try:
@@ -1597,9 +1621,11 @@ BATCH_WAIT = 5  # seconds to wait for more messages before replying
 
 def poll_loop():
     baseline = get_latest_rowid()
+    outgoing_baseline = baseline  # track outgoing messages separately
     target_name = config.get("target_name", "?")
     target_contact = config.get("target_contact", "")
     print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{target_name}{RESET}...")
+    print(f"{GRAY}[INFO]{RESET} {GRAY}Auto-stops when you reply manually.{RESET}")
     print()
 
     pending: dict[str, list[str]] = {}  # contact -> list of texts waiting
@@ -1607,6 +1633,17 @@ def poll_loop():
 
     while not stop_event.is_set():
         try:
+            # Check if user manually sent a message to the target contact
+            if target_contact:
+                manual_rowid = check_user_sent_message(outgoing_baseline, target_contact)
+                if manual_rowid:
+                    outgoing_baseline = manual_rowid
+                    print()
+                    print(f"{GREEN}[AUTO-STOP]{RESET} You replied to {BLUE}{target_name}{RESET} manually — GhostReply stopped.")
+                    print(f"{GRAY}Run {WHITE}ghostreply{GRAY} again to restart.{RESET}")
+                    stop_event.set()
+                    return
+
             incoming = fetch_new_messages(baseline)
             for msg in incoming:
                 baseline = max(baseline, msg["ROWID"])
@@ -1970,7 +2007,7 @@ def main():
     target_name = config.get("target_name", "?")
     print()
     print(f"{GREEN}{BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-    print(f"{GRAY}Type '{WHITE}stop{GRAY}' to quit.{RESET}")
+    print(f"{GRAY}Type '{WHITE}stop{GRAY}' to quit, or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
     print()
 
     # Start stdin listener in background thread
@@ -2044,6 +2081,7 @@ if __name__ == "__main__":
             print()
             print("While running:")
             print("  Type 'stop' to quit")
+            print("  Or just reply manually — it auto-stops when you do")
             print()
             print("Multiple contacts:")
             print("  Open another Terminal tab and run ghostreply again.")
