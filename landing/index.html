@@ -4,6 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostReply — iMessage Auto-Reply Bot</title>
+
+    <!-- SEO -->
+    <meta name="description" content="AI that texts back for you on iMessage. Learns your exact texting style from your real messages and replies as you. $4.99 one-time, 24-hour free trial.">
+    <meta name="keywords" content="iMessage, auto reply, AI texting bot, Mac, ghostreply">
+    <meta name="author" content="Harrison Rampell">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="GhostReply — AI that texts back for you on iMessage">
+    <meta property="og:description" content="It reads your messages, learns how you talk, and replies like you. $4.99 one-time.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hrampell.github.io/ghostreply/">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="GhostReply — AI that texts back for you on iMessage">
+    <meta name="twitter:description" content="It reads your messages, learns how you talk, and replies like you. $4.99 one-time.">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👻</text></svg>">
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://hrampell.github.io/ghostreply/">
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
@@ -360,6 +383,25 @@
             text-decoration: none;
         }
 
+        /* Top bar */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: flex-end;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .top-bar span {
+            color: #555;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+
         @media (max-width: 600px) {
             h1 { font-size: 36px; }
             .features { grid-template-columns: 1fr; }
@@ -369,6 +411,10 @@
     </style>
 </head>
 <body>
+    <div class="top-bar">
+        <span>Harrison Rampell &middot; v1.0</span>
+    </div>
+
     <div class="container">
 
         <!-- Hero + Price -->
@@ -397,6 +443,10 @@
             <span class="output">Enter your license key (or 'trial' for 24hr free trial): </span><span class="cmd">trial</span><br>
             <span class="success">  Free trial activated! You have 24 hours.</span><br>
             <br>
+            <span class="output">Opening groq.com for your free AI key...</span><br>
+            <span class="output">Paste your Groq API key here: </span><span class="cmd">gsk_xxxxx</span><br>
+            <span class="success">  ✓ AI key verified</span><br>
+            <br>
             <span class="output">Scanning your iMessages...</span><br>
             <span class="output">  Found 347 sent texts. Analyzing your style...</span><br>
             <span class="output">  Reading 12 conversations for context...</span><br>
@@ -413,11 +463,11 @@
             <span class="output">Want to customize how the bot talks? (y/n): </span><span class="cmd">y</span><br>
             <span class="output">  Bot: </span><span class="cmd">What vibe are you going for when texting Andrew?</span><br>
             <span class="output">  You: </span><span class="cmd">be super sarcastic</span><br>
-            <span class="output">  Is that everything? (y/n): </span><span class="cmd">y</span><br>
+            <span class="output">  Is that everything? (y = done, n = add more): </span><span class="cmd">y</span><br>
             <span class="success">  ✓ Personality set</span><br>
             <br>
             <span class="success">GhostReply is running! Replying to Andrew.</span><br>
-            <span class="output">Type 'stop' to quit, 'swear' to toggle swearing.</span>
+            <span class="output">Type 'stop' to quit.</span>
         </div>
 
         <!-- Example conversations — the sell -->
@@ -588,11 +638,11 @@
                 </div>
                 <div class="feature">
                     <h3>Free AI</h3>
-                    <p>Uses Groq — free, no credit card. Setup handles it automatically.</p>
+                    <p>Uses Groq — free, no credit card. Takes 30 seconds to set up.</p>
                 </div>
                 <div class="feature">
                     <h3>Runs on Your Mac</h3>
-                    <p>Everything stays local. Your messages never touch any server.</p>
+                    <p>Runs entirely on your Mac. Messages go to Groq's AI for replies — we never see your texts.</p>
                 </div>
                 <div class="feature">
                     <h3>Customize the Personality</h3>
@@ -659,7 +709,7 @@
         </div>
 
         <div class="footer">
-            <p>GhostReply &copy; 2026 &middot; <a href="mailto:support@ghostreply.com">Support</a></p>
+            <p>GhostReply &copy; 2026 &middot; <a href="mailto:harrisonrampell@gmail.com">Support</a></p>
         </div>
     </div>
 

@@ -92,8 +92,17 @@ def wrap(text: str, indent: int = 0) -> str:
 
 def load_config() -> dict:
     if CONFIG_FILE.exists():
-        with open(CONFIG_FILE) as f:
-            return json.load(f)
+        try:
+            with open(CONFIG_FILE) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, Exception):
+            # Corrupted config — back up and start fresh
+            backup = CONFIG_FILE.with_suffix(".json.bak")
+            try:
+                CONFIG_FILE.rename(backup)
+            except Exception:
+                pass
+            return {}
     return {}
 
 
@@ -105,8 +114,16 @@ def save_config(cfg: dict):
 
 def load_profile() -> dict:
     if PROFILE_FILE.exists():
-        with open(PROFILE_FILE) as f:
-            return json.load(f)
+        try:
+            with open(PROFILE_FILE) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, Exception):
+            backup = PROFILE_FILE.with_suffix(".json.bak")
+            try:
+                PROFILE_FILE.rename(backup)
+            except Exception:
+                pass
+            return {}
     return {}
 
 
@@ -232,10 +249,12 @@ def check_for_updates():
 
         print(f"{GRAY}Updating GhostReply ({VERSION} → {remote_version})...{RESET}", end=" ", flush=True)
 
-        # Write the new version
+        # Write to temp file first, then rename (atomic on same filesystem)
         install_path = CONFIG_DIR / "ghostreply.py"
-        with open(install_path, "w") as f:
+        tmp_path = install_path.with_suffix(".tmp")
+        with open(tmp_path, "w") as f:
             f.write(remote_code)
+        os.rename(tmp_path, install_path)
 
         print(f"{GREEN}done!{RESET}")
         print(f"{GRAY}Restarting...{RESET}")
@@ -899,7 +918,7 @@ def run_personality_chat(contact_name: str) -> str:
 
 def first_time_setup():
     """First-time setup — license, AI key, then auto-scan everything from messages."""
-    global config, profile
+    global config, profile, custom_tone
 
     print()
     print(f"{BOLD}=== GhostReply Setup ==={RESET}")
@@ -1007,7 +1026,7 @@ def first_time_setup():
     contacts = get_contacts_with_names()
     recent = contacts[:5]
     for i, c in enumerate(recent):
-        name_str = c['name'].split()[0] if c['name'] else c['handle']
+        name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
         print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
     print()
 
@@ -1029,7 +1048,7 @@ def first_time_setup():
 
         print()
         for i, c in enumerate(matches):
-            name_str = c['name'].split()[0] if c['name'] else c['handle']
+            name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
             print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
         print()
         pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
@@ -1037,7 +1056,7 @@ def first_time_setup():
             selected = matches[int(pick) - 1]
             break
 
-    target_first = selected["name"].split()[0] if selected["name"] else selected["handle"]
+    target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
     target_label = selected["name"] or selected["handle"]
     config["target_contact"] = selected["handle"]
     config["target_name"] = target_first
@@ -1118,10 +1137,17 @@ def rescan_profile():
 # iMessage Database
 # ============================================================
 
-def get_db_connection():
-    conn = sqlite3.connect(str(DB_PATH), timeout=5)
-    conn.row_factory = sqlite3.Row
-    return conn
+def get_db_connection(retries: int = 3):
+    for attempt in range(retries):
+        try:
+            conn = sqlite3.connect(str(DB_PATH), timeout=5)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except sqlite3.OperationalError:
+            if attempt < retries - 1:
+                time.sleep(1)
+            else:
+                raise
 
 
 def discover_contacts_db():
@@ -1220,9 +1246,17 @@ def ai_find_contact(query: str, contacts: list[dict]) -> list[dict]:
 
 def init_groq_client():
     global groq_client
-    from openai import OpenAI
+    try:
+        from openai import OpenAI
+    except ImportError:
+        print(f"{RED}[ERROR]{RESET} Missing dependency. Run: {GREEN}pip3 install openai{RESET}")
+        sys.exit(1)
+    api_key = config.get("groq_api_key")
+    if not api_key:
+        print(f"{RED}[ERROR]{RESET} No Groq API key found. Run {GREEN}ghostreply{RESET} again to set up.")
+        sys.exit(1)
     groq_client = OpenAI(
-        api_key=config["groq_api_key"],
+        api_key=api_key,
         base_url="https://api.groq.com/openai/v1",
         default_headers={"User-Agent": "GhostReply/1.0"},
     )
@@ -1234,13 +1268,16 @@ def ai_call(messages: list[dict], max_tokens: int = 60) -> str:
             resp = groq_client.chat.completions.create(
                 model=model, messages=messages, max_tokens=max_tokens,
             )
+            if not resp.choices or not resp.choices[0].message.content:
+                if model == GROQ_MODEL:
+                    continue
+                return ""
             return resp.choices[0].message.content.strip()
         except Exception as e:
-            if "429" in str(e) and model == GROQ_MODEL:
-                continue
             if model == GROQ_MODEL:
                 continue
-            raise
+            # Don't crash — return empty on fallback failure
+            return ""
     return ""
 
 
@@ -1282,7 +1319,7 @@ def send_imessage(contact: str, text: str):
     try:
         subprocess.run(["osascript", "-e", script], capture_output=True, timeout=10)
     except Exception as e:
-        print(f"[ERROR] Failed to send to {contact}: {e}")
+        print(f"{RED}[ERROR]{RESET} Failed to send to {contact}: {e}")
 
 
 
@@ -1324,27 +1361,6 @@ def is_attachment_only(text: str) -> bool:
     return False
 
 
-def is_group_chat_message(rowid: int) -> bool:
-    """Check if a message belongs to a group chat (not 1-on-1)."""
-    conn = get_db_connection()
-    try:
-        cur = conn.execute("""
-            SELECT COUNT(DISTINCT chm.handle_id) AS participant_count
-            FROM message m
-            JOIN chat_message_join cmj ON cmj.message_id = m.ROWID
-            JOIN chat c ON c.ROWID = cmj.chat_id
-            JOIN chat_handle_join chm ON chm.chat_id = c.ROWID
-            WHERE m.ROWID = ?
-        """, (rowid,))
-        row = cur.fetchone()
-        if row and row["participant_count"] > 1:
-            return True
-        return False
-    except Exception:
-        return False
-    finally:
-        conn.close()
-
 
 def fetch_new_messages(since_rowid: int) -> list[dict]:
     conn = get_db_connection()
@@ -1352,7 +1368,11 @@ def fetch_new_messages(since_rowid: int) -> list[dict]:
         cur = conn.execute("""
             SELECT m.ROWID, m.text, m.is_from_me, m.date, m.attributedBody,
                    m.cache_has_attachments,
-                   h.id AS handle_id
+                   h.id AS handle_id,
+                   (SELECT COUNT(DISTINCT chm.handle_id)
+                    FROM chat_message_join cmj2
+                    JOIN chat_handle_join chm ON chm.chat_id = cmj2.chat_id
+                    WHERE cmj2.message_id = m.ROWID) AS participant_count
             FROM message m
             LEFT JOIN handle h ON m.handle_id = h.ROWID
             WHERE m.ROWID > ? AND m.is_from_me = 0 AND h.id IS NOT NULL
@@ -1366,6 +1386,12 @@ def fetch_new_messages(since_rowid: int) -> list[dict]:
 
             rowid = row["ROWID"]
             has_attachment = row["cache_has_attachments"] == 1
+            participant_count = row["participant_count"] or 0
+
+            # Skip group chat messages
+            if participant_count > 1:
+                results.append({"ROWID": rowid, "text": None, "handle_id": row["handle_id"], "skip": True})
+                continue
 
             # Skip reactions (tapbacks)
             if text and is_reaction(text):
@@ -1420,7 +1446,7 @@ def get_ai_response(contact: str) -> str:
         reply = " ".join(reply.split())  # Force single line
         return reply
     except Exception as e:
-        print(f"[ERROR] AI error for {contact}: {e}")
+        print(f"{RED}[ERROR]{RESET} AI error for {contact}: {e}")
         return ""
 
 
@@ -1450,6 +1476,9 @@ def handle_batch(contact: str, texts: list[str]):
         add_to_history(contact, "user", text)
 
     reply = get_ai_response(contact)
+    if not reply:
+        print(f"{YELLOW}[WARN]{RESET} {GRAY}AI returned empty reply, skipping{RESET}")
+        return
     if reply:
         add_to_history(contact, "assistant", reply)
         if typing_delay_enabled:
@@ -1474,7 +1503,9 @@ def stdin_listener():
     while not stop_event.is_set():
         try:
             cmd = input().strip().lower()
-        except EOFError:
+        except (EOFError, KeyboardInterrupt, OSError):
+            break
+        except Exception:
             break
         if cmd == "stop":
             print(f"\n{GRAY}GhostReply stopped.{RESET}")
@@ -1513,10 +1544,6 @@ def poll_loop():
                 if target_contact and contact != target_contact:
                     continue
 
-                # Skip group chat messages
-                if is_group_chat_message(msg["ROWID"]):
-                    continue
-
                 # Handle attachment-only messages
                 if msg.get("is_attachment"):
                     # Don't reply to bare attachments — just ignore
@@ -1541,7 +1568,7 @@ def poll_loop():
                 handle_batch(contact, texts)
 
         except Exception as e:
-            print(f"[ERROR] Poll error: {e}")
+            print(f"{RED}[ERROR]{RESET} Poll error: {e}")
 
         # Sleep in small intervals so stop_event is responsive
         for _ in range(int(POLL_INTERVAL * 10)):
@@ -1570,8 +1597,9 @@ def setup_permissions():
             conn.close()
             return
         except Exception:
-            # They revoked it — fall through to guide them again
-            pass
+            # They revoked it — tell them and fall through
+            print(f"{YELLOW}Full Disk Access was revoked. Let's fix that real quick.{RESET}")
+            print()
 
     # Try reading chat.db — if it works, FDA is already granted
     fda_ok = False
@@ -1652,7 +1680,7 @@ def main():
     inner = w - 2  # inside the box
     print()
     print(f"  {GRAY}╔{'═' * inner}╗{RESET}")
-    line1 = "GhostReply v1.0"
+    line1 = f"GhostReply v{VERSION}"
     line2 = "iMessage Auto-Reply Bot"
     pad1 = (inner - len(line1)) // 2
     pad2 = (inner - len(line2)) // 2
@@ -1758,7 +1786,7 @@ def main():
         contacts = get_contacts_with_names()
         recent = contacts[:5]
         for i, c in enumerate(recent):
-            name_str = c['name'].split()[0] if c['name'] else c['handle']
+            name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
             print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
         print()
 
@@ -1776,7 +1804,7 @@ def main():
                 continue
             print()
             for i, c in enumerate(matches):
-                name_str = c['name'].split()[0] if c['name'] else c['handle']
+                name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
                 print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
             print()
             pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
@@ -1784,7 +1812,7 @@ def main():
                 selected = matches[int(pick) - 1]
                 break
 
-        target_first = selected["name"].split()[0] if selected["name"] else selected["handle"]
+        target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
         config["target_contact"] = selected["handle"]
         config["target_name"] = target_first
         save_config(config)
