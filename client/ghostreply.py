@@ -1390,6 +1390,95 @@ def poll_loop():
 
 
 # ============================================================
+# Permissions Check
+# ============================================================
+
+def check_permissions() -> bool:
+    """Check macOS permissions needed for GhostReply. Returns True if all good."""
+    all_good = True
+
+    # 1. Full Disk Access — needed to read chat.db
+    print(f"{GRAY}Checking permissions...{RESET}")
+    try:
+        conn = sqlite3.connect(str(DB_PATH), timeout=5)
+        conn.execute("SELECT COUNT(*) FROM message LIMIT 1")
+        conn.close()
+        print(f"  {GREEN}✓{RESET} {GRAY}iMessage database{RESET}")
+    except Exception:
+        all_good = False
+        print(f"  {RED}✗{RESET} {WHITE}Full Disk Access required{RESET}")
+        print()
+        print(wrap(f"  {YELLOW}Terminal needs Full Disk Access to read your iMessages.{RESET}"))
+        print()
+        print(f"  {WHITE}How to fix:{RESET}")
+        print(f"  {GRAY}1.{RESET} Open {WHITE}System Settings{RESET}")
+        print(f"  {GRAY}2.{RESET} Go to {WHITE}Privacy & Security → Full Disk Access{RESET}")
+        print(f"  {GRAY}3.{RESET} Turn on {WHITE}Terminal{RESET} (or add it with the + button)")
+        print(f"  {GRAY}4.{RESET} Quit Terminal and reopen it, then run {GREEN}ghostreply{RESET} again")
+        print()
+        try:
+            open_settings = input(f"  {GRAY}Press Enter to open System Settings (or 'skip' to continue):{RESET} ").strip()
+            if open_settings.lower() != "skip":
+                subprocess.run(["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"], check=False)
+        except EOFError:
+            pass
+
+    # 2. Contacts — needed to resolve phone numbers to names
+    contacts_db_found = False
+    ab_dir = Path.home() / "Library" / "Application Support" / "AddressBook" / "Sources"
+    if ab_dir.exists():
+        try:
+            for source_dir in ab_dir.iterdir():
+                db_file = source_dir / "AddressBook-v22.abcddb"
+                if db_file.exists():
+                    conn = sqlite3.connect(str(db_file), timeout=5)
+                    conn.execute("SELECT COUNT(*) FROM ZABCDRECORD LIMIT 1")
+                    conn.close()
+                    contacts_db_found = True
+                    break
+        except Exception:
+            pass
+
+    if contacts_db_found:
+        print(f"  {GREEN}✓{RESET} {GRAY}Contacts access{RESET}")
+    else:
+        print(f"  {YELLOW}⚠{RESET} {GRAY}Contacts not accessible (contacts will show as phone numbers){RESET}")
+        print(f"    {GRAY}Fix: System Settings → Privacy & Security → Contacts → enable Terminal{RESET}")
+
+    # 3. Automation (Messages app) — test by running a harmless AppleScript
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", 'tell application "Messages" to get name'],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            print(f"  {GREEN}✓{RESET} {GRAY}Messages automation{RESET}")
+        else:
+            # Could be "not allowed" error
+            if "not allowed" in result.stderr.lower() or "assistive" in result.stderr.lower():
+                raise PermissionError("denied")
+            # Might just be Messages not running — that's fine
+            print(f"  {GREEN}✓{RESET} {GRAY}Messages automation{RESET}")
+    except (PermissionError, Exception) as e:
+        if "denied" in str(e).lower() or "not allowed" in str(e).lower():
+            print(f"  {RED}✗{RESET} {WHITE}Messages automation required{RESET}")
+            print(f"    {GRAY}macOS should prompt you to allow Terminal to control Messages.{RESET}")
+            print(f"    {GRAY}If you denied it: System Settings → Privacy & Security → Automation → Terminal → Messages{RESET}")
+            all_good = False
+        else:
+            print(f"  {GREEN}✓{RESET} {GRAY}Messages automation{RESET}")
+
+    print()
+
+    if not all_good:
+        print(wrap(f"{YELLOW}Fix the permissions above, then run ghostreply again.{RESET}"))
+        print()
+        sys.exit(1)
+
+    return True
+
+
+# ============================================================
 # Main
 # ============================================================
 
@@ -1413,6 +1502,9 @@ def main():
         print(f"{RED}[ERROR]{RESET} iMessage database not found at {DB_PATH}")
         print("Make sure you're running this on a Mac with iMessage set up.")
         sys.exit(1)
+
+    # Check permissions before anything else
+    check_permissions()
 
     # Discover contacts DB
     discover_contacts_db()
