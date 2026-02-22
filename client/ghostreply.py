@@ -1579,11 +1579,11 @@ def reply_delay(their_text: str):
     """Wait before replying based on how long their message is."""
     words = len(their_text.split())
     if words <= 3:
-        delay = random.uniform(1, 3)
+        delay = random.uniform(1, 2)
     elif words <= 10:
-        delay = random.uniform(3, 6)
+        delay = random.uniform(2, 4)
     else:
-        delay = random.uniform(5, 10)
+        delay = random.uniform(4, 6)
     time.sleep(delay)
 
 
