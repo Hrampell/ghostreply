@@ -49,7 +49,7 @@ PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 # --- Runtime State ---
 config: dict = {}
@@ -903,7 +903,7 @@ def run_personality_chat(contact_name: str) -> str:
 
         # Show summary, truncated with ...
         if summary_tone:
-            display = summary_tone[:80] + "..." if len(summary_tone) > 80 else summary_tone
+            display = summary_tone[:50] + "..." if len(summary_tone) > 50 else summary_tone
             print()
             print(f"  {SANDY}Personality:{RESET} {WHEAT}{display}{RESET}")
 
@@ -1613,10 +1613,8 @@ def handle_batch(contact: str, texts: list[str]):
     reply_delay(texts[-1])  # delay based on their last message
     if not send_imessage(contact, reply):
         return
-    # Update outgoing baseline so auto-stop doesn't trigger on bot-sent messages
-    bot_rowid = get_latest_rowid()
-    if bot_rowid:
-        _outgoing_baseline_update(bot_rowid)
+    # Update last known ROWID so auto-stop doesn't trigger on bot-sent messages
+    _update_bot_last_known_rowid()
     display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
     reply_log.append({"them": combined, "you": reply})
     if len(reply_log) > 20:
@@ -1648,21 +1646,27 @@ def stdin_listener():
 
 
 BATCH_WAIT = 5  # seconds to wait for more messages before replying
-_outgoing_baseline_lock = threading.Lock()
-_outgoing_baseline_value = 0
+# Track the latest ROWID the bot knows about (bot-sent or otherwise)
+# so auto-stop only triggers on messages sent AFTER this point
+_bot_last_known_rowid_lock = threading.Lock()
+_bot_last_known_rowid = 0
 
 
-def _outgoing_baseline_update(rowid: int):
-    global _outgoing_baseline_value
-    with _outgoing_baseline_lock:
-        if rowid > _outgoing_baseline_value:
-            _outgoing_baseline_value = rowid
+def _update_bot_last_known_rowid():
+    """Update to the current latest ROWID so auto-stop ignores everything up to now."""
+    global _bot_last_known_rowid
+    rowid = get_latest_rowid()
+    with _bot_last_known_rowid_lock:
+        if rowid > _bot_last_known_rowid:
+            _bot_last_known_rowid = rowid
 
 
 def poll_loop():
-    global _outgoing_baseline_value
+    global _bot_last_known_rowid
     baseline = get_latest_rowid()
-    _outgoing_baseline_value = baseline  # initialize shared outgoing baseline
+    # Set last known ROWID to NOW — anything before this (including setup messages) is ignored
+    with _bot_last_known_rowid_lock:
+        _bot_last_known_rowid = baseline
     target_name = config.get("target_name", "?")
     target_contact = config.get("target_contact", "")
     print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{target_name}{RESET}...")
@@ -1676,9 +1680,9 @@ def poll_loop():
         try:
             # Check if user manually sent a message to the target contact
             if target_contact:
-                with _outgoing_baseline_lock:
-                    current_outgoing = _outgoing_baseline_value
-                manual_rowid = check_user_sent_message(current_outgoing, target_contact)
+                with _bot_last_known_rowid_lock:
+                    current_known = _bot_last_known_rowid
+                manual_rowid = check_user_sent_message(current_known, target_contact)
                 if manual_rowid:
                     print()
                     print(f"{GREEN}[AUTO-STOP]{RESET} You replied to {BLUE}{target_name}{RESET} manually — GhostReply stopped.")
