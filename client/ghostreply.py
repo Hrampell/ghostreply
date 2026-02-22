@@ -26,7 +26,7 @@ from pathlib import Path
 
 # --- Terminal Colors ---
 GREEN = "\033[92m"
-BLUE = "\033[94m"
+BLUE = "\033[96m"
 YELLOW = "\033[93m"
 RED = "\033[91m"
 GRAY = "\033[90m"
@@ -253,27 +253,21 @@ def setup_groq_key() -> str:
     print()
 
     while True:
-        input(f"  {BLUE}Press Enter once you've copied the key (you can close groq.com after)...{RESET}")
-
-        # Try to read from clipboard first
-        clip = get_clipboard().strip()
-        clip = "".join(c for c in clip if c.isprintable() and not c.isspace())
-        if clip.startswith("gsk_"):
-            print(f"  {GRAY}Found key in clipboard:{RESET} {GREEN}{clip[:12]}...{RESET}")
-            print(f"  {GRAY}Verifying...{RESET}", end=" ", flush=True)
-            if verify_groq_key(clip):
-                print(f"{GREEN}OK{RESET}")
-                return clip
-            else:
-                print(f"{RED}FAILED{RESET} — that key didn't work.")
-
-        # Fallback: ask them to paste
-        key = input(f"  {WHITE}Paste your Groq API key here:{RESET} ").strip()
+        key = input(f"\n  {BLUE}Paste your Groq API key here (you can close groq.com after):{RESET} ").strip()
         key = "".join(c for c in key if c.isprintable() and not c.isspace())
+
+        # If they just hit enter, try clipboard
         if not key:
-            continue
+            clip = get_clipboard().strip()
+            clip = "".join(c for c in clip if c.isprintable() and not c.isspace())
+            if clip.startswith("gsk_"):
+                key = clip
+                print(f"  {GRAY}Found key in clipboard:{RESET} {GREEN}{key[:12]}...{RESET}")
+            else:
+                continue
+
         if not key.startswith("gsk_"):
-            print(f"  {YELLOW}That doesn't look right (should start with 'gsk_'). Try again.{RESET}")
+            print(f"  {GRAY}That doesn't look right (should start with 'gsk_'). Try again.{RESET}")
             continue
         print(f"  {GRAY}Verifying...{RESET}", end=" ", flush=True)
         if verify_groq_key(key):
@@ -281,7 +275,7 @@ def setup_groq_key() -> str:
             return key
         else:
             print(f"{RED}FAILED{RESET}")
-            print(f"  {YELLOW}Key didn't work. Make sure you copied the full key.{RESET}")
+            print(f"  {GRAY}Key didn't work. Make sure you copied the full key.{RESET}")
 
 
 # ============================================================
@@ -889,48 +883,17 @@ def first_time_setup():
             profile["name"] = life["name"]
         print(f"{GREEN}done!{RESET}")
 
-        # Show what was learned
-        print()
-        print(f"{BOLD}=== Here's What I Learned About You ==={RESET}")
-        print()
-        name = life.get("name", profile.get("name", "?"))
-        print(f"  {GRAY}Name:{RESET} {WHITE}{name}{RESET}")
-        if life.get("background"):
-            print(f"  {GRAY}Background:{RESET} {WHITE}{life['background'][:150]}{RESET}")
-        if life.get("friends"):
-            friend_names = [f.get("name", f) if isinstance(f, dict) else f
-                           for f in life["friends"][:8]]
-            print(f"  {GRAY}Friends:{RESET} {BLUE}{', '.join(friend_names)}{RESET}")
-        if life.get("interests"):
-            print(f"  {GRAY}Interests:{RESET} {WHITE}{', '.join(life['interests'][:8])}{RESET}")
-        if life.get("places"):
-            print(f"  {GRAY}Places:{RESET} {WHITE}{', '.join(life['places'][:6])}{RESET}")
-
-    # Show texting style summary
-    style = profile.get("texting_style", {})
-    if style:
-        print()
-        print(f"  {GRAY}Texting style:{RESET}")
-        if style.get("style_rules"):
-            rules = style["style_rules"][:180]
-            print(f"    {WHITE}{rules}{RESET}")
-        if style.get("abbreviations"):
-            print(f"    {GRAY}Abbreviations:{RESET} {WHITE}{', '.join(style['abbreviations'][:10])}{RESET}")
-        if style.get("example_texts"):
-            print(f"    {GRAY}Example texts:{RESET}")
-            for ex in style["example_texts"][:5]:
-                print(f"      {GREEN}\"{ex}\"{RESET}")
+    print(f"  {GREEN}✓{RESET} {GRAY}Profile built from your messages.{RESET}")
 
     # --- Step 6: Pick who to auto-reply to ---
     print()
     print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
     print()
     contacts = get_contacts_with_names()
-    recent = contacts[:10]
+    recent = contacts[:5]
     for i, c in enumerate(recent):
-        name_str = c['name'] or c['handle']
-        handle_str = f" ({c['handle']})" if c['name'] else ""
-        print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}{GRAY}{handle_str}{RESET}")
+        name_str = c['name'].split()[0] if c['name'] else c['handle']
+        print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
     print()
 
     while True:
@@ -946,41 +909,63 @@ def first_time_setup():
         print(f"  {GRAY}Searching...{RESET}")
         matches = ai_find_contact(choice, contacts)
         if not matches:
-            print(f"  {YELLOW}No matches found. Try again.{RESET}")
+            print(f"  {GRAY}No matches found. Try again.{RESET}")
             continue
 
         print()
         for i, c in enumerate(matches):
-            name_str = c['name'] or c['handle']
-            handle_str = f" ({c['handle']})" if c['name'] else ""
-            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}{GRAY}{handle_str}{RESET}")
+            name_str = c['name'].split()[0] if c['name'] else c['handle']
+            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
         print()
         pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
         if pick.isdigit() and 1 <= int(pick) <= len(matches):
             selected = matches[int(pick) - 1]
             break
 
+    target_first = selected["name"].split()[0] if selected["name"] else selected["handle"]
     target_label = selected["name"] or selected["handle"]
     config["target_contact"] = selected["handle"]
-    config["target_name"] = target_label
-    print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_label}{RESET}")
+    config["target_name"] = target_first
+    print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
 
     # Load recent conversation with this contact for context
     recent_convo = load_recent_conversation(selected["handle"], limit=20)
     if recent_convo:
         conversation_history[selected["handle"]] = recent_convo
-        print(f"  {GRAY}Loaded {len(recent_convo)} recent messages for context{RESET}")
 
     # --- Step 7: Personality customization ---
     print()
-    customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+    customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y = custom personality, n = your natural texting style):{RESET} ").strip().lower()
     if customize in ("y", "yes"):
-        tone = run_personality_chat(target_label)
+        tone = run_personality_chat(target_first)
         if tone:
             custom_tone = tone
             config["custom_tone"] = tone
     else:
-        print(f"  {GRAY}Using your natural texting style.{RESET}")
+        print(f"  {GREEN}✓{RESET} {GRAY}Using your natural texting style (learned from your messages).{RESET}")
+
+    # --- Step 8: Send first message? ---
+    print()
+    first = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+    if first in ("y", "yes"):
+        msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
+        if msg.lower() == "ai":
+            add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+            opener = get_ai_response(selected["handle"])
+            conversation_history[selected["handle"]] = []
+            if opener:
+                add_to_history(selected["handle"], "assistant", opener)
+                print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+                if confirm in ("y", "yes", ""):
+                    send_imessage(selected["handle"], opener)
+                    print(f"  {GREEN}✓ Sent{RESET}")
+                else:
+                    conversation_history[selected["handle"]] = []
+        elif msg:
+            send_imessage(selected["handle"], msg)
+            add_to_history(selected["handle"], "assistant", msg)
+            print(f"  {GREEN}✓ Sent{RESET}")
 
     # Save everything
     save_profile(profile)
@@ -1342,98 +1327,166 @@ def main():
     config = load_config()
     profile = load_profile()
 
-    # First-time setup if needed
+    # First-time setup if needed (license + groq + scan messages)
     has_license = config.get("license_key")
     has_trial = config.get("trial_started_at")
-    if (not has_license and not has_trial) or not config.get("groq_api_key"):
+    first_run = (not has_license and not has_trial) or not config.get("groq_api_key")
+
+    if first_run:
         first_time_setup()
         config = load_config()
         profile = load_profile()
-    # Re-scan if profile exists but is missing style or life data
-    elif not profile.get("texting_style") or not profile.get("life_profile"):
-        print("Profile incomplete. Scanning your messages...")
-        init_groq_client()
-        my_texts = scan_my_messages(500)
-        contacts = get_contacts_with_names()
-        convos = scan_conversations_with_contacts(contacts, msgs_per_contact=40)
-        if my_texts and not profile.get("texting_style"):
-            style = analyze_texting_style(my_texts)
-            profile["texting_style"] = style
-            print(f"Learned your style from {len(my_texts)} texts!")
-        if convos and not profile.get("life_profile"):
-            user_name = profile.get("name") or get_mac_user_name() or ""
-            life = build_life_profile(my_texts or [], convos, user_name)
-            profile["life_profile"] = life
-            print(f"Built your profile from {len(convos)} conversations!")
-        save_profile(profile)
-
-    # Validate license or trial
-    if config.get("trial_started_at"):
-        elapsed = time.time() - config["trial_started_at"]
-        hours_left = max(0, 24 - elapsed / 3600)
-        if hours_left <= 0:
-            print(f"{YELLOW}Free trial expired!{RESET}")
-            print(f"{GRAY}Buy a license at{RESET} {BLUE}https://hrampell.github.io/ghostreply{RESET}")
-            print()
-            key = input(f"Enter your license key: ").strip()
-            if not key:
-                sys.exit(1)
-            machine_id = get_machine_id()
-            result = activate_license(key, machine_id)
-            if result["status"] != "valid":
-                print(f"  {RED}{result['message']}{RESET}")
-                sys.exit(1)
-            config["license_key"] = key
-            config["machine_id"] = machine_id
-            config["instance_id"] = result.get("instance_id", "")
-            config.pop("trial_started_at", None)
-            save_config(config)
-            print(f"{GREEN}License activated!{RESET}")
-        else:
-            print(f"{GREEN}Free trial{RESET} — {YELLOW}{hours_left:.1f} hours left{RESET}")
     else:
-        print(f"{GRAY}Checking license...{RESET}", end=" ", flush=True)
-        instance_id = config.get("instance_id", "")
-        result = validate_license(config["license_key"], instance_id)
-        if result["status"] != "valid":
-            print(f"{RED}FAILED{RESET}")
-            print(f"  {result['message']}")
-            print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
-            config.pop("license_key", None)
-            save_config(config)
-            sys.exit(1)
-        print(f"{GREEN}OK{RESET}")
+        # --- Returning user: validate license, pick contact, go ---
+
+        # Re-scan if profile is missing
+        if not profile.get("texting_style") or not profile.get("life_profile"):
+            print(f"{GRAY}Scanning your messages...{RESET}")
+            init_groq_client()
+            my_texts = scan_my_messages(500)
+            contacts = get_contacts_with_names()
+            convos = scan_conversations_with_contacts(contacts, msgs_per_contact=40)
+            if my_texts and not profile.get("texting_style"):
+                style = analyze_texting_style(my_texts)
+                profile["texting_style"] = style
+            if convos and not profile.get("life_profile"):
+                user_name = profile.get("name") or get_mac_user_name() or ""
+                life = build_life_profile(my_texts or [], convos, user_name)
+                profile["life_profile"] = life
+            save_profile(profile)
+            print(f"  {GREEN}✓{RESET} {GRAY}Profile ready.{RESET}")
+
+        # Validate license or trial
+        if config.get("trial_started_at"):
+            elapsed = time.time() - config["trial_started_at"]
+            hours_left = max(0, 24 - elapsed / 3600)
+            if hours_left <= 0:
+                print(f"{RED}Free trial expired!{RESET}")
+                print(f"{GRAY}Buy a license at{RESET} {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+                print()
+                key = input(f"Enter your license key: ").strip()
+                if not key:
+                    sys.exit(1)
+                machine_id = get_machine_id()
+                result = activate_license(key, machine_id)
+                if result["status"] != "valid":
+                    print(f"  {RED}{result['message']}{RESET}")
+                    sys.exit(1)
+                config["license_key"] = key
+                config["machine_id"] = machine_id
+                config["instance_id"] = result.get("instance_id", "")
+                config.pop("trial_started_at", None)
+                save_config(config)
+                print(f"{GREEN}License activated!{RESET}")
+            else:
+                print(f"{GREEN}Free trial{RESET} — {BLUE}{hours_left:.1f} hours left{RESET}")
+        else:
+            print(f"{GRAY}Checking license...{RESET}", end=" ", flush=True)
+            instance_id = config.get("instance_id", "")
+            result = validate_license(config["license_key"], instance_id)
+            if result["status"] != "valid":
+                print(f"{RED}FAILED{RESET}")
+                print(f"  {result['message']}")
+                print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+                config.pop("license_key", None)
+                save_config(config)
+                sys.exit(1)
+            print(f"{GREEN}OK{RESET}")
+
+        # Initialize AI
+        init_groq_client()
+
+        # Always re-pick contact
+        print()
+        print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
+        print()
+        contacts = get_contacts_with_names()
+        recent = contacts[:5]
+        for i, c in enumerate(recent):
+            name_str = c['name'].split()[0] if c['name'] else c['handle']
+            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
+        print()
+
+        while True:
+            choice = input(f"{WHITE}Pick a number or search by name:{RESET} ").strip()
+            if not choice:
+                continue
+            if choice.isdigit() and 1 <= int(choice) <= len(recent):
+                selected = recent[int(choice) - 1]
+                break
+            print(f"  {GRAY}Searching...{RESET}")
+            matches = ai_find_contact(choice, contacts)
+            if not matches:
+                print(f"  {GRAY}No matches found. Try again.{RESET}")
+                continue
+            print()
+            for i, c in enumerate(matches):
+                name_str = c['name'].split()[0] if c['name'] else c['handle']
+                print(f"  {WHITE}{i+1}.{RESET} {BLUE}{name_str}{RESET}")
+            print()
+            pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
+            if pick.isdigit() and 1 <= int(pick) <= len(matches):
+                selected = matches[int(pick) - 1]
+                break
+
+        target_first = selected["name"].split()[0] if selected["name"] else selected["handle"]
+        config["target_contact"] = selected["handle"]
+        config["target_name"] = target_first
+        save_config(config)
+        print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
+
+        # Load conversation history
+        recent_convo = load_recent_conversation(selected["handle"], limit=20)
+        if recent_convo:
+            conversation_history[selected["handle"]] = recent_convo
+
+        # Customize?
+        print()
+        customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y = custom personality, n = your natural texting style):{RESET} ").strip().lower()
+        if customize in ("y", "yes"):
+            tone = run_personality_chat(target_first)
+            if tone:
+                custom_tone = tone
+                config["custom_tone"] = tone
+                save_config(config)
+        else:
+            print(f"  {GREEN}✓{RESET} {GRAY}Using your natural texting style.{RESET}")
+
+        # Send first message?
+        print()
+        first_msg = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+        if first_msg in ("y", "yes"):
+            msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
+            if msg.lower() == "ai":
+                add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+                opener = get_ai_response(selected["handle"])
+                conversation_history[selected["handle"]] = []
+                if opener:
+                    add_to_history(selected["handle"], "assistant", opener)
+                    print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                    confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+                    if confirm in ("y", "yes", ""):
+                        send_imessage(selected["handle"], opener)
+                        print(f"  {GREEN}✓ Sent{RESET}")
+                    else:
+                        conversation_history[selected["handle"]] = []
+            elif msg:
+                send_imessage(selected["handle"], msg)
+                add_to_history(selected["handle"], "assistant", msg)
+                print(f"  {GREEN}✓ Sent{RESET}")
 
     # Load saved custom tone
-    if config.get("custom_tone"):
+    if config.get("custom_tone") and not custom_tone:
         custom_tone = config["custom_tone"]
 
-    # Initialize AI
-    print(f"{GRAY}Initializing AI...{RESET}", end=" ", flush=True)
-    try:
+    # Make sure AI is initialized
+    if not groq_client:
         init_groq_client()
-        print(f"{GREEN}OK{RESET}")
-    except Exception as e:
-        print(f"{RED}FAILED: {e}{RESET}")
-        sys.exit(1)
-
-    # Show profile summary
-    life = profile.get("life_profile", {})
-    name = life.get("name") or profile.get("name", "user")
-    style = profile.get("texting_style", {})
-    friends = [f.get("name", f) if isinstance(f, dict) else f
-              for f in life.get("friends", [])[:5]]
-    parts = [f"{GRAY}Profile:{RESET} {WHITE}{name}{RESET}"]
-    if style:
-        parts.append(f"{GRAY}avg{RESET} {WHITE}{style.get('avg_words', '?')}{RESET} {GRAY}words/text{RESET}")
-    if friends:
-        parts.append(f"{GRAY}friends:{RESET} {BLUE}{', '.join(friends)}{RESET}")
-    print(" | ".join(parts))
 
     target_name = config.get("target_name", "?")
     print()
     print(f"{GREEN}{BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-    print(f"{GRAY}Press Ctrl+C to stop.{RESET}")
+    print(f"{GRAY}Press Ctrl+C to quit.{RESET}")
     print()
 
     try:
