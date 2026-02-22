@@ -1982,9 +1982,29 @@ def uninstall():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] in ("--uninstall", "uninstall"):
-        uninstall()
-        sys.exit(0)
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg in ("--uninstall", "uninstall"):
+            uninstall()
+            sys.exit(0)
+        if arg in ("--version", "-v"):
+            print(f"GhostReply v{VERSION}")
+            sys.exit(0)
+        if arg in ("--help", "-h", "help"):
+            print(f"GhostReply v{VERSION} — iMessage Auto-Reply Bot")
+            print()
+            print("Usage:")
+            print("  ghostreply              Start GhostReply (setup or run)")
+            print("  ghostreply --version    Show version")
+            print("  ghostreply --uninstall  Remove GhostReply from your Mac")
+            print()
+            print("While running:")
+            print("  Type 'stop' to quit")
+            print()
+            print("Multiple contacts:")
+            print("  Open another Terminal tab and run ghostreply again.")
+            print("  Each tab handles a different contact.")
+            sys.exit(0)
     try:
         main()
     except KeyboardInterrupt:
