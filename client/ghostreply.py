@@ -16,9 +16,12 @@ import os
 import platform
 import random
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
+import textwrap
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -53,10 +56,30 @@ conversation_history: dict[str, list[dict]] = {}
 reply_log: list[dict] = []
 messages_sent_count = 0
 
+stop_event = threading.Event()
+
 POLL_INTERVAL = 2
 MAX_HISTORY = 10
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_MODEL_FALLBACK = "llama-3.1-8b-instant"
+
+
+def term_width() -> int:
+    """Get terminal width, default 80."""
+    try:
+        return shutil.get_terminal_size().columns
+    except Exception:
+        return 80
+
+
+def wrap(text: str, indent: int = 0) -> str:
+    """Wrap text to fit terminal width with optional indent."""
+    w = term_width() - indent - 2  # 2 char margin
+    if w < 30:
+        w = 30
+    prefix = " " * indent
+    lines = textwrap.fill(text, width=w).split("\n")
+    return "\n".join(prefix + line for line in lines)
 
 
 # ============================================================
@@ -234,7 +257,7 @@ def get_clipboard() -> str:
 def setup_groq_key() -> str:
     print()
     print(f"{BOLD}=== AI Setup ==={RESET}")
-    print(f"GhostReply needs a free AI key from Groq {GREEN}(no credit card, takes 30 seconds){RESET}.")
+    print(wrap(f"GhostReply needs a free AI key from Groq {GREEN}(no credit card, takes 30 seconds){RESET}."))
     print()
     print(f"  {WHITE}1.{RESET} {GRAY}Sign up with Google (one click){RESET}")
     print(f"  {WHITE}2.{RESET} {GRAY}Click \"Create API Key\"{RESET}")
@@ -703,6 +726,15 @@ def build_system_prompt(contact_name: str = "") -> str:
                 )
                 break
 
+    # Swearing rules
+    swear_setting = config.get("swearing", "on")
+    if swear_setting == "never":
+        parts.append("\nSWEARING: NEVER swear. Do not use any profanity or curse words under any circumstances.")
+    elif swear_setting == "off":
+        parts.append("\nSWEARING: Do not swear or use profanity in your replies.")
+    else:
+        parts.append("\nSWEARING: You can swear naturally if it fits your texting style. Don't force it.")
+
     # Anti-AI detection (always)
     parts.append(
         "\nANTI-AI DETECTION (CRITICAL):\n"
@@ -723,8 +755,7 @@ def build_system_prompt(contact_name: str = "") -> str:
 def run_personality_chat(contact_name: str) -> str:
     """Chat with AI to figure out how the bot should talk. Returns a tone string."""
     print()
-    print("Tell me how you want the bot to text. Just describe it however you want.")
-    print("Type 'done' when you're satisfied, or 'skip' for default mode.")
+    print(wrap("Tell me how you want the bot to text. Just describe it however you want."))
     print()
 
     chat_history = [
@@ -736,7 +767,7 @@ def run_personality_chat(contact_name: str) -> str:
             "Keep your questions super short (1-2 sentences max). Be casual like you're texting. "
             "If they mention obsessing over something or a specific topic, the bot will "
             "EXAGGERATE it hard — mention it constantly and go over the top. Let them know that. "
-            "After 2-3 exchanges or when you have enough info, say EXACTLY on its own line:\n"
+            "When told to wrap up, say EXACTLY on its own line:\n"
             "READY\n"
             "Then on the next line give a summary of the personality instructions as a single paragraph "
             "that could be used as a system prompt addition. Start that paragraph with 'TONE:'."
@@ -746,29 +777,33 @@ def run_personality_chat(contact_name: str) -> str:
     # Start the conversation
     ai_msg = ai_call(chat_history, max_tokens=150)
     chat_history.append({"role": "assistant", "content": ai_msg})
-    print(f"  Bot: {ai_msg}")
+    print(f"  {GRAY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
 
     while True:
-        user_input = input("  You: ").strip()
+        user_input = input(f"  {WHITE}You:{RESET} ").strip()
         if not user_input:
             continue
-        if user_input.lower() == "skip":
-            return ""
-        if user_input.lower() == "done":
-            chat_history.append({"role": "user", "content": user_input})
+
+        chat_history.append({"role": "user", "content": user_input})
+
+        # After each input, ask if that's everything
+        print()
+        done_check = input(f"  {GRAY}Is that everything? (y = done, n = add more):{RESET} ").strip().lower()
+        if done_check in ("y", "yes", ""):
+            # Generate summary
             chat_history.append({"role": "user", "content": "OK wrap it up. Give me the READY summary now."})
             ai_msg = ai_call(chat_history, max_tokens=300)
             chat_history.append({"role": "assistant", "content": ai_msg})
             break
+        else:
+            # AI responds to continue the conversation
+            ai_msg = ai_call(chat_history, max_tokens=200)
+            chat_history.append({"role": "assistant", "content": ai_msg})
 
-        chat_history.append({"role": "user", "content": user_input})
-        ai_msg = ai_call(chat_history, max_tokens=200)
-        chat_history.append({"role": "assistant", "content": ai_msg})
+            if "READY" in ai_msg:
+                break
 
-        if "READY" in ai_msg:
-            break
-
-        print(f"  Bot: {ai_msg}")
+            print(f"  {GRAY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
 
     # Parse the tone from the final output
     tone = ""
@@ -784,10 +819,10 @@ def run_personality_chat(contact_name: str) -> str:
 
     if tone:
         print()
-        print(f"  Personality: {tone[:150]}{'...' if len(tone) > 150 else ''}")
-        confirm = input("  Look good? (y/n): ").strip().lower()
+        print(f"  {WHITE}Personality:{RESET} {wrap(tone[:150], 15).lstrip()}{'...' if len(tone) > 150 else ''}")
+        confirm = input(f"  {GRAY}Look good? (y/n):{RESET} ").strip().lower()
         if confirm not in ("y", "yes", ""):
-            print("  OK, using default mode instead.")
+            print(f"  {GRAY}OK, using default mode instead.{RESET}")
             return ""
 
     return tone
@@ -836,13 +871,27 @@ def first_time_setup():
     # Initialize AI client so we can use it for the next steps
     init_groq_client()
 
-    # --- Step 3: Auto-detect user's name from macOS ---
+    # --- Step 3: Swearing preference ---
+    print()
+    swear_input = input(f"{WHITE}Do you usually swear with your friends?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+    if swear_input in ("n", "no", "never"):
+        config["swearing"] = "never" if swear_input == "never" else "off"
+        if swear_input == "never":
+            print(f"  {GREEN}✓{RESET} {GRAY}Swearing disabled.{RESET}")
+        else:
+            print(f"  {GREEN}✓{RESET} {GRAY}Swearing off. Type '{WHITE}swear{RESET}{GRAY}' anytime while the bot is running to toggle it on.{RESET}")
+    else:
+        config["swearing"] = "on"
+        print(f"  {GREEN}✓{RESET} {GRAY}Swearing on (natural mode). Type '{WHITE}swear{RESET}{GRAY}' anytime while the bot is running to toggle it off.{RESET}")
+    save_config(config)
+
+    # --- Step 4: Auto-detect user's name from macOS ---
     mac_name = get_mac_user_name()
     if mac_name:
         profile["name"] = mac_name.split()[0]  # first name
         print(f"\n{GRAY}Detected your name:{RESET} {WHITE}{mac_name}{RESET}")
 
-    # --- Step 4: Scan messages + conversations (fully automatic) ---
+    # --- Step 5: Scan messages + conversations (fully automatic) ---
     print()
     print(f"{BOLD}=== Scanning Your Messages ==={RESET}")
     print(f"{GRAY}Reading your iMessage history to learn how you text...{RESET}")
@@ -871,7 +920,7 @@ def first_time_setup():
     else:
         print(f"  {GRAY}[3/3] No texts to analyze, using default style.{RESET}")
 
-    # --- Step 5: Build life profile from conversations ---
+    # --- Step 6: Build life profile from conversations ---
     if convos:
         print()
         print(f"{GRAY}Building your profile from your conversations...{RESET}", end=" ", flush=True)
@@ -885,7 +934,7 @@ def first_time_setup():
 
     print(f"  {GREEN}✓{RESET} {GRAY}Profile built from your messages.{RESET}")
 
-    # --- Step 6: Pick who to auto-reply to ---
+    # --- Step 7: Pick who to auto-reply to ---
     print()
     print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
     print()
@@ -933,7 +982,7 @@ def first_time_setup():
     if recent_convo:
         conversation_history[selected["handle"]] = recent_convo
 
-    # --- Step 7: Personality customization ---
+    # --- Step 8: Personality customization ---
     print()
     customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y = custom personality, n = your natural texting style):{RESET} ").strip().lower()
     if customize in ("y", "yes"):
@@ -944,7 +993,7 @@ def first_time_setup():
     else:
         print(f"  {GREEN}✓{RESET} {GRAY}Using your natural texting style (learned from your messages).{RESET}")
 
-    # --- Step 8: Send first message? ---
+    # --- Step 9: Send first message? ---
     print()
     first = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
     if first in ("y", "yes"):
@@ -1283,13 +1332,42 @@ def handle_incoming(contact: str, text: str):
 # Main Poll Loop
 # ============================================================
 
+def stdin_listener():
+    """Listen for typed commands while the bot is running."""
+    global custom_tone
+    while not stop_event.is_set():
+        try:
+            cmd = input().strip().lower()
+        except EOFError:
+            break
+        if cmd == "stop":
+            print(f"\n{GRAY}GhostReply stopped.{RESET}")
+            stop_event.set()
+            break
+        elif cmd == "swear":
+            current = config.get("swearing", "on")
+            if current == "never":
+                print(f"  {GRAY}Swearing is permanently off. Change it in setup.{RESET}")
+            elif current == "on":
+                config["swearing"] = "off"
+                save_config(config)
+                print(f"  {GREEN}✓{RESET} {GRAY}Swearing toggled off.{RESET}")
+            else:
+                config["swearing"] = "on"
+                save_config(config)
+                print(f"  {GREEN}✓{RESET} {GRAY}Swearing toggled on.{RESET}")
+        else:
+            if cmd:
+                print(f"  {GRAY}Commands: 'stop' to quit, 'swear' to toggle swearing{RESET}")
+
+
 def poll_loop():
     baseline = get_latest_rowid()
     target_name = config.get("target_name", "?")
     print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{target_name}{RESET}...")
     print()
 
-    while True:
+    while not stop_event.is_set():
         try:
             incoming = fetch_new_messages(baseline)
             for msg in incoming:
@@ -1298,7 +1376,11 @@ def poll_loop():
         except Exception as e:
             print(f"[ERROR] Poll error: {e}")
 
-        time.sleep(POLL_INTERVAL)
+        # Sleep in small intervals so stop_event is responsive
+        for _ in range(int(POLL_INTERVAL * 10)):
+            if stop_event.is_set():
+                return
+            time.sleep(0.1)
 
 
 # ============================================================
@@ -1308,11 +1390,17 @@ def poll_loop():
 def main():
     global config, profile
 
+    w = min(term_width() - 4, 40)
+    inner = w - 2  # inside the box
     print()
-    print(f"  {GRAY}╔══════════════════════════════════╗{RESET}")
-    print(f"  {GRAY}║{RESET}  {BOLD}{WHITE}    GhostReply v1.0{RESET}             {GRAY}║{RESET}")
-    print(f"  {GRAY}║{RESET}  {GREEN}  iMessage Auto-Reply Bot{RESET}        {GRAY}║{RESET}")
-    print(f"  {GRAY}╚══════════════════════════════════╝{RESET}")
+    print(f"  {GRAY}╔{'═' * inner}╗{RESET}")
+    line1 = "GhostReply v1.0"
+    line2 = "iMessage Auto-Reply Bot"
+    pad1 = (inner - len(line1)) // 2
+    pad2 = (inner - len(line2)) // 2
+    print(f"  {GRAY}║{RESET}{' ' * pad1}{BOLD}{WHITE}{line1}{RESET}{' ' * (inner - pad1 - len(line1))}{GRAY}║{RESET}")
+    print(f"  {GRAY}║{RESET}{' ' * pad2}{GREEN}{line2}{RESET}{' ' * (inner - pad2 - len(line2))}{GRAY}║{RESET}")
+    print(f"  {GRAY}╚{'═' * inner}╝{RESET}")
     print()
 
     if not DB_PATH.exists():
@@ -1484,14 +1572,20 @@ def main():
         init_groq_client()
 
     target_name = config.get("target_name", "?")
+    swear_status = config.get("swearing", "on")
     print()
     print(f"{GREEN}{BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-    print(f"{GRAY}Press Ctrl+C to quit.{RESET}")
+    print(f"{GRAY}Type '{WHITE}stop{GRAY}' to quit" + (f", '{WHITE}swear{GRAY}' to toggle swearing (currently {swear_status})" if swear_status != "never" else "") + f".{RESET}")
     print()
+
+    # Start stdin listener in background thread
+    listener = threading.Thread(target=stdin_listener, daemon=True)
+    listener.start()
 
     try:
         poll_loop()
     except KeyboardInterrupt:
+        stop_event.set()
         print(f"\n{GRAY}GhostReply stopped.{RESET}")
 
 
@@ -1499,5 +1593,6 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
+        stop_event.set()
         print(f"\n{GRAY}GhostReply stopped.{RESET}")
         sys.exit(0)
