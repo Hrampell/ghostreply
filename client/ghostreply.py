@@ -204,8 +204,48 @@ def validate_license(key: str, instance_id: str = "") -> dict:
 
 
 def check_for_updates():
-    """Placeholder — could check GitHub releases or a hosted version file."""
-    pass
+    """Check GitHub for a newer version and auto-update if available."""
+    update_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py"
+    try:
+        req = urllib.request.Request(update_url, headers={"User-Agent": "GhostReply/1.0"})
+        resp = urllib.request.urlopen(req, timeout=10)
+        remote_code = resp.read().decode("utf-8")
+
+        # Extract version from remote file
+        remote_version = None
+        for line in remote_code.split("\n"):
+            if line.strip().startswith("VERSION"):
+                # VERSION = "1.0.1"
+                match = re.search(r'"([^"]+)"', line)
+                if match:
+                    remote_version = match.group(1)
+                break
+
+        if not remote_version or remote_version == VERSION:
+            return  # up to date
+
+        # Compare versions (simple string compare works for semver)
+        local_parts = [int(x) for x in VERSION.split(".")]
+        remote_parts = [int(x) for x in remote_version.split(".")]
+        if remote_parts <= local_parts:
+            return  # up to date or newer locally
+
+        print(f"{GRAY}Updating GhostReply ({VERSION} → {remote_version})...{RESET}", end=" ", flush=True)
+
+        # Write the new version
+        install_path = CONFIG_DIR / "ghostreply.py"
+        with open(install_path, "w") as f:
+            f.write(remote_code)
+
+        print(f"{GREEN}done!{RESET}")
+        print(f"{GRAY}Restarting...{RESET}")
+        print()
+
+        # Restart with the new version
+        os.execv(sys.executable, [sys.executable, str(install_path)] + sys.argv[1:])
+
+    except Exception:
+        pass  # silently fail — don't block startup for update issues
 
 
 def verify_groq_key(api_key: str) -> bool:
@@ -874,6 +914,12 @@ def first_time_setup():
             config["trial_started_at"] = time.time()
             print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
             print(f"{GRAY}Buy a license at https://hrampell.github.io/ghostreply to keep using it.{RESET}")
+            # Optional email for follow-up
+            print()
+            email = input(f"{GRAY}Enter your email to get notified before your trial ends (optional, press Enter to skip):{RESET} ").strip()
+            if email and "@" in email:
+                config["email"] = email
+                print(f"  {GREEN}✓{RESET} {GRAY}We'll remind you before it expires.{RESET}")
             break
         machine_id = get_machine_id()
         print("Activating...", end=" ", flush=True)
@@ -1250,11 +1296,62 @@ def get_latest_rowid() -> int:
         conn.close()
 
 
+def is_reaction(text: str) -> bool:
+    """Detect iMessage tapback reactions (Loved, Liked, etc.)."""
+    reaction_patterns = [
+        r'^(Loved|Liked|Disliked|Laughed at|Emphasized|Questioned) "',
+        r'^(Loved|Liked|Disliked|Laughed at|Emphasized|Questioned) an? (image|attachment|photo|video|audio)',
+        r'^(Removed a |Un-)(love|like|dislike|laugh|emphasis|question)',
+    ]
+    for pattern in reaction_patterns:
+        if re.match(pattern, text, re.IGNORECASE):
+            return True
+    return False
+
+
+def is_attachment_only(text: str) -> bool:
+    """Detect messages that are just attachments with no real text."""
+    if not text or not text.strip():
+        return True
+    # Common attachment placeholders
+    attachment_patterns = [
+        r'^\ufffc$',  # object replacement character (attachment placeholder)
+        r'^\ufffd$',  # replacement character
+    ]
+    for pattern in attachment_patterns:
+        if re.match(pattern, text.strip()):
+            return True
+    return False
+
+
+def is_group_chat_message(rowid: int) -> bool:
+    """Check if a message belongs to a group chat."""
+    conn = get_db_connection()
+    try:
+        cur = conn.execute("""
+            SELECT c.group_id
+            FROM message m
+            JOIN chat_message_join cmj ON cmj.message_id = m.ROWID
+            JOIN chat c ON c.ROWID = cmj.chat_id
+            WHERE m.ROWID = ?
+        """, (rowid,))
+        row = cur.fetchone()
+        if row and row["group_id"]:
+            # group_id is set for group chats (not 1-on-1)
+            return True
+        return False
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
 def fetch_new_messages(since_rowid: int) -> list[dict]:
     conn = get_db_connection()
     try:
         cur = conn.execute("""
             SELECT m.ROWID, m.text, m.is_from_me, m.date, m.attributedBody,
+                   m.cache_has_attachments,
                    h.id AS handle_id
             FROM message m
             LEFT JOIN handle h ON m.handle_id = h.ROWID
@@ -1266,9 +1363,23 @@ def fetch_new_messages(since_rowid: int) -> list[dict]:
             text = row["text"]
             if text is None and row["attributedBody"] is not None:
                 text = extract_text_from_attributed_body(row["attributedBody"])
+
+            rowid = row["ROWID"]
+            has_attachment = row["cache_has_attachments"] == 1
+
+            # Skip reactions (tapbacks)
+            if text and is_reaction(text):
+                results.append({"ROWID": rowid, "text": None, "handle_id": row["handle_id"], "skip": True})
+                continue
+
+            # Attachment with no text — mark it so handler knows
+            if (not text or is_attachment_only(text)) and has_attachment:
+                results.append({"ROWID": rowid, "text": "[attachment]", "handle_id": row["handle_id"], "is_attachment": True})
+                continue
+
             if text:
                 results.append({
-                    "ROWID": row["ROWID"],
+                    "ROWID": rowid,
                     "text": text,
                     "handle_id": row["handle_id"],
                 })
@@ -1318,7 +1429,8 @@ def simulate_typing(reply: str):
     time.sleep(delay)
 
 
-def handle_incoming(contact: str, text: str):
+def handle_batch(contact: str, texts: list[str]):
+    """Handle a batch of messages from the same contact with a single reply."""
     global messages_sent_count
 
     # Only reply to the configured target contact
@@ -1332,7 +1444,11 @@ def handle_incoming(contact: str, text: str):
         if recent:
             conversation_history[contact] = recent
 
-    add_to_history(contact, "user", text)
+    # Add all messages to history
+    combined = "\n".join(texts)
+    for text in texts:
+        add_to_history(contact, "user", text)
+
     reply = get_ai_response(contact)
     if reply:
         add_to_history(contact, "assistant", reply)
@@ -1340,10 +1456,11 @@ def handle_incoming(contact: str, text: str):
             simulate_typing(reply)
         send_imessage(contact, reply)
         messages_sent_count += 1
-        reply_log.append({"them": text, "you": reply})
+        display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
+        reply_log.append({"them": combined, "you": reply})
         if len(reply_log) > 20:
             reply_log.pop(0)
-        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {text[:60]}")
+        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
         print(f"        {GREEN}you:{RESET}  {reply[:60]}")
 
 
@@ -1367,18 +1484,62 @@ def stdin_listener():
             print(f"  {GRAY}Type 'stop' to quit.{RESET}")
 
 
+BATCH_WAIT = 5  # seconds to wait for more messages before replying
+
+
 def poll_loop():
     baseline = get_latest_rowid()
     target_name = config.get("target_name", "?")
+    target_contact = config.get("target_contact", "")
     print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{target_name}{RESET}...")
     print()
+
+    pending: dict[str, list[str]] = {}  # contact -> list of texts waiting
+    pending_since: dict[str, float] = {}  # contact -> timestamp of first pending msg
 
     while not stop_event.is_set():
         try:
             incoming = fetch_new_messages(baseline)
             for msg in incoming:
                 baseline = max(baseline, msg["ROWID"])
-                handle_incoming(msg["handle_id"], msg["text"])
+
+                # Skip reactions entirely
+                if msg.get("skip"):
+                    continue
+
+                contact = msg["handle_id"]
+
+                # Only process target contact
+                if target_contact and contact != target_contact:
+                    continue
+
+                # Skip group chat messages
+                if is_group_chat_message(msg["ROWID"]):
+                    continue
+
+                # Handle attachment-only messages
+                if msg.get("is_attachment"):
+                    # Don't reply to bare attachments — just ignore
+                    continue
+
+                text = msg["text"]
+                if not text:
+                    continue
+
+                # Add to pending batch
+                if contact not in pending:
+                    pending[contact] = []
+                    pending_since[contact] = time.time()
+                pending[contact].append(text)
+
+            # Check if any pending batches are ready (waited long enough)
+            now = time.time()
+            ready = [c for c, t in pending_since.items() if now - t >= BATCH_WAIT]
+            for contact in ready:
+                texts = pending.pop(contact)
+                pending_since.pop(contact)
+                handle_batch(contact, texts)
+
         except Exception as e:
             print(f"[ERROR] Poll error: {e}")
 
@@ -1499,6 +1660,9 @@ def main():
     print(f"  {GRAY}║{RESET}{' ' * pad2}{GREEN}{line2}{RESET}{' ' * (inner - pad2 - len(line2))}{GRAY}║{RESET}")
     print(f"  {GRAY}╚{'═' * inner}╝{RESET}")
     print()
+
+    # Auto-update from GitHub
+    check_for_updates()
 
     if not DB_PATH.exists():
         print(f"{RED}[ERROR]{RESET} iMessage database not found at {DB_PATH}")
