@@ -55,10 +55,8 @@ config: dict = {}
 profile: dict = {}
 groq_client = None
 custom_tone: str = ""
-typing_delay_enabled = True
 conversation_history: dict[str, list[dict]] = {}
 reply_log: list[dict] = []
-messages_sent_count = 0
 
 stop_event = threading.Event()
 
@@ -108,8 +106,10 @@ def load_config() -> dict:
 
 def save_config(cfg: dict):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(CONFIG_FILE, "w") as f:
+    tmp = CONFIG_FILE.with_suffix(".json.tmp")
+    with open(tmp, "w") as f:
         json.dump(cfg, f, indent=2)
+    os.rename(tmp, CONFIG_FILE)
 
 
 def load_profile() -> dict:
@@ -129,8 +129,10 @@ def load_profile() -> dict:
 
 def save_profile(p: dict):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(PROFILE_FILE, "w") as f:
+    tmp = PROFILE_FILE.with_suffix(".json.tmp")
+    with open(tmp, "w") as f:
         json.dump(p, f, indent=2)
+    os.rename(tmp, PROFILE_FILE)
 
 
 def get_machine_id() -> str:
@@ -184,7 +186,10 @@ def activate_license(key: str, instance_name: str) -> dict:
             return validate_license(key, instance_name)
         return {"status": "invalid", "message": error_msg}
     except Exception as e:
-        return {"status": "valid", "message": f"Offline mode (server unreachable: {e})"}
+        # Offline: allow if previously activated, deny if never validated
+        if config.get("license_validated"):
+            return {"status": "valid", "message": f"Offline mode (last validation passed)"}
+        return {"status": "invalid", "message": f"Can't reach license server: {e}"}
 
 
 def validate_license(key: str, instance_id: str = "") -> dict:
@@ -217,12 +222,16 @@ def validate_license(key: str, instance_id: str = "") -> dict:
         except Exception:
             return {"status": "invalid", "message": str(e)}
     except Exception as e:
-        return {"status": "valid", "message": f"Offline mode (server unreachable: {e})"}
+        # Offline: allow if previously validated, deny if never validated
+        if config.get("license_validated"):
+            return {"status": "valid", "message": f"Offline mode (last validation passed)"}
+        return {"status": "invalid", "message": f"Can't reach license server: {e}"}
 
 
 def check_for_updates():
-    """Check GitHub for a newer version and auto-update if available."""
+    """Check GitHub for a newer version and prompt user before updating."""
     update_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py"
+    hash_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py.sha256"
     try:
         req = urllib.request.Request(update_url, headers={"User-Agent": "GhostReply/1.0"})
         resp = urllib.request.urlopen(req, timeout=10)
@@ -232,7 +241,6 @@ def check_for_updates():
         remote_version = None
         for line in remote_code.split("\n"):
             if line.strip().startswith("VERSION"):
-                # VERSION = "1.0.1"
                 match = re.search(r'"([^"]+)"', line)
                 if match:
                     remote_version = match.group(1)
@@ -241,13 +249,33 @@ def check_for_updates():
         if not remote_version or remote_version == VERSION:
             return  # up to date
 
-        # Compare versions (simple string compare works for semver)
+        # Compare versions
         local_parts = [int(x) for x in VERSION.split(".")]
         remote_parts = [int(x) for x in remote_version.split(".")]
         if remote_parts <= local_parts:
             return  # up to date or newer locally
 
-        print(f"{GRAY}Updating GhostReply ({VERSION} → {remote_version})...{RESET}", end=" ", flush=True)
+        # Verify integrity via sha256 hash file (if available)
+        actual_hash = hashlib.sha256(remote_code.encode("utf-8")).hexdigest()
+        try:
+            hash_req = urllib.request.Request(hash_url, headers={"User-Agent": "GhostReply/1.0"})
+            hash_resp = urllib.request.urlopen(hash_req, timeout=10)
+            expected_hash = hash_resp.read().decode("utf-8").strip().split()[0]
+            if actual_hash != expected_hash:
+                print(f"{YELLOW}[WARN]{RESET} {GRAY}Update integrity check failed, skipping update.{RESET}")
+                return
+        except Exception:
+            pass  # no hash file yet — allow update (early versions)
+
+        print(f"{GRAY}Update available: {VERSION} → {remote_version}{RESET}")
+        try:
+            answer = input(f"  {WHITE}Update now? (y/n):{RESET} ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if answer not in ("y", "yes", ""):
+            return
+
+        print(f"{GRAY}Updating...{RESET}", end=" ", flush=True)
 
         # Write to temp file first, then rename (atomic on same filesystem)
         install_path = CONFIG_DIR / "ghostreply.py"
@@ -948,6 +976,7 @@ def first_time_setup():
             config["license_key"] = key
             config["machine_id"] = machine_id
             config["instance_id"] = result.get("instance_id", "")
+            config["license_validated"] = True
             break
         else:
             print(f"{RED}FAILED{RESET}")
@@ -1024,6 +1053,10 @@ def first_time_setup():
     print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
     print()
     contacts = get_contacts_with_names()
+    if not contacts:
+        print(f"{RED}[ERROR]{RESET} No iMessage conversations found.")
+        print(f"{GRAY}Send or receive at least one iMessage first, then run ghostreply again.{RESET}")
+        sys.exit(1)
     recent = contacts[:5]
     for i, c in enumerate(recent):
         name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
@@ -1165,6 +1198,7 @@ def discover_contacts_db():
 def get_contacts_with_names() -> list[dict]:
     name_map = {}
     if CONTACTS_DB_PATH and CONTACTS_DB_PATH.exists():
+        conn = None
         try:
             conn = sqlite3.connect(str(CONTACTS_DB_PATH), timeout=5)
             cur = conn.execute("""
@@ -1187,9 +1221,11 @@ def get_contacts_with_names() -> list[dict]:
                     name_map[phone] = name
                 if email:
                     name_map[email.lower()] = name
-            conn.close()
         except Exception:
             pass
+        finally:
+            if conn:
+                conn.close()
 
     conn = get_db_connection()
     try:
@@ -1263,6 +1299,8 @@ def init_groq_client():
 
 
 def ai_call(messages: list[dict], max_tokens: int = 60) -> str:
+    if not groq_client:
+        return ""
     for model in [GROQ_MODEL, GROQ_MODEL_FALLBACK]:
         try:
             resp = groq_client.chat.completions.create(
@@ -1309,10 +1347,11 @@ def extract_text_from_attributed_body(blob: bytes) -> str | None:
 
 def send_imessage(contact: str, text: str):
     escaped = text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    escaped_contact = contact.replace("\\", "\\\\").replace('"', '\\"')
     script = f'''
     tell application "Messages"
         set targetService to 1st account whose service type = iMessage
-        set targetBuddy to participant "{contact}" of targetService
+        set targetBuddy to participant "{escaped_contact}" of targetService
         send "{escaped}" to targetBuddy
     end tell
     '''
@@ -1457,8 +1496,6 @@ def simulate_typing(reply: str):
 
 def handle_batch(contact: str, texts: list[str]):
     """Handle a batch of messages from the same contact with a single reply."""
-    global messages_sent_count
-
     # Only reply to the configured target contact
     target = config.get("target_contact")
     if target and contact != target:
@@ -1479,18 +1516,16 @@ def handle_batch(contact: str, texts: list[str]):
     if not reply:
         print(f"{YELLOW}[WARN]{RESET} {GRAY}AI returned empty reply, skipping{RESET}")
         return
-    if reply:
-        add_to_history(contact, "assistant", reply)
-        if typing_delay_enabled:
-            simulate_typing(reply)
-        send_imessage(contact, reply)
-        messages_sent_count += 1
-        display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
-        reply_log.append({"them": combined, "you": reply})
-        if len(reply_log) > 20:
-            reply_log.pop(0)
-        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
-        print(f"        {GREEN}you:{RESET}  {reply[:60]}")
+
+    add_to_history(contact, "assistant", reply)
+    simulate_typing(reply)
+    send_imessage(contact, reply)
+    display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
+    reply_log.append({"them": combined, "you": reply})
+    if len(reply_log) > 20:
+        reply_log.pop(0)
+    print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
+    print(f"        {GREEN}you:{RESET}  {reply[:60]}")
 
 
 
@@ -1591,25 +1626,31 @@ def setup_permissions():
     # Already done? Skip forever.
     if config.get("permissions_done"):
         # Still verify Full Disk Access works (in case they revoked it)
+        conn = None
         try:
             conn = sqlite3.connect(str(DB_PATH), timeout=5)
             conn.execute("SELECT COUNT(*) FROM message LIMIT 1")
-            conn.close()
             return
         except Exception:
             # They revoked it — tell them and fall through
             print(f"{YELLOW}Full Disk Access was revoked. Let's fix that real quick.{RESET}")
             print()
+        finally:
+            if conn:
+                conn.close()
 
     # Try reading chat.db — if it works, FDA is already granted
     fda_ok = False
+    conn = None
     try:
         conn = sqlite3.connect(str(DB_PATH), timeout=5)
         conn.execute("SELECT COUNT(*) FROM message LIMIT 1")
-        conn.close()
         fda_ok = True
     except Exception:
         pass
+    finally:
+        if conn:
+            conn.close()
 
     if not fda_ok:
         # This is the only permission that needs manual setup
@@ -1644,6 +1685,7 @@ def setup_permissions():
     # Trigger Contacts popup by reading the DB
     ab_dir = Path.home() / "Library" / "Application Support" / "AddressBook" / "Sources"
     if ab_dir.exists():
+        conn = None
         try:
             for source_dir in ab_dir.iterdir():
                 db_file = source_dir / "AddressBook-v22.abcddb"
@@ -1651,9 +1693,13 @@ def setup_permissions():
                     conn = sqlite3.connect(str(db_file), timeout=5)
                     conn.execute("SELECT COUNT(*) FROM ZABCDRECORD LIMIT 1")
                     conn.close()
+                    conn = None
                     break
         except Exception:
             pass  # they'll just see phone numbers instead of names
+        finally:
+            if conn:
+                conn.close()
 
     # Trigger Messages automation popup with a harmless AppleScript
     try:
@@ -1764,9 +1810,14 @@ def main():
             else:
                 print(f"{GREEN}Free trial{RESET} — {BLUE}{hours_left:.1f} hours left{RESET}")
         else:
+            license_key = config.get("license_key", "")
+            if not license_key:
+                print(f"{RED}No license key found.{RESET}")
+                print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+                sys.exit(1)
             print(f"{GRAY}Checking license...{RESET}", end=" ", flush=True)
             instance_id = config.get("instance_id", "")
-            result = validate_license(config["license_key"], instance_id)
+            result = validate_license(license_key, instance_id)
             if result["status"] != "valid":
                 print(f"{RED}FAILED{RESET}")
                 print(f"  {result['message']}")
@@ -1774,6 +1825,8 @@ def main():
                 config.pop("license_key", None)
                 save_config(config)
                 sys.exit(1)
+            config["license_validated"] = True
+            save_config(config)
             print(f"{GREEN}OK{RESET}")
 
         # Initialize AI
@@ -1784,6 +1837,10 @@ def main():
         print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
         print()
         contacts = get_contacts_with_names()
+        if not contacts:
+            print(f"{RED}[ERROR]{RESET} No iMessage conversations found.")
+            print(f"{GRAY}Send or receive at least one iMessage first, then run ghostreply again.{RESET}")
+            sys.exit(1)
         recent = contacts[:5]
         for i, c in enumerate(recent):
             name_str = c['name'].split()[0] if c['name'] and c['name'].strip() else c['handle']
