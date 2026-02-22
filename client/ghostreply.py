@@ -9,6 +9,7 @@ Setup is fully automatic — zero questions:
   3. Bot reads your conversations to figure out your life, friends, interests
   4. Pick a contact to auto-reply to, and it starts immediately
 """
+from __future__ import annotations
 
 import hashlib
 import json

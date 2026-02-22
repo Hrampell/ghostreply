@@ -16,16 +16,6 @@ if [[ "$(uname)" != "Darwin" ]]; then
     exit 1
 fi
 
-# --- Switch Terminal to dark profile ---
-if [[ "$TERM_PROGRAM" == "Apple_Terminal" ]]; then
-    current_profile=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || echo "")
-    if [[ "$current_profile" != "Pro" && "$current_profile" != "Homebrew" && "$current_profile" != "Novel" ]]; then
-        echo "  Switching Terminal to dark mode for best experience..."
-        osascript -e 'tell application "Terminal" to set current settings of front window to settings set "Pro"' 2>/dev/null || true
-        echo ""
-    fi
-fi
-
 # --- Find Python 3 (without triggering Xcode dev tools popup) ---
 find_python() {
     # Check specific known paths — never call bare "python3" which triggers the Xcode shim
