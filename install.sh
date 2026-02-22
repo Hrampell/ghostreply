@@ -17,7 +17,6 @@ if [[ "$(uname)" != "Darwin" ]]; then
 fi
 
 # --- Switch Terminal to dark profile ---
-# Default Terminal.app is white — GhostReply looks best on dark background
 if [[ "$TERM_PROGRAM" == "Apple_Terminal" ]]; then
     current_profile=$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || echo "")
     if [[ "$current_profile" != "Pro" && "$current_profile" != "Homebrew" && "$current_profile" != "Novel" ]]; then
@@ -27,42 +26,72 @@ if [[ "$TERM_PROGRAM" == "Apple_Terminal" ]]; then
     fi
 fi
 
-# --- Check Python 3 (without triggering Xcode dev tools popup) ---
-PYTHON=""
-
-# 1. Check Homebrew python first
-if command -v /usr/local/bin/python3 &>/dev/null; then
-    PYTHON="/usr/local/bin/python3"
-elif command -v /opt/homebrew/bin/python3 &>/dev/null; then
-    PYTHON="/opt/homebrew/bin/python3"
-fi
-
-# 2. Check if system python3 actually works (not just the Xcode shim)
-if [[ -z "$PYTHON" ]]; then
+# --- Find or install Python 3 ---
+find_python() {
+    # 1. Homebrew python (Apple Silicon)
+    if /opt/homebrew/bin/python3 --version &>/dev/null 2>&1; then
+        echo "/opt/homebrew/bin/python3"; return
+    fi
+    # 2. Homebrew python (Intel)
+    if /usr/local/bin/python3 --version &>/dev/null 2>&1; then
+        echo "/usr/local/bin/python3"; return
+    fi
+    # 3. Python.org install location
+    if /usr/local/bin/python3 --version &>/dev/null 2>&1; then
+        echo "/usr/local/bin/python3"; return
+    fi
+    if /Library/Frameworks/Python.framework/Versions/Current/bin/python3 --version &>/dev/null 2>&1; then
+        echo "/Library/Frameworks/Python.framework/Versions/Current/bin/python3"; return
+    fi
+    # 4. System python3 — only if it actually works (not the Xcode shim)
+    # The shim exits non-zero and shows a dialog, so --version will fail
     if python3 --version &>/dev/null 2>&1; then
-        PYTHON="python3"
+        echo "python3"; return
     fi
-fi
+    echo ""
+}
 
-# 3. No working python3 found
+PYTHON=$(find_python)
+
 if [[ -z "$PYTHON" ]]; then
-    echo "  Python 3 is required but not installed."
+    echo "  Python 3 is needed (don't worry, it's quick)."
     echo ""
-    echo "  Easiest way to install:"
-    echo "    1. Go to python.org/downloads"
-    echo "    2. Download the macOS installer"
-    echo "    3. Run it (takes 1 minute)"
-    echo "    4. Come back and run this install command again"
-    echo ""
-    echo "  Or if you have Homebrew: brew install python3"
+    echo "  Downloading Python installer (~40MB)..."
     echo ""
 
-    # Offer to open python.org
-    read -p "  Open python.org now? (y/n): " open_python </dev/tty
-    if [[ "$open_python" == "y" || "$open_python" == "Y" ]]; then
-        open "https://www.python.org/downloads/"
+    # Detect architecture
+    ARCH=$(uname -m)
+    if [[ "$ARCH" == "arm64" ]]; then
+        PKG_URL="https://www.python.org/ftp/python/3.12.8/python-3.12.8-macos11.pkg"
+    else
+        PKG_URL="https://www.python.org/ftp/python/3.12.8/python-3.12.8-macos11.pkg"
     fi
-    exit 1
+
+    PKG_PATH="/tmp/python-installer.pkg"
+    curl -L -# "$PKG_URL" -o "$PKG_PATH"
+
+    echo ""
+    echo "  Installing Python (you may need to enter your password)..."
+    echo ""
+    sudo installer -pkg "$PKG_PATH" -target / 2>/dev/null
+
+    # Clean up
+    rm -f "$PKG_PATH"
+
+    # Find python again after install
+    PYTHON=$(find_python)
+
+    if [[ -z "$PYTHON" ]]; then
+        echo ""
+        echo "  ERROR: Python install didn't work. Try installing manually:"
+        echo "    https://www.python.org/downloads/"
+        echo ""
+        echo "  Then run this install command again."
+        exit 1
+    fi
+
+    echo "  ✓ Python installed!"
+    echo ""
 fi
 
 # Find pip for the same python
