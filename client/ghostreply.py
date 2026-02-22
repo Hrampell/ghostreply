@@ -49,7 +49,7 @@ PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
-VERSION = "1.1.0"
+VERSION = "1.0.1"
 
 # --- Runtime State ---
 config: dict = {}
@@ -268,15 +268,7 @@ def check_for_updates():
         except Exception:
             pass  # no hash file yet — allow update (early versions)
 
-        print(f"{GRAY}Update available: {VERSION} → {remote_version}{RESET}")
-        try:
-            answer = input(f"  {WHITE}Update now? (y/n):{RESET} ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            return
-        if answer not in ("y", "yes", ""):
-            return
-
-        print(f"{GRAY}Updating...{RESET}", end=" ", flush=True)
+        print(f"{GRAY}Updating: {VERSION} → {remote_version}...{RESET}", end=" ", flush=True)
 
         # Write to temp file first, then rename (atomic on same filesystem)
         install_path = CONFIG_DIR / "ghostreply.py"
