@@ -866,6 +866,13 @@ def run_personality_chat(contact_name: str) -> str:
         )}
     ]
 
+    RAGEBAIT_TONE = (
+        "Be as annoying as possible. Diss them, roast them, swear constantly, "
+        "make sexual jokes, be obnoxious. Try to get under their skin. "
+        "Be relentless — every reply should irritate them more. "
+        "Never apologize, never back down, double down on everything."
+    )
+
     # Start the conversation
     ai_msg = ai_call(chat_history, max_tokens=150)
     chat_history.append({"role": "assistant", "content": ai_msg})
@@ -875,6 +882,12 @@ def run_personality_chat(contact_name: str) -> str:
         user_input = input(f"  {WHITE}You:{RESET} ").strip()
         if not user_input:
             continue
+
+        # Secret command
+        if user_input.lower() == "ragebait":
+            print()
+            print(f"  {RED}☠ Ragebait activated.{RESET}")
+            return RAGEBAIT_TONE
 
         chat_history.append({"role": "user", "content": user_input})
 
