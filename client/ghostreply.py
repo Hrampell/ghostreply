@@ -36,8 +36,9 @@ GRAY = "\033[90m"
 WHITE = "\033[97m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
-SANDY = "\033[38;5;215m"       # #ffaf5f — bot personality chat
+SANDY = "\033[38;5;215m"       # #ffaf5f — bot personality chat label
 LIGHT_GRAY = "\033[38;5;250m"  # #bcbcbc — reply log "them"
+SILVER = "\033[38;5;188m"      # #d7d7d7 — bot personality chat text
 
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".ghostreply"
@@ -779,7 +780,7 @@ def run_personality_chat(contact_name: str) -> str:
     # Start the conversation
     ai_msg = ai_call(chat_history, max_tokens=150)
     chat_history.append({"role": "assistant", "content": ai_msg})
-    print(f"  {SANDY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
+    print(f"  {SANDY}Bot:{RESET} {SILVER}{wrap(ai_msg, 7).lstrip()}{RESET}")
 
     while True:
         user_input = input(f"  {WHITE}You:{RESET} ").strip()
@@ -805,7 +806,7 @@ def run_personality_chat(contact_name: str) -> str:
             if "READY" in ai_msg:
                 break
 
-            print(f"  {SANDY}Bot:{RESET} {wrap(ai_msg, 7).lstrip()}")
+            print(f"  {SANDY}Bot:{RESET} {SILVER}{wrap(ai_msg, 7).lstrip()}{RESET}")
 
     # Parse the tone from the final output
     tone = ""
