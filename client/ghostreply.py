@@ -368,7 +368,10 @@ def setup_groq_key() -> str:
     print()
 
     while True:
-        key = input(f"\n  {BLUE}Paste your Groq API key here (you can close groq.com after):{RESET} ").strip()
+        key = input(f"\n  {BLUE}Paste your Groq API key here ('q' to quit):{RESET} ").strip()
+        if key.lower() in ("q", "quit", "exit"):
+            print(f"{GRAY}Goodbye!{RESET}")
+            sys.exit(0)
         key = "".join(c for c in key if c.isprintable() and not c.isspace())
 
         # If they just hit enter, try clipboard
@@ -951,6 +954,12 @@ def run_personality_chat(contact_name: str) -> str:
         if len(parts) > 1:
             tone = parts[1].strip()
 
+    # Fallback: if AI never produced a TONE line, use the user's raw inputs
+    if not tone:
+        user_msgs = [m["content"] for m in chat_history if m["role"] == "user"]
+        if user_msgs:
+            tone = ". ".join(user_msgs)
+
     return tone
 
 
@@ -968,9 +977,12 @@ def first_time_setup():
 
     # --- Step 1: License key or free trial ---
     while True:
-        key = input(f"Enter your license key (or '{GREEN}trial{RESET}' for 24hr free trial): ").strip()
+        key = input(f"Enter your license key (or '{GREEN}trial{RESET}' for 24hr free trial, 'q' to quit): ").strip()
         if not key:
             continue
+        if key.lower() in ("q", "quit", "exit"):
+            print(f"{GRAY}Goodbye!{RESET}")
+            sys.exit(0)
         if key.lower() == "trial":
             config["trial_started_at"] = time.time()
             print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
@@ -1062,6 +1074,10 @@ def first_time_setup():
 
     print(f"  {GREEN}✓{RESET} {GRAY}Profile built from your messages.{RESET}")
 
+    # Save profile now so it's not lost if user quits during contact selection
+    save_profile(profile)
+    save_config(config)
+
     # --- Step 7: Pick who to auto-reply to ---
     print()
     print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
@@ -1139,14 +1155,16 @@ def first_time_setup():
                 print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
                 confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
                 if confirm in ("y", "yes", ""):
-                    send_imessage(selected["handle"], opener)
-                    print(f"  {GREEN}✓ Sent{RESET}")
+                    if send_imessage(selected["handle"], opener):
+                        print(f"  {GREEN}✓ Sent{RESET}")
                 else:
                     conversation_history[selected["handle"]] = []
+            else:
+                print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
         elif msg:
-            send_imessage(selected["handle"], msg)
-            add_to_history(selected["handle"], "assistant", msg)
-            print(f"  {GREEN}✓ Sent{RESET}")
+            if send_imessage(selected["handle"], msg):
+                add_to_history(selected["handle"], "assistant", msg)
+                print(f"  {GREEN}✓ Sent{RESET}")
 
     # Save everything
     save_profile(profile)
@@ -1359,7 +1377,7 @@ def extract_text_from_attributed_body(blob: bytes) -> str | None:
         return None
 
 
-def send_imessage(contact: str, text: str):
+def send_imessage(contact: str, text: str) -> bool:
     escaped = text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
     escaped_contact = contact.replace("\\", "\\\\").replace('"', '\\"')
     script = f'''
@@ -1370,9 +1388,18 @@ def send_imessage(contact: str, text: str):
     end tell
     '''
     try:
-        subprocess.run(["osascript", "-e", script], capture_output=True, timeout=10)
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            err = result.stderr.strip()
+            if "not allowed" in err.lower() or "permission" in err.lower():
+                print(f"{RED}[ERROR]{RESET} Messages permission denied. Open System Settings > Privacy > Automation and allow Terminal to control Messages.")
+            else:
+                print(f"{RED}[ERROR]{RESET} Failed to send: {err}")
+            return False
+        return True
     except Exception as e:
         print(f"{RED}[ERROR]{RESET} Failed to send to {contact}: {e}")
+        return False
 
 
 
@@ -1533,7 +1560,8 @@ def handle_batch(contact: str, texts: list[str]):
 
     add_to_history(contact, "assistant", reply)
     simulate_typing(reply)
-    send_imessage(contact, reply)
+    if not send_imessage(contact, reply):
+        return
     display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
     reply_log.append({"them": combined, "you": reply})
     if len(reply_log) > 20:
@@ -1920,14 +1948,16 @@ def main():
                     print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
                     confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
                     if confirm in ("y", "yes", ""):
-                        send_imessage(selected["handle"], opener)
-                        print(f"  {GREEN}✓ Sent{RESET}")
+                        if send_imessage(selected["handle"], opener):
+                            print(f"  {GREEN}✓ Sent{RESET}")
                     else:
                         conversation_history[selected["handle"]] = []
+                else:
+                    print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
             elif msg:
-                send_imessage(selected["handle"], msg)
-                add_to_history(selected["handle"], "assistant", msg)
-                print(f"  {GREEN}✓ Sent{RESET}")
+                if send_imessage(selected["handle"], msg):
+                    add_to_history(selected["handle"], "assistant", msg)
+                    print(f"  {GREEN}✓ Sent{RESET}")
 
     # Load saved custom tone
     if config.get("custom_tone") and not custom_tone:

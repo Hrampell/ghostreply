@@ -1,7 +1,6 @@
 #!/bin/bash
 # GhostReply Installer
 # One-liner: curl -sL hrampell.github.io/ghostreply/install.sh | bash
-set -e
 
 echo ""
 echo "  ╔══════════════════════════════════╗"
@@ -12,7 +11,15 @@ echo ""
 
 # Check macOS
 if [[ "$(uname)" != "Darwin" ]]; then
-    echo "ERROR: GhostReply only works on macOS (needs iMessage)."
+    echo "  ERROR: GhostReply only works on macOS (needs iMessage)."
+    exit 1
+fi
+
+# Check macOS version (need 11+ for the Python installer)
+MACOS_MAJOR=$(sw_vers -productVersion | cut -d. -f1)
+if [[ "$MACOS_MAJOR" -lt 11 ]]; then
+    echo "  ERROR: macOS 11 (Big Sur) or later required."
+    echo "  You're on macOS $(sw_vers -productVersion)."
     exit 1
 fi
 
@@ -34,16 +41,15 @@ find_python() {
         fi
     done
 
-    # Last resort: check if system python3 exists AND is real (not the Xcode shim)
-    # The shim lives at /usr/bin/python3 and is a tiny file (~130KB)
-    # Real python3 is much larger. Also check if xcode-select has a path set.
+    # Last resort: check if /usr/bin/python3 is real (not the Xcode shim)
+    # The shim is tiny (~165KB). Real python3 is 30MB+.
     if [[ -x "/usr/bin/python3" ]]; then
-        if xcode-select -p &>/dev/null; then
-            # Dev tools are installed, so /usr/bin/python3 is real
+        local size
+        size=$(wc -c < /usr/bin/python3 2>/dev/null | tr -d ' ')
+        if [[ -n "$size" && "$size" -gt 1000000 ]]; then
             echo "/usr/bin/python3"
             return
         fi
-        # Dev tools not installed — /usr/bin/python3 is the shim. Skip it.
     fi
 
     echo ""
@@ -61,7 +67,7 @@ if [[ -z "$PYTHON" ]]; then
     PKG_PATH="/tmp/ghostreply-python-installer.pkg"
 
     # Download with progress bar
-    if ! curl -L -# "$PKG_URL" -o "$PKG_PATH"; then
+    if ! curl -fL -# "$PKG_URL" -o "$PKG_PATH"; then
         echo ""
         echo "  ERROR: Download failed. Check your internet connection."
         echo "  Or install Python manually: https://www.python.org/downloads/"
@@ -82,7 +88,8 @@ if [[ -z "$PYTHON" ]]; then
     echo "  Installing Python (you may need to enter your password)..."
     echo ""
 
-    if ! sudo installer -pkg "$PKG_PATH" -target /; then
+    # < /dev/tty needed because stdin is the curl pipe when run via curl | bash
+    if ! sudo installer -pkg "$PKG_PATH" -target / </dev/tty; then
         echo ""
         echo "  ERROR: Python install failed."
         echo "  Try installing manually: https://www.python.org/downloads/"
@@ -113,12 +120,22 @@ echo "[1/4] Creating ~/.ghostreply directory..."
 mkdir -p ~/.ghostreply
 
 echo "[2/4] Downloading GhostReply..."
-curl -sL https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py -o ~/.ghostreply/ghostreply.py
+if ! curl -sfL https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py -o ~/.ghostreply/ghostreply.py; then
+    echo "  ERROR: Failed to download GhostReply. Check your internet connection."
+    exit 1
+fi
+
+# Verify the download is actually Python (not a 404 page)
+if ! head -1 ~/.ghostreply/ghostreply.py | grep -q "python"; then
+    echo "  ERROR: Downloaded file appears corrupted. Try again."
+    rm -f ~/.ghostreply/ghostreply.py
+    exit 1
+fi
 
 echo "[3/4] Installing dependencies..."
 "$PYTHON" -m pip install --break-system-packages -q openai 2>/dev/null \
     || "$PYTHON" -m pip install -q openai 2>/dev/null \
-    || echo "  (pip install failed — will retry on first run)"
+    || { echo "  WARNING: pip install failed. Run this manually:"; echo "    $PYTHON -m pip install openai"; }
 
 echo "[4/4] Setting up alias..."
 
@@ -131,13 +148,12 @@ else
     SHELL_RC="$HOME/.zshrc"
 fi
 
-# Add alias if not already present (remove old one first if python path changed)
-if grep -q 'alias ghostreply=' "$SHELL_RC" 2>/dev/null; then
-    # Update existing alias to use correct python path
-    sed -i '' '/alias ghostreply=/d' "$SHELL_RC"
-    sed -i '' '/# GhostReply - iMessage Auto-Reply/d' "$SHELL_RC"
-fi
-echo '' >> "$SHELL_RC"
+# Create shell config if it doesn't exist
+touch "$SHELL_RC"
+
+# Remove old alias if present, then add fresh one
+sed -i '' '/# GhostReply - iMessage Auto-Reply/d' "$SHELL_RC" 2>/dev/null
+sed -i '' '/alias ghostreply=/d' "$SHELL_RC" 2>/dev/null
 echo '# GhostReply - iMessage Auto-Reply' >> "$SHELL_RC"
 echo "alias ghostreply=\"$PYTHON ~/.ghostreply/ghostreply.py\"" >> "$SHELL_RC"
 
