@@ -1940,7 +1940,51 @@ def main():
         print(f"\n{GRAY}GhostReply stopped.{RESET}")
 
 
+def uninstall():
+    """Remove GhostReply completely."""
+    print()
+    print(f"{BOLD}=== Uninstall GhostReply ==={RESET}")
+    print()
+    print(f"  This will remove:")
+    print(f"  {GRAY}• ~/.ghostreply/ (config, profile, bot script){RESET}")
+    print(f"  {GRAY}• 'ghostreply' alias from your shell config{RESET}")
+    print()
+    confirm = input(f"  {WHITE}Are you sure? (y/n):{RESET} ").strip().lower()
+    if confirm not in ("y", "yes"):
+        print(f"  {GRAY}Cancelled.{RESET}")
+        return
+
+    # Remove ~/.ghostreply/
+    if CONFIG_DIR.exists():
+        shutil.rmtree(CONFIG_DIR)
+        print(f"  {GREEN}✓{RESET} {GRAY}Removed ~/.ghostreply/{RESET}")
+
+    # Remove alias from shell config
+    for rc_file in [Path.home() / ".zshrc", Path.home() / ".bash_profile"]:
+        if rc_file.exists():
+            try:
+                lines = rc_file.read_text().splitlines()
+                new_lines = [
+                    l for l in lines
+                    if "alias ghostreply=" not in l and "# GhostReply" not in l
+                ]
+                # Remove trailing blank lines left behind
+                while new_lines and new_lines[-1].strip() == "":
+                    new_lines.pop()
+                rc_file.write_text("\n".join(new_lines) + "\n")
+                print(f"  {GREEN}✓{RESET} {GRAY}Removed alias from {rc_file.name}{RESET}")
+            except Exception:
+                print(f"  {YELLOW}Could not clean {rc_file.name} — remove the 'ghostreply' alias manually.{RESET}")
+
+    print()
+    print(f"  {GREEN}GhostReply uninstalled.{RESET} Restart your terminal to finish.")
+    print()
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("--uninstall", "uninstall"):
+        uninstall()
+        sys.exit(0)
     try:
         main()
     except KeyboardInterrupt:
