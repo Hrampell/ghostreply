@@ -1575,8 +1575,15 @@ def get_ai_response(contact: str) -> str:
         return ""
 
 
-def simulate_typing(reply: str):
-    delay = random.uniform(1, 3)
+def reply_delay(their_text: str):
+    """Wait before replying based on how long their message is."""
+    words = len(their_text.split())
+    if words <= 3:
+        delay = random.uniform(1, 3)
+    elif words <= 10:
+        delay = random.uniform(3, 6)
+    else:
+        delay = random.uniform(5, 10)
     time.sleep(delay)
 
 
@@ -1604,7 +1611,7 @@ def handle_batch(contact: str, texts: list[str]):
         return
 
     add_to_history(contact, "assistant", reply)
-    simulate_typing(reply)
+    reply_delay(combined)
     if not send_imessage(contact, reply):
         return
     display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
