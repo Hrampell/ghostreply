@@ -88,9 +88,11 @@ if [[ -z "$PYTHON" ]]; then
     echo "  Installing Python (you may need to enter your password)..."
     echo ""
 
+    # Prompt for sudo password first (before backgrounding), then run installer with spinner
     # < /dev/tty needed because stdin is the curl pipe when run via curl | bash
-    # Run installer in background with a spinner so it doesn't look frozen
-    sudo installer -pkg "$PKG_PATH" -target / </dev/tty &
+    sudo -v </dev/tty || { echo "  ERROR: Need admin password to install Python."; rm -f "$PKG_PATH"; exit 1; }
+
+    sudo installer -pkg "$PKG_PATH" -target / &
     INSTALL_PID=$!
 
     SPINNER='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
@@ -166,8 +168,11 @@ printf "\r                                          \r"
 wait "$PIP_PID"
 PIP_EXIT=$?
 if [[ "$PIP_EXIT" -ne 0 ]]; then
-    echo "  WARNING: pip install failed. Run this manually:"
+    echo ""
+    echo "  ERROR: Failed to install dependencies."
+    echo "  Run this manually, then run 'ghostreply':"
     echo "    $PYTHON -m pip install openai"
+    exit 1
 fi
 
 echo "[4/4] Setting up alias..."

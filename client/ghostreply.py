@@ -49,7 +49,7 @@ PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 # --- Runtime State ---
 config: dict = {}
@@ -1112,7 +1112,6 @@ def first_time_setup():
             break
 
     target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
-    target_label = selected["name"] or selected["handle"]
     config["target_contact"] = selected["handle"]
     config["target_name"] = target_first
     print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
@@ -1611,9 +1610,13 @@ def handle_batch(contact: str, texts: list[str]):
         return
 
     add_to_history(contact, "assistant", reply)
-    reply_delay(combined)
+    reply_delay(texts[-1])  # delay based on their last message
     if not send_imessage(contact, reply):
         return
+    # Update outgoing baseline so auto-stop doesn't trigger on bot-sent messages
+    bot_rowid = get_latest_rowid()
+    if bot_rowid:
+        _outgoing_baseline_update(bot_rowid)
     display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
     reply_log.append({"them": combined, "you": reply})
     if len(reply_log) > 20:
@@ -1645,11 +1648,21 @@ def stdin_listener():
 
 
 BATCH_WAIT = 5  # seconds to wait for more messages before replying
+_outgoing_baseline_lock = threading.Lock()
+_outgoing_baseline_value = 0
+
+
+def _outgoing_baseline_update(rowid: int):
+    global _outgoing_baseline_value
+    with _outgoing_baseline_lock:
+        if rowid > _outgoing_baseline_value:
+            _outgoing_baseline_value = rowid
 
 
 def poll_loop():
+    global _outgoing_baseline_value
     baseline = get_latest_rowid()
-    outgoing_baseline = baseline  # track outgoing messages separately
+    _outgoing_baseline_value = baseline  # initialize shared outgoing baseline
     target_name = config.get("target_name", "?")
     target_contact = config.get("target_contact", "")
     print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{target_name}{RESET}...")
@@ -1663,9 +1676,10 @@ def poll_loop():
         try:
             # Check if user manually sent a message to the target contact
             if target_contact:
-                manual_rowid = check_user_sent_message(outgoing_baseline, target_contact)
+                with _outgoing_baseline_lock:
+                    current_outgoing = _outgoing_baseline_value
+                manual_rowid = check_user_sent_message(current_outgoing, target_contact)
                 if manual_rowid:
-                    outgoing_baseline = manual_rowid
                     print()
                     print(f"{GREEN}[AUTO-STOP]{RESET} You replied to {BLUE}{target_name}{RESET} manually — GhostReply stopped.")
                     print(f"{GRAY}Run {WHITE}ghostreply{GRAY} again to restart.{RESET}")
@@ -1850,18 +1864,15 @@ def main():
         print("Make sure you're running this on a Mac with iMessage set up.")
         sys.exit(1)
 
-    # Load config early so permissions check can use it
+    # Load config + profile
     config = load_config()
+    profile = load_profile()
 
     # Permissions setup (first run only)
     setup_permissions()
 
     # Discover contacts DB
     discover_contacts_db()
-
-    # Load config + profile
-    config = load_config()
-    profile = load_profile()
 
     # First-time setup if needed (license + groq + scan messages)
     has_license = config.get("license_key")
@@ -2063,12 +2074,8 @@ def uninstall():
         print(f"  {GRAY}Cancelled.{RESET}")
         return
 
-    # Remove ~/.ghostreply/
-    if CONFIG_DIR.exists():
-        shutil.rmtree(CONFIG_DIR)
-        print(f"  {GREEN}✓{RESET} {GRAY}Removed ~/.ghostreply/{RESET}")
-
-    # Remove alias from shell config
+    # Remove alias from shell config first (before deleting files)
+    #   so if this fails, the alias doesn't point to a missing file
     for rc_file in [Path.home() / ".zshrc", Path.home() / ".bash_profile"]:
         if rc_file.exists():
             try:
@@ -2084,6 +2091,11 @@ def uninstall():
                 print(f"  {GREEN}✓{RESET} {GRAY}Removed alias from {rc_file.name}{RESET}")
             except Exception:
                 print(f"  {YELLOW}Could not clean {rc_file.name} — remove the 'ghostreply' alias manually.{RESET}")
+
+    # Remove ~/.ghostreply/
+    if CONFIG_DIR.exists():
+        shutil.rmtree(CONFIG_DIR)
+        print(f"  {GREEN}✓{RESET} {GRAY}Removed ~/.ghostreply/{RESET}")
 
     print()
     print(f"  {GREEN}GhostReply uninstalled.{RESET} Restart your terminal to finish.")
