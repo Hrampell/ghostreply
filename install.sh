@@ -26,28 +26,36 @@ if [[ "$TERM_PROGRAM" == "Apple_Terminal" ]]; then
     fi
 fi
 
-# --- Find or install Python 3 ---
+# --- Find Python 3 (without triggering Xcode dev tools popup) ---
 find_python() {
-    # 1. Homebrew python (Apple Silicon)
-    if /opt/homebrew/bin/python3 --version &>/dev/null 2>&1; then
-        echo "/opt/homebrew/bin/python3"; return
+    # Check specific known paths — never call bare "python3" which triggers the Xcode shim
+    local paths=(
+        "/opt/homebrew/bin/python3"
+        "/usr/local/bin/python3"
+        "/Library/Frameworks/Python.framework/Versions/Current/bin/python3"
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
+        "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
+        "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3"
+    )
+    for p in "${paths[@]}"; do
+        if [[ -x "$p" ]] && "$p" --version &>/dev/null; then
+            echo "$p"
+            return
+        fi
+    done
+
+    # Last resort: check if system python3 exists AND is real (not the Xcode shim)
+    # The shim lives at /usr/bin/python3 and is a tiny file (~130KB)
+    # Real python3 is much larger. Also check if xcode-select has a path set.
+    if [[ -x "/usr/bin/python3" ]]; then
+        if xcode-select -p &>/dev/null; then
+            # Dev tools are installed, so /usr/bin/python3 is real
+            echo "/usr/bin/python3"
+            return
+        fi
+        # Dev tools not installed — /usr/bin/python3 is the shim. Skip it.
     fi
-    # 2. Homebrew python (Intel)
-    if /usr/local/bin/python3 --version &>/dev/null 2>&1; then
-        echo "/usr/local/bin/python3"; return
-    fi
-    # 3. Python.org install location
-    if /usr/local/bin/python3 --version &>/dev/null 2>&1; then
-        echo "/usr/local/bin/python3"; return
-    fi
-    if /Library/Frameworks/Python.framework/Versions/Current/bin/python3 --version &>/dev/null 2>&1; then
-        echo "/Library/Frameworks/Python.framework/Versions/Current/bin/python3"; return
-    fi
-    # 4. System python3 — only if it actually works (not the Xcode shim)
-    # The shim exits non-zero and shows a dialog, so --version will fail
-    if python3 --version &>/dev/null 2>&1; then
-        echo "python3"; return
-    fi
+
     echo ""
 }
 
@@ -59,23 +67,39 @@ if [[ -z "$PYTHON" ]]; then
     echo "  Downloading Python installer (~40MB)..."
     echo ""
 
-    # Detect architecture
-    ARCH=$(uname -m)
-    if [[ "$ARCH" == "arm64" ]]; then
-        PKG_URL="https://www.python.org/ftp/python/3.12.8/python-3.12.8-macos11.pkg"
-    else
-        PKG_URL="https://www.python.org/ftp/python/3.12.8/python-3.12.8-macos11.pkg"
+    PKG_URL="https://www.python.org/ftp/python/3.12.8/python-3.12.8-macos11.pkg"
+    PKG_PATH="/tmp/ghostreply-python-installer.pkg"
+
+    # Download with progress bar
+    if ! curl -L -# "$PKG_URL" -o "$PKG_PATH"; then
+        echo ""
+        echo "  ERROR: Download failed. Check your internet connection."
+        echo "  Or install Python manually: https://www.python.org/downloads/"
+        rm -f "$PKG_PATH"
+        exit 1
     fi
 
-    PKG_PATH="/tmp/python-installer.pkg"
-    curl -L -# "$PKG_URL" -o "$PKG_PATH"
+    # Verify the download isn't empty/corrupt
+    PKG_SIZE=$(wc -c < "$PKG_PATH" | tr -d ' ')
+    if [[ "$PKG_SIZE" -lt 1000000 ]]; then
+        echo ""
+        echo "  ERROR: Download appears incomplete. Try again."
+        rm -f "$PKG_PATH"
+        exit 1
+    fi
 
     echo ""
     echo "  Installing Python (you may need to enter your password)..."
     echo ""
-    sudo installer -pkg "$PKG_PATH" -target / 2>/dev/null
 
-    # Clean up
+    if ! sudo installer -pkg "$PKG_PATH" -target /; then
+        echo ""
+        echo "  ERROR: Python install failed."
+        echo "  Try installing manually: https://www.python.org/downloads/"
+        rm -f "$PKG_PATH"
+        exit 1
+    fi
+
     rm -f "$PKG_PATH"
 
     # Find python again after install
@@ -83,10 +107,8 @@ if [[ -z "$PYTHON" ]]; then
 
     if [[ -z "$PYTHON" ]]; then
         echo ""
-        echo "  ERROR: Python install didn't work. Try installing manually:"
-        echo "    https://www.python.org/downloads/"
-        echo ""
-        echo "  Then run this install command again."
+        echo "  ERROR: Python installed but can't find it."
+        echo "  Try closing Terminal, reopening, and running this again."
         exit 1
     fi
 
@@ -94,8 +116,8 @@ if [[ -z "$PYTHON" ]]; then
     echo ""
 fi
 
-# Find pip for the same python
-PIP="${PYTHON} -m pip"
+echo "  Using: $PYTHON"
+echo ""
 
 echo "[1/4] Creating ~/.ghostreply directory..."
 mkdir -p ~/.ghostreply
@@ -104,7 +126,9 @@ echo "[2/4] Downloading GhostReply..."
 curl -sL https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py -o ~/.ghostreply/ghostreply.py
 
 echo "[3/4] Installing dependencies..."
-$PIP install --break-system-packages -q openai 2>/dev/null || $PIP install -q openai 2>/dev/null || echo "  (pip install failed — will retry on first run)"
+"$PYTHON" -m pip install --break-system-packages -q openai 2>/dev/null \
+    || "$PYTHON" -m pip install -q openai 2>/dev/null \
+    || echo "  (pip install failed — will retry on first run)"
 
 echo "[4/4] Setting up alias..."
 
@@ -117,12 +141,15 @@ else
     SHELL_RC="$HOME/.zshrc"
 fi
 
-# Add alias if not already present
-if ! grep -q 'alias ghostreply=' "$SHELL_RC" 2>/dev/null; then
-    echo '' >> "$SHELL_RC"
-    echo '# GhostReply - iMessage Auto-Reply' >> "$SHELL_RC"
-    echo "alias ghostreply=\"$PYTHON ~/.ghostreply/ghostreply.py\"" >> "$SHELL_RC"
+# Add alias if not already present (remove old one first if python path changed)
+if grep -q 'alias ghostreply=' "$SHELL_RC" 2>/dev/null; then
+    # Update existing alias to use correct python path
+    sed -i '' '/alias ghostreply=/d' "$SHELL_RC"
+    sed -i '' '/# GhostReply - iMessage Auto-Reply/d' "$SHELL_RC"
 fi
+echo '' >> "$SHELL_RC"
+echo '# GhostReply - iMessage Auto-Reply' >> "$SHELL_RC"
+echo "alias ghostreply=\"$PYTHON ~/.ghostreply/ghostreply.py\"" >> "$SHELL_RC"
 
 echo ""
 echo "  ✓ GhostReply installed successfully!"
@@ -130,4 +157,4 @@ echo ""
 echo "  Starting GhostReply..."
 echo ""
 
-$PYTHON ~/.ghostreply/ghostreply.py </dev/tty
+"$PYTHON" ~/.ghostreply/ghostreply.py </dev/tty
