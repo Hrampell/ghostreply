@@ -1646,7 +1646,7 @@ def setup_permissions():
 # ============================================================
 
 def main():
-    global config, profile
+    global config, profile, custom_tone
 
     w = min(term_width() - 4, 40)
     inner = w - 2  # inside the box
