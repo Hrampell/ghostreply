@@ -49,7 +49,7 @@ PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 # --- Runtime State ---
 config: dict = {}
@@ -63,6 +63,12 @@ stop_event = threading.Event()
 
 POLL_INTERVAL = 2
 MAX_HISTORY = 10
+RAGEBAIT_TONE = (
+    "Be as annoying as possible. Diss them, roast them, swear constantly, "
+    "make sexual jokes, be obnoxious. Try to get under their skin. "
+    "Be relentless — every reply should irritate them more. "
+    "Never apologize, never back down, double down on everything."
+)
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_MODEL_FALLBACK = "llama-3.1-8b-instant"
 
@@ -861,13 +867,6 @@ def run_personality_chat(contact_name: str) -> str:
         )}
     ]
 
-    RAGEBAIT_TONE = (
-        "Be as annoying as possible. Diss them, roast them, swear constantly, "
-        "make sexual jokes, be obnoxious. Try to get under their skin. "
-        "Be relentless — every reply should irritate them more. "
-        "Never apologize, never back down, double down on everything."
-    )
-
     # Start the conversation
     ai_msg = ai_call(chat_history, max_tokens=150)
     chat_history.append({"role": "assistant", "content": ai_msg})
@@ -1101,6 +1100,10 @@ def first_time_setup():
             print(f"  {GRAY}No matches found. Try again.{RESET}")
             continue
 
+        if len(matches) == 1:
+            selected = matches[0]
+            break
+
         print()
         match_names = format_contact_list(matches)
         for i, label in enumerate(match_names):
@@ -1122,9 +1125,15 @@ def first_time_setup():
         conversation_history[selected["handle"]] = recent_convo
 
     # --- Step 8: Personality customization ---
+    is_ragebait = False
     print()
     customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y = custom personality, n = your natural texting style):{RESET} ").strip().lower()
-    if customize in ("y", "yes"):
+    if customize == "ragebait":
+        is_ragebait = True
+        custom_tone = RAGEBAIT_TONE
+        config["custom_tone"] = RAGEBAIT_TONE
+        print(f"  {RED}☠ Ragebait activated.{RESET}")
+    elif customize in ("y", "yes"):
         tone = run_personality_chat(target_first)
         if tone:
             custom_tone = tone
@@ -1133,29 +1142,45 @@ def first_time_setup():
         print(f"  {GREEN}✓{RESET} {GRAY}Using your natural texting style (learned from your messages).{RESET}")
 
     # --- Step 9: Send first message? ---
-    print()
-    first = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-    if first in ("y", "yes"):
-        msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
-        if msg.lower() == "ai":
-            add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
-            opener = get_ai_response(selected["handle"])
-            conversation_history[selected["handle"]] = []
-            if opener:
-                add_to_history(selected["handle"], "assistant", opener)
-                print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
-                confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-                if confirm in ("y", "yes", ""):
-                    if send_imessage(selected["handle"], opener):
-                        print(f"  {GREEN}✓ Sent{RESET}")
-                else:
-                    conversation_history[selected["handle"]] = []
+    if is_ragebait:
+        # Ragebait auto-sends AI opener immediately
+        print()
+        print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
+        add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+        opener = get_ai_response(selected["handle"])
+        conversation_history[selected["handle"]] = []
+        if opener:
+            add_to_history(selected["handle"], "assistant", opener)
+            if send_imessage(selected["handle"], opener):
+                print(f"{GREEN}Sent:{RESET} {opener}")
             else:
-                print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
-        elif msg:
-            if send_imessage(selected["handle"], msg):
-                add_to_history(selected["handle"], "assistant", msg)
-                print(f"  {GREEN}✓ Sent{RESET}")
+                conversation_history[selected["handle"]] = []
+        else:
+            print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
+    else:
+        print()
+        first = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+        if first in ("y", "yes"):
+            msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
+            if msg.lower() == "ai":
+                add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+                opener = get_ai_response(selected["handle"])
+                conversation_history[selected["handle"]] = []
+                if opener:
+                    add_to_history(selected["handle"], "assistant", opener)
+                    print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                    confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+                    if confirm in ("y", "yes", ""):
+                        if send_imessage(selected["handle"], opener):
+                            print(f"  {GREEN}✓ Sent{RESET}")
+                    else:
+                        conversation_history[selected["handle"]] = []
+                else:
+                    print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
+            elif msg:
+                if send_imessage(selected["handle"], msg):
+                    add_to_history(selected["handle"], "assistant", msg)
+                    print(f"  {GREEN}✓ Sent{RESET}")
 
     # Save everything
     save_profile(profile)
@@ -1315,8 +1340,9 @@ def ai_find_contact(query: str, contacts: list[dict]) -> list[dict]:
         f"Here is a list of iMessage contacts:\n{contact_list_str}\n\n"
         f'The user searched for: "{query}"\n\n'
         "Return ONLY the numbers (comma-separated) of the contacts that best match, "
-        "up to 5 results. Consider partial name matches, nicknames, phone numbers, emails. "
-        "Be generous with fuzzy matching. If nothing matches, return 'NONE'."
+        "up to 3 results. Prefer exact or near-exact matches. "
+        "Consider partial name matches, nicknames, phone numbers, emails. "
+        "If nothing matches, return 'NONE'."
     )
     try:
         answer = ai_call([{"role": "user", "content": prompt}], max_tokens=50)
@@ -1981,6 +2007,9 @@ def main():
             if not matches:
                 print(f"  {GRAY}No matches found. Try again.{RESET}")
                 continue
+            if len(matches) == 1:
+                selected = matches[0]
+                break
             print()
             match_names = format_contact_list(matches)
             for i, label in enumerate(match_names):
@@ -2003,9 +2032,16 @@ def main():
             conversation_history[selected["handle"]] = recent_convo
 
         # Customize?
+        is_ragebait = False
         print()
         customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y = custom personality, n = your natural texting style):{RESET} ").strip().lower()
-        if customize in ("y", "yes"):
+        if customize == "ragebait":
+            is_ragebait = True
+            custom_tone = RAGEBAIT_TONE
+            config["custom_tone"] = RAGEBAIT_TONE
+            save_config(config)
+            print(f"  {RED}☠ Ragebait activated.{RESET}")
+        elif customize in ("y", "yes"):
             tone = run_personality_chat(target_first)
             if tone:
                 custom_tone = tone
@@ -2015,29 +2051,44 @@ def main():
             print(f"  {GREEN}✓{RESET} {GRAY}Using your natural texting style.{RESET}")
 
         # Send first message?
-        print()
-        first_msg = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-        if first_msg in ("y", "yes"):
-            msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
-            if msg.lower() == "ai":
-                add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
-                opener = get_ai_response(selected["handle"])
-                conversation_history[selected["handle"]] = []
-                if opener:
-                    add_to_history(selected["handle"], "assistant", opener)
-                    print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
-                    confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-                    if confirm in ("y", "yes", ""):
-                        if send_imessage(selected["handle"], opener):
-                            print(f"  {GREEN}✓ Sent{RESET}")
-                    else:
-                        conversation_history[selected["handle"]] = []
+        if is_ragebait:
+            print()
+            print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
+            add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+            opener = get_ai_response(selected["handle"])
+            conversation_history[selected["handle"]] = []
+            if opener:
+                add_to_history(selected["handle"], "assistant", opener)
+                if send_imessage(selected["handle"], opener):
+                    print(f"{GREEN}Sent:{RESET} {opener}")
                 else:
-                    print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
-            elif msg:
-                if send_imessage(selected["handle"], msg):
-                    add_to_history(selected["handle"], "assistant", msg)
-                    print(f"  {GREEN}✓ Sent{RESET}")
+                    conversation_history[selected["handle"]] = []
+            else:
+                print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
+        else:
+            print()
+            first_msg = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+            if first_msg in ("y", "yes"):
+                msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
+                if msg.lower() == "ai":
+                    add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+                    opener = get_ai_response(selected["handle"])
+                    conversation_history[selected["handle"]] = []
+                    if opener:
+                        add_to_history(selected["handle"], "assistant", opener)
+                        print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                        confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+                        if confirm in ("y", "yes", ""):
+                            if send_imessage(selected["handle"], opener):
+                                print(f"  {GREEN}✓ Sent{RESET}")
+                        else:
+                            conversation_history[selected["handle"]] = []
+                    else:
+                        print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
+                elif msg:
+                    if send_imessage(selected["handle"], msg):
+                        add_to_history(selected["handle"], "assistant", msg)
+                        print(f"  {GREEN}✓ Sent{RESET}")
 
     # Load saved custom tone
     if config.get("custom_tone") and not custom_tone:
