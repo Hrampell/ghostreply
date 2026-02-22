@@ -1325,19 +1325,19 @@ def is_attachment_only(text: str) -> bool:
 
 
 def is_group_chat_message(rowid: int) -> bool:
-    """Check if a message belongs to a group chat."""
+    """Check if a message belongs to a group chat (not 1-on-1)."""
     conn = get_db_connection()
     try:
         cur = conn.execute("""
-            SELECT c.group_id
+            SELECT COUNT(DISTINCT chm.handle_id) AS participant_count
             FROM message m
             JOIN chat_message_join cmj ON cmj.message_id = m.ROWID
             JOIN chat c ON c.ROWID = cmj.chat_id
+            JOIN chat_handle_join chm ON chm.chat_id = c.ROWID
             WHERE m.ROWID = ?
         """, (rowid,))
         row = cur.fetchone()
-        if row and row["group_id"]:
-            # group_id is set for group chats (not 1-on-1)
+        if row and row["participant_count"] > 1:
             return True
         return False
     except Exception:
