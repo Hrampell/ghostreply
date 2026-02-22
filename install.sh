@@ -89,7 +89,23 @@ if [[ -z "$PYTHON" ]]; then
     echo ""
 
     # < /dev/tty needed because stdin is the curl pipe when run via curl | bash
-    if ! sudo installer -pkg "$PKG_PATH" -target / </dev/tty; then
+    # Run installer in background with a spinner so it doesn't look frozen
+    sudo installer -pkg "$PKG_PATH" -target / </dev/tty &
+    INSTALL_PID=$!
+
+    SPINNER='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    i=0
+    while kill -0 "$INSTALL_PID" 2>/dev/null; do
+        printf "\r  %s Installing Python... (this takes ~30 seconds)" "${SPINNER:i%${#SPINNER}:1}"
+        i=$((i + 1))
+        sleep 0.15
+    done
+    printf "\r                                                         \r"
+
+    wait "$INSTALL_PID"
+    INSTALL_EXIT=$?
+
+    if [[ "$INSTALL_EXIT" -ne 0 ]]; then
         echo ""
         echo "  ERROR: Python install failed."
         echo "  Try installing manually: https://www.python.org/downloads/"
@@ -133,9 +149,26 @@ if ! head -1 ~/.ghostreply/ghostreply.py | grep -q "python"; then
 fi
 
 echo "[3/4] Installing dependencies..."
-"$PYTHON" -m pip install --break-system-packages -q openai 2>/dev/null \
-    || "$PYTHON" -m pip install -q openai 2>/dev/null \
-    || { echo "  WARNING: pip install failed. Run this manually:"; echo "    $PYTHON -m pip install openai"; }
+# Run pip in background with spinner
+( "$PYTHON" -m pip install --break-system-packages -q openai 2>/dev/null \
+    || "$PYTHON" -m pip install -q openai 2>/dev/null ) &
+PIP_PID=$!
+
+SPINNER='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+i=0
+while kill -0 "$PIP_PID" 2>/dev/null; do
+    printf "\r  %s Installing dependencies..." "${SPINNER:i%${#SPINNER}:1}"
+    i=$((i + 1))
+    sleep 0.15
+done
+printf "\r                                          \r"
+
+wait "$PIP_PID"
+PIP_EXIT=$?
+if [[ "$PIP_EXIT" -ne 0 ]]; then
+    echo "  WARNING: pip install failed. Run this manually:"
+    echo "    $PYTHON -m pip install openai"
+fi
 
 echo "[4/4] Setting up alias..."
 
