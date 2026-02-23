@@ -2030,6 +2030,11 @@ def setup_permissions():
         # This is the only permission that needs manual setup
         print(f"{WHITE}One quick thing before we start:{RESET}")
         print()
+        print(f"  {GREEN}100% Local. 100% Private.{RESET}")
+        print(f"  {GRAY}GhostReply runs entirely on your Mac. Your messages never{RESET}")
+        print(f"  {GRAY}touch our servers — they go straight from your Mac to the{RESET}")
+        print(f"  {GRAY}AI and back. We can't see your texts. Ever.{RESET}")
+        print()
         print(wrap(f"  GhostReply reads your iMessages to learn how you text. macOS needs you to allow this — it takes 30 seconds.", 2))
         print()
         print(f"  {WHITE}1.{RESET} {GRAY}I'll open System Settings for you{RESET}")
