@@ -11,7 +11,10 @@ Setup is fully automatic — zero questions:
 """
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
+import inspect
 import json
 import os
 import platform
@@ -49,7 +52,7 @@ PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 
 # --- Runtime State ---
 config: dict = {}
@@ -71,6 +74,152 @@ RAGEBAIT_TONE = (
 )
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_MODEL_FALLBACK = "llama-3.1-8b-instant"
+
+# --- Encrypted config fields ---
+_SENSITIVE_FIELDS = {
+    "license_key", "license_validated", "trial_started_at", "instance_id",
+    "trial_boot_offset", "trial_wall_start", "trial_last_seen",
+    "last_server_check", "session_token",
+}
+_ENC_PREFIX = "_enc_"
+
+# --- Session state for anti-bypass ---
+_session_token: str = ""
+_revalidation_thread = None
+
+
+def _derive_key(machine_id: str, salt: str = "ghostreply_v1") -> bytes:
+    """Derive a 32-byte key from machine ID."""
+    return hashlib.sha256(f"{salt}:{machine_id}".encode()).digest()
+
+
+def _encrypt_value(value: str, machine_id: str) -> str:
+    """Encrypt a value using XOR cipher keyed to machine ID + HMAC for integrity."""
+    key = _derive_key(machine_id)
+    value_bytes = value.encode("utf-8")
+    # XOR cipher
+    encrypted = bytes(b ^ key[i % len(key)] for i, b in enumerate(value_bytes))
+    # HMAC for tamper detection
+    tag = hmac.new(key, encrypted, hashlib.sha256).hexdigest()[:16]
+    payload = base64.b64encode(encrypted).decode("ascii")
+    return f"{tag}:{payload}"
+
+
+def _decrypt_value(data: str, machine_id: str) -> str | None:
+    """Decrypt a value. Returns None if tampered or invalid."""
+    try:
+        key = _derive_key(machine_id)
+        tag, payload = data.split(":", 1)
+        encrypted = base64.b64decode(payload)
+        # Verify HMAC
+        expected_tag = hmac.new(key, encrypted, hashlib.sha256).hexdigest()[:16]
+        if not hmac.compare_digest(tag, expected_tag):
+            return None  # tampered
+        # XOR decrypt
+        decrypted = bytes(b ^ key[i % len(key)] for i, b in enumerate(encrypted))
+        return decrypted.decode("utf-8")
+    except Exception:
+        return None
+
+
+def _check_integrity():
+    """Verify critical license functions haven't been modified."""
+    try:
+        critical_funcs = [activate_license, validate_license, _init_session]
+        for func in critical_funcs:
+            source = inspect.getsource(func)
+            # Normalize whitespace for consistent hashing
+            normalized = re.sub(r'\s+', ' ', source.strip())
+            func_hash = hashlib.sha256(normalized.encode()).hexdigest()
+            expected = _INTEGRITY_HASHES.get(func.__name__)
+            if expected and func_hash != expected:
+                print(f"{RED}[ERROR]{RESET} Integrity check failed — source has been modified.")
+                print(f"{GRAY}Re-download GhostReply: curl -sL https://hrampell.github.io/ghostreply/install.sh | bash{RESET}")
+                sys.exit(1)
+    except Exception:
+        pass  # If inspect fails (e.g., running from .pyc), skip
+
+
+def _generate_session_token(license_key: str, machine_id: str) -> str:
+    """Generate a session token — HMAC of license_key + machine_id + date."""
+    today = time.strftime("%Y-%m-%d")
+    msg = f"{license_key}:{machine_id}:{today}"
+    return hmac.new(
+        machine_id.encode(), msg.encode(), hashlib.sha256
+    ).hexdigest()[:32]
+
+
+def _verify_session_token(token: str, license_key: str, machine_id: str) -> bool:
+    """Verify the session token is valid for today."""
+    expected = _generate_session_token(license_key, machine_id)
+    return hmac.compare_digest(token, expected)
+
+
+def _init_session():
+    """Initialize session after license validation — sets session token and starts re-validation."""
+    global _session_token, _revalidation_thread
+    machine_id = config.get("machine_id", get_machine_id())
+    license_key = config.get("license_key", "")
+    # For trial users, use trial_started_at as a pseudo key
+    if not license_key and config.get("trial_started_at"):
+        license_key = f"trial_{config['trial_started_at']}"
+    _session_token = _generate_session_token(license_key, machine_id)
+    config["session_token"] = _session_token
+    config["last_server_check"] = time.time()
+    save_config(config)
+    # Start background re-validation thread (only for licensed users, not trial)
+    if config.get("license_key"):
+        _revalidation_thread = threading.Thread(target=_revalidation_loop, daemon=True)
+        _revalidation_thread.start()
+
+
+def _revalidation_loop():
+    """Background thread: re-validate license every 2 hours. 48h offline grace."""
+    consecutive_offline_seconds = 0
+    while not stop_event.is_set():
+        # Sleep 2 hours (check stop_event every 10s)
+        for _ in range(720):
+            if stop_event.is_set():
+                return
+            time.sleep(10)
+        if stop_event.is_set():
+            return
+        license_key = config.get("license_key", "")
+        instance_id = config.get("instance_id", "")
+        if not license_key:
+            return
+        try:
+            result = validate_license(license_key, instance_id)
+            if result["status"] == "valid":
+                config["last_server_check"] = time.time()
+                save_config(config)
+                consecutive_offline_seconds = 0
+            elif "offline" not in result.get("message", "").lower():
+                # License actually invalid (not just offline)
+                print(f"\n{RED}[LICENSE]{RESET} License is no longer valid: {result['message']}")
+                stop_event.set()
+                return
+        except Exception:
+            consecutive_offline_seconds += 7200  # 2 hours
+            if consecutive_offline_seconds >= 172800:  # 48 hours
+                print(f"\n{RED}[LICENSE]{RESET} Offline too long — please reconnect to verify your license.")
+                stop_event.set()
+                return
+
+
+# Integrity hashes — will be computed after all functions are defined
+_INTEGRITY_HASHES: dict[str, str] = {}
+
+
+def _compute_integrity_hashes():
+    """Compute and store integrity hashes for critical functions (called at module load)."""
+    for func in [activate_license, validate_license, _init_session]:
+        try:
+            source = inspect.getsource(func)
+            normalized = re.sub(r'\s+', ' ', source.strip())
+            _INTEGRITY_HASHES[func.__name__] = hashlib.sha256(normalized.encode()).hexdigest()
+        except Exception:
+            pass
 
 
 def term_width() -> int:
@@ -99,23 +248,62 @@ def load_config() -> dict:
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE) as f:
-                return json.load(f)
+                raw = json.load(f)
         except (json.JSONDecodeError, Exception):
-            # Corrupted config — back up and start fresh
             backup = CONFIG_FILE.with_suffix(".json.bak")
             try:
                 CONFIG_FILE.rename(backup)
             except Exception:
                 pass
             return {}
+        # Decrypt sensitive fields
+        mid = get_machine_id()
+        decrypted = {}
+        for k, v in raw.items():
+            if k.startswith(_ENC_PREFIX) and isinstance(v, str):
+                real_key = k[len(_ENC_PREFIX):]
+                plain = _decrypt_value(v, mid)
+                if plain is None:
+                    # Tampered — skip this field (treated as missing)
+                    continue
+                # Restore original type (bool, float, int)
+                if plain == "__TRUE__":
+                    decrypted[real_key] = True
+                elif plain == "__FALSE__":
+                    decrypted[real_key] = False
+                else:
+                    try:
+                        decrypted[real_key] = json.loads(plain)
+                    except (json.JSONDecodeError, ValueError):
+                        decrypted[real_key] = plain
+            elif k not in _SENSITIVE_FIELDS:
+                decrypted[k] = v
+            # If a sensitive field is stored unencrypted (legacy), ignore it
+        return decrypted
     return {}
 
 
 def save_config(cfg: dict):
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    mid = get_machine_id()
+    to_write = {}
+    for k, v in cfg.items():
+        if k in _SENSITIVE_FIELDS:
+            # Serialize value for encryption
+            if v is True:
+                plain = "__TRUE__"
+            elif v is False:
+                plain = "__FALSE__"
+            elif isinstance(v, str):
+                plain = v
+            else:
+                plain = json.dumps(v)
+            to_write[f"{_ENC_PREFIX}{k}"] = _encrypt_value(plain, mid)
+        else:
+            to_write[k] = v
     tmp = CONFIG_FILE.with_suffix(".json.tmp")
     with open(tmp, "w") as f:
-        json.dump(cfg, f, indent=2)
+        json.dump(to_write, f, indent=2)
     os.rename(tmp, CONFIG_FILE)
 
 
@@ -975,8 +1163,26 @@ def first_time_setup():
             print(f"{GRAY}Goodbye!{RESET}")
             sys.exit(0)
         if key.lower() == "trial":
-            config["trial_started_at"] = time.time()
+            now = time.time()
+            config["trial_started_at"] = now
+            config["trial_wall_start"] = now
+            config["trial_boot_offset"] = time.monotonic()
+            config["trial_last_seen"] = now
             config["license_validated"] = True
+            # Try to anchor to server time
+            try:
+                req = urllib.request.Request(
+                    f"{LEMONSQUEEZY_API}/validate",
+                    headers={"Accept": "application/json"},
+                )
+                resp = urllib.request.urlopen(req, timeout=5)
+                server_date = resp.headers.get("Date", "")
+                if server_date:
+                    from email.utils import parsedate_to_datetime
+                    server_ts = parsedate_to_datetime(server_date).timestamp()
+                    config["trial_started_at"] = server_ts
+            except Exception:
+                pass  # use local time as fallback
             print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
             print(f"{GRAY}Buy a license at https://hrampell.github.io/ghostreply to keep using it.{RESET}")
             # Optional email for follow-up
@@ -1618,6 +1824,16 @@ def reply_delay(their_text: str):
 
 def handle_batch(contact: str, texts: list[str]):
     """Handle a batch of messages from the same contact with a single reply."""
+    global _session_token
+    # Session token check — verify license is still valid
+    machine_id = config.get("machine_id", get_machine_id())
+    license_key = config.get("license_key", "")
+    if not license_key and config.get("trial_started_at"):
+        license_key = f"trial_{config['trial_started_at']}"
+    if _session_token and not _verify_session_token(_session_token, license_key, machine_id):
+        # Token expired (new day) — regenerate
+        _session_token = _generate_session_token(license_key, machine_id)
+
     # Only reply to the configured target contact
     target = config.get("target_contact")
     if target and contact != target:
@@ -1893,6 +2109,9 @@ def main():
     # Auto-update from GitHub
     check_for_updates()
 
+    # Code integrity self-check
+    _check_integrity()
+
     if not DB_PATH.exists():
         print(f"{RED}[ERROR]{RESET} iMessage database not found at {DB_PATH}")
         print("Make sure you're running this on a Mac with iMessage set up.")
@@ -1901,6 +2120,26 @@ def main():
     # Load config + profile
     config = load_config()
     profile = load_profile()
+
+    # 48h offline check — if license user hasn't checked in for 48h and is offline, refuse
+    last_check = config.get("last_server_check")
+    if last_check and config.get("license_key") and not config.get("trial_started_at"):
+        hours_since_check = (time.time() - last_check) / 3600
+        if hours_since_check > 48:
+            # Try a quick server check
+            try:
+                result = validate_license(
+                    config["license_key"], config.get("instance_id", "")
+                )
+                if result["status"] == "valid":
+                    config["last_server_check"] = time.time()
+                    save_config(config)
+                else:
+                    print(f"{RED}[LICENSE]{RESET} License validation failed: {result['message']}")
+                    sys.exit(1)
+            except Exception:
+                print(f"{RED}[LICENSE]{RESET} Offline too long — please connect to the internet to verify your license.")
+                sys.exit(1)
 
     # Permissions setup (first run only)
     setup_permissions()
@@ -1917,6 +2156,7 @@ def main():
         first_time_setup()
         config = load_config()
         profile = load_profile()
+        _init_session()
     else:
         # --- Returning user: validate license, pick contact, go ---
 
@@ -1939,8 +2179,31 @@ def main():
 
         # Validate license or trial
         if config.get("trial_started_at"):
-            elapsed = time.time() - config["trial_started_at"]
-            hours_left = max(0, 24 - elapsed / 3600)
+            now = time.time()
+            trial_start = config["trial_started_at"]
+            wall_elapsed = now - trial_start
+
+            # Anti-clock-manipulation: check trial_last_seen
+            last_seen = config.get("trial_last_seen", 0)
+            if last_seen and now < last_seen - 60:
+                # Clock was set back — expire trial immediately
+                wall_elapsed = 999999
+
+            # Anti-clock-manipulation: monotonic cross-check
+            boot_offset = config.get("trial_boot_offset")
+            wall_start = config.get("trial_wall_start")
+            if boot_offset is not None and wall_start is not None:
+                mono_elapsed = time.monotonic() - boot_offset
+                # Use the larger of wall clock or monotonic elapsed
+                # (monotonic only valid within same boot session)
+                if mono_elapsed > 0:
+                    wall_elapsed = max(wall_elapsed, mono_elapsed)
+
+            # Update last_seen for next run
+            config["trial_last_seen"] = now
+            save_config(config)
+
+            hours_left = max(0, 24 - wall_elapsed / 3600)
             if hours_left <= 0:
                 print(f"{RED}Free trial expired!{RESET}")
                 print(f"{GRAY}Buy a license at{RESET} {BLUE}https://hrampell.github.io/ghostreply{RESET}")
@@ -1958,6 +2221,9 @@ def main():
                 config["machine_id"] = machine_id
                 config["instance_id"] = result.get("instance_id", "")
                 config.pop("trial_started_at", None)
+                config.pop("trial_wall_start", None)
+                config.pop("trial_boot_offset", None)
+                config.pop("trial_last_seen", None)
                 save_config(config)
                 print(f"{GREEN}License activated!{RESET}")
             else:
@@ -1981,6 +2247,9 @@ def main():
             config["license_validated"] = True
             save_config(config)
             print(f"{GREEN}OK{RESET}")
+
+        # Initialize session (token + background re-validation)
+        _init_session()
 
         # Initialize AI
         init_groq_client()
@@ -2158,6 +2427,10 @@ def uninstall():
     print()
     print(f"  {GREEN}GhostReply uninstalled.{RESET} Restart your terminal to finish.")
     print()
+
+
+# Compute integrity hashes at module load (before any tampering check)
+_compute_integrity_hashes()
 
 
 if __name__ == "__main__":
