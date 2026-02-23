@@ -1811,7 +1811,7 @@ def setup_permissions():
         print()
         print(f"  {WHITE}1.{RESET} {GRAY}I'll open System Settings for you{RESET}")
         print(f"  {WHITE}2.{RESET} {GRAY}Find {WHITE}Terminal{GRAY} in the list and turn it on{RESET}")
-        print(f"  {WHITE}3.{RESET} {GRAY}It'll ask you to quit Terminal — do it, then reopen and run {GREEN}ghostreply{RESET} {GRAY}again{RESET}")
+        print(f"  {WHITE}3.{RESET} {GRAY}It'll ask you to quit Terminal — do it, then reopen and type {GREEN}ghostreply{RESET}{GRAY} + Enter{RESET}")
         print()
 
         try:
@@ -1826,7 +1826,7 @@ def setup_permissions():
         )
         print()
         print(f"  {GRAY}After you turn on Terminal, quit Terminal and reopen it.{RESET}")
-        print(f"  {GRAY}Then run {GREEN}ghostreply{RESET} {GRAY}again and you're good to go.{RESET}")
+        print(f"  {GRAY}Then type {GREEN}ghostreply{RESET} {GRAY}and hit Enter.{RESET}")
         print()
         sys.exit(0)
 
