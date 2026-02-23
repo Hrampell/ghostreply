@@ -162,7 +162,7 @@
             display: flex;
             gap: 16px;
             padding: 24px;
-            min-height: 340px;
+            height: 380px;
         }
 
         .hero-terminal {
@@ -192,14 +192,12 @@
 
         .term-reply {
             opacity: 0;
-            transform: translateY(8px);
             margin-top: 2px;
+            transition: opacity 0.4s ease;
         }
 
         .term-reply.visible {
             opacity: 1;
-            transform: translateY(0);
-            transition: opacity 0.4s ease, transform 0.4s ease;
         }
 
         .reply-out {
@@ -231,19 +229,18 @@
             flex-direction: column;
             gap: 4px;
             flex: 1;
+            position: relative;
         }
 
         .msg-row {
             display: flex;
             flex-direction: column;
             opacity: 0;
-            transform: translateY(8px);
+            transition: opacity 0.3s ease;
         }
 
         .msg-row.visible {
             opacity: 1;
-            transform: translateY(0);
-            transition: opacity 0.3s ease, transform 0.3s ease;
         }
 
         .msg-in { align-items: flex-start; }
@@ -277,7 +274,17 @@
             margin-right: 4px;
         }
 
-        /* Typing indicator */
+        /* Typing indicator — inline in flow, hidden until shown */
+        .typing-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .typing-row.visible { opacity: 1; }
+
         .typing-dots {
             display: inline-flex;
             gap: 4px;
@@ -285,7 +292,6 @@
             background: #333;
             border-radius: 16px;
             border-bottom-left-radius: 4px;
-            align-self: flex-start;
         }
 
         .typing-dots span {
@@ -705,10 +711,13 @@
                             <div class="imsg-header"><strong>Andrew</strong><span>iMessage</span></div>
                             <div class="imsg-body">
                                 <div class="msg-row msg-in" data-anim="0"><div class="msg-bubble gray-b">Yo wanna play rocket league</div></div>
+                                <div class="typing-row" data-typing="0"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                                 <div class="msg-row msg-out" data-anim="0"><div class="ghost-tag">GHOSTREPLY</div><div class="msg-bubble blue-b">Yeah gimme like 20 min</div></div>
                                 <div class="msg-row msg-in" data-anim="1"><div class="msg-bubble gray-b">Did u do the history essay</div></div>
+                                <div class="typing-row" data-typing="1"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                                 <div class="msg-row msg-out" data-anim="1"><div class="msg-bubble blue-b">Nah not yet</div></div>
                                 <div class="msg-row msg-in" data-anim="2"><div class="msg-bubble gray-b">Its due tmrw bro</div></div>
+                                <div class="typing-row" data-typing="2"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                                 <div class="msg-row msg-out" data-anim="2"><div class="msg-bubble blue-b">I know ill do it later lol</div></div>
                             </div>
                         </div>
@@ -1058,54 +1067,36 @@
         window.addEventListener('scroll', onScroll, { passive: true });
         onScroll(); // initial state
 
-        // === Hero animation: messages appear one by one ===
-        function runHeroAnimation() {
+        // === Hero animation: messages appear one by one (plays once) ===
+        (function() {
             const termReplies = document.querySelectorAll('.term-reply');
-            const msgRows = document.querySelectorAll('.msg-row');
-            const imsgBody = document.querySelector('.imsg-body');
+            const typingRows = document.querySelectorAll('.typing-row');
+
+            function show(sel) { document.querySelector(sel).classList.add('visible'); }
+            function showTyping(n) { typingRows[n].classList.add('visible'); }
+            function hideTyping(n) { typingRows[n].classList.remove('visible'); }
 
             const sequence = [
-                // step 0: incoming message
-                { delay: 800,  action: () => msgRows[0].classList.add('visible') },
-                // typing indicator
-                { delay: 600,  action: () => { addTyping(); termReplies[0].querySelector('div').style.opacity = '1'; }},
-                // step 0: reply
-                { delay: 1200, action: () => { removeTyping(); msgRows[1].classList.add('visible'); termReplies[0].classList.add('visible'); }},
-                // step 1: incoming
-                { delay: 1000, action: () => msgRows[2].classList.add('visible') },
-                { delay: 500,  action: () => addTyping() },
-                { delay: 900,  action: () => { removeTyping(); msgRows[3].classList.add('visible'); termReplies[1].classList.add('visible'); }},
-                // step 2: incoming
-                { delay: 1000, action: () => msgRows[4].classList.add('visible') },
-                { delay: 500,  action: () => addTyping() },
-                { delay: 1100, action: () => { removeTyping(); msgRows[5].classList.add('visible'); termReplies[2].classList.add('visible'); }},
-                // loop: reset after pause
-                { delay: 4000, action: () => {
-                    termReplies.forEach(r => r.classList.remove('visible'));
-                    msgRows.forEach(r => r.classList.remove('visible'));
-                    setTimeout(runHeroAnimation, 600);
-                }}
+                // step 0
+                { delay: 800,  action: () => show('[data-anim="0"].msg-in') },
+                { delay: 600,  action: () => showTyping(0) },
+                { delay: 1200, action: () => { hideTyping(0); show('[data-anim="0"].msg-out'); termReplies[0].classList.add('visible'); }},
+                // step 1
+                { delay: 1000, action: () => show('[data-anim="1"].msg-in') },
+                { delay: 500,  action: () => showTyping(1) },
+                { delay: 900,  action: () => { hideTyping(1); show('[data-anim="1"].msg-out'); termReplies[1].classList.add('visible'); }},
+                // step 2
+                { delay: 1000, action: () => show('[data-anim="2"].msg-in') },
+                { delay: 500,  action: () => showTyping(2) },
+                { delay: 1100, action: () => { hideTyping(2); show('[data-anim="2"].msg-out'); termReplies[2].classList.add('visible'); }},
             ];
-
-            let typingEl = null;
-            function addTyping() {
-                typingEl = document.createElement('div');
-                typingEl.className = 'msg-row msg-in visible';
-                typingEl.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-                imsgBody.appendChild(typingEl);
-            }
-            function removeTyping() {
-                if (typingEl) { typingEl.remove(); typingEl = null; }
-            }
 
             let elapsed = 0;
             sequence.forEach(s => {
                 elapsed += s.delay;
                 setTimeout(s.action, elapsed);
             });
-        }
-
-        runHeroAnimation();
+        })();
     </script>
 </body>
 </html>
