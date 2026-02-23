@@ -153,6 +153,155 @@
             position: relative;
             z-index: 1;
             transition: transform 0.1s linear;
+            background: #0f0f0f;
+            overflow: hidden;
+        }
+
+        /* ===== Animated Hero Demo ===== */
+        .hero-demo {
+            display: flex;
+            gap: 16px;
+            padding: 24px;
+            min-height: 340px;
+        }
+
+        .hero-terminal {
+            flex: 1.5;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.9;
+            overflow: hidden;
+        }
+
+        .term-dots { display: flex; gap: 6px; margin-bottom: 14px; }
+        .td { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .td.r { background: #ff5f57; }
+        .td.y { background: #febc2e; }
+        .td.g { background: #28c840; }
+
+        .t-green { color: #5fff87; }
+        .t-bold { font-weight: 700; }
+        .t-cyan { color: #5fffff; }
+        .t-gray { color: #8a8a8a; }
+        .t-lgray { color: #bcbcbc; }
+        .t-white { color: #fff; }
+
+        .term-reply {
+            opacity: 0;
+            transform: translateY(8px);
+            margin-top: 2px;
+        }
+
+        .term-reply.visible {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .reply-out {
+            padding-left: 56px;
+        }
+
+        .hero-imsg {
+            flex: 1;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .imsg-header {
+            text-align: center;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid #222;
+        }
+
+        .imsg-header strong { display: block; font-size: 16px; color: #fff; }
+        .imsg-header span { font-size: 12px; color: #888; }
+
+        .imsg-body {
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .msg-row {
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        .msg-row.visible {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .msg-in { align-items: flex-start; }
+        .msg-out { align-items: flex-end; margin-top: 2px; margin-bottom: 6px; }
+
+        .msg-bubble {
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 13.5px;
+            line-height: 1.35;
+        }
+
+        .gray-b {
+            background: #333;
+            color: #fff;
+            border-bottom-left-radius: 4px;
+        }
+
+        .blue-b {
+            background: #0b84fe;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .ghost-tag {
+            font-size: 9px;
+            color: #4ade80;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+            margin-right: 4px;
+        }
+
+        /* Typing indicator */
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+            padding: 10px 14px;
+            background: #333;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+        }
+
+        .typing-dots span {
+            width: 7px;
+            height: 7px;
+            background: #888;
+            border-radius: 50%;
+            animation: typingBounce 1.2s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
         }
 
         /* ===== Sticky Scroll Sequence ===== */
@@ -315,60 +464,6 @@
 
         .bubble-label.right { text-align: right; }
 
-        /* ===== Clip-Path Wipe Install Section ===== */
-        .install-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 48px;
-            align-items: center;
-            padding: 100px 60px;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .install-text {
-            opacity: 0;
-            transform: translateX(-32px);
-            transition: opacity 0.8s ease, transform 0.8s ease;
-        }
-
-        .install-text.revealed {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .install-text h2 {
-            text-align: left;
-            font-size: 40px;
-            margin-bottom: 16px;
-            letter-spacing: -1px;
-        }
-
-        .install-text p {
-            color: #888;
-            font-size: 18px;
-            line-height: 1.6;
-            margin-bottom: 24px;
-        }
-
-        .install-mockup-wrap {
-            overflow: hidden;
-            border-radius: 12px;
-        }
-
-        .install-mockup {
-            width: 100%;
-            border-radius: 12px;
-            border: 1px solid #222;
-            clip-path: inset(0 100% 0 0 round 12px);
-            opacity: 0.4;
-            transition: clip-path 1s ease, opacity 1s ease;
-        }
-
-        .install-mockup.revealed {
-            clip-path: inset(0 0% 0 0 round 12px);
-            opacity: 1;
-        }
 
         /* Installer command box (reused in install section) */
         .installer-command {
@@ -540,6 +635,10 @@
             .installer-command { font-size: 12px; }
             .demos-row { flex-direction: column !important; }
 
+            .hero-demo { flex-direction: column; }
+            .hero-terminal { font-size: 11px; }
+            .hero-imsg { min-height: 200px; }
+
             .sticky-frame {
                 flex-direction: column;
                 padding: 24px;
@@ -549,12 +648,6 @@
             .sticky-images { width: 100%; }
             .seq-caption { position: relative; }
 
-            .install-section {
-                grid-template-columns: 1fr;
-                padding: 60px 24px;
-                gap: 32px;
-            }
-            .install-text h2 { text-align: center; font-size: 32px; }
         }
     </style>
 </head>
@@ -582,9 +675,45 @@
             </div>
             <p style="color:#555; font-size:13px; margin-top:16px;">Runs in your Mac's Terminal. Install once, then just type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:12px; color:#4ade80;">ghostreply</code> to start.</p>
 
-            <!-- Perspective-tilted hero mockup with glow -->
+            <!-- Animated hero demo -->
             <div class="hero-mockup-wrap">
-                <img class="hero-mockup" id="hero-img" src="../assets/ph1_hero.png" alt="GhostReply running in Terminal alongside iMessage conversation">
+                <div class="hero-mockup" id="hero-img">
+                    <div class="hero-demo">
+                        <!-- Terminal side -->
+                        <div class="hero-terminal">
+                            <div class="term-dots"><span class="td r"></span><span class="td y"></span><span class="td g"></span></div>
+                            <div class="term-body">
+                                <div class="term-line"><span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Andrew</span><span class="t-white">.</span></div>
+                                <div class="term-line t-gray">Type 'stop' to quit, or just reply yourself.</div>
+                                <div class="term-line">&nbsp;</div>
+                                <div class="term-reply" data-anim="0">
+                                    <div><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Yo wanna play rocket league</span></div>
+                                    <div class="reply-out"><span class="t-green">you:</span>&nbsp;&nbsp;<span class="t-white">Yeah gimme like 20 min</span></div>
+                                </div>
+                                <div class="term-reply" data-anim="1">
+                                    <div><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Did u do the history essay</span></div>
+                                    <div class="reply-out"><span class="t-green">you:</span>&nbsp;&nbsp;<span class="t-white">Nah not yet</span></div>
+                                </div>
+                                <div class="term-reply" data-anim="2">
+                                    <div><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Its due tmrw bro</span></div>
+                                    <div class="reply-out"><span class="t-green">you:</span>&nbsp;&nbsp;<span class="t-white">I know ill do it later lol</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- iMessage side -->
+                        <div class="hero-imsg">
+                            <div class="imsg-header"><strong>Andrew</strong><span>iMessage</span></div>
+                            <div class="imsg-body">
+                                <div class="msg-row msg-in" data-anim="0"><div class="msg-bubble gray-b">Yo wanna play rocket league</div></div>
+                                <div class="msg-row msg-out" data-anim="0"><div class="ghost-tag">GHOSTREPLY</div><div class="msg-bubble blue-b">Yeah gimme like 20 min</div></div>
+                                <div class="msg-row msg-in" data-anim="1"><div class="msg-bubble gray-b">Did u do the history essay</div></div>
+                                <div class="msg-row msg-out" data-anim="1"><div class="msg-bubble blue-b">Nah not yet</div></div>
+                                <div class="msg-row msg-in" data-anim="2"><div class="msg-bubble gray-b">Its due tmrw bro</div></div>
+                                <div class="msg-row msg-out" data-anim="2"><div class="msg-bubble blue-b">I know ill do it later lol</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -686,21 +815,6 @@
         </div>
 
     </div><!-- end container -->
-
-    <!-- ===== Clip-Path Wipe Install Section ===== -->
-    <div class="install-section" id="install-reveal">
-        <div class="install-text">
-            <h2>One command.<br>That's it.</h2>
-            <p>Paste this in Terminal. It downloads, installs, and starts GhostReply automatically. No dependencies, no setup.</p>
-            <div class="installer-command" onclick="navigator.clipboard.writeText('curl -sL hrampell.github.io/ghostreply/install.sh | bash'); this.querySelector('.copy-hint').textContent = 'Copied!';">
-                <span>curl -sL hrampell.github.io/ghostreply/install.sh | bash</span>
-                <span class="copy-hint">click to copy</span>
-            </div>
-        </div>
-        <div class="install-mockup-wrap">
-            <img class="install-mockup" src="../assets/ph3_install.png" alt="GhostReply one-command install">
-        </div>
-    </div>
 
     <div class="container">
 
@@ -935,31 +1049,63 @@
             seqCaptions.forEach((cap, i) => cap.classList.toggle('active', i === step));
         }
 
-        // === Install section: clip-path wipe reveal ===
-        const installSection = document.getElementById('install-reveal');
-        const installMockup = installSection.querySelector('.install-mockup');
-        const installText = installSection.querySelector('.install-text');
-        let installRevealed = false;
-
-        function checkInstallReveal() {
-            if (installRevealed) return;
-            const rect = installSection.getBoundingClientRect();
-            if (rect.top < window.innerHeight * 0.75) {
-                installMockup.classList.add('revealed');
-                installText.classList.add('revealed');
-                installRevealed = true;
-            }
-        }
-
         // Combined scroll handler
         function onScroll() {
             updateHeroTilt();
             updateStickySeq();
-            checkInstallReveal();
         }
 
         window.addEventListener('scroll', onScroll, { passive: true });
         onScroll(); // initial state
+
+        // === Hero animation: messages appear one by one ===
+        function runHeroAnimation() {
+            const termReplies = document.querySelectorAll('.term-reply');
+            const msgRows = document.querySelectorAll('.msg-row');
+            const imsgBody = document.querySelector('.imsg-body');
+
+            const sequence = [
+                // step 0: incoming message
+                { delay: 800,  action: () => msgRows[0].classList.add('visible') },
+                // typing indicator
+                { delay: 600,  action: () => { addTyping(); termReplies[0].querySelector('div').style.opacity = '1'; }},
+                // step 0: reply
+                { delay: 1200, action: () => { removeTyping(); msgRows[1].classList.add('visible'); termReplies[0].classList.add('visible'); }},
+                // step 1: incoming
+                { delay: 1000, action: () => msgRows[2].classList.add('visible') },
+                { delay: 500,  action: () => addTyping() },
+                { delay: 900,  action: () => { removeTyping(); msgRows[3].classList.add('visible'); termReplies[1].classList.add('visible'); }},
+                // step 2: incoming
+                { delay: 1000, action: () => msgRows[4].classList.add('visible') },
+                { delay: 500,  action: () => addTyping() },
+                { delay: 1100, action: () => { removeTyping(); msgRows[5].classList.add('visible'); termReplies[2].classList.add('visible'); }},
+                // loop: reset after pause
+                { delay: 4000, action: () => {
+                    termReplies.forEach(r => r.classList.remove('visible'));
+                    msgRows.forEach(r => r.classList.remove('visible'));
+                    setTimeout(runHeroAnimation, 600);
+                }}
+            ];
+
+            let typingEl = null;
+            function addTyping() {
+                typingEl = document.createElement('div');
+                typingEl.className = 'msg-row msg-in visible';
+                typingEl.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+                imsgBody.appendChild(typingEl);
+            }
+            function removeTyping() {
+                if (typingEl) { typingEl.remove(); typingEl = null; }
+            }
+
+            let elapsed = 0;
+            sequence.forEach(s => {
+                elapsed += s.delay;
+                setTimeout(s.action, elapsed);
+            });
+        }
+
+        runHeroAnimation();
     </script>
 </body>
 </html>
