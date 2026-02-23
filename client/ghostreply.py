@@ -207,19 +207,12 @@ def _revalidation_loop():
                 return
 
 
-# Integrity hashes — will be computed after all functions are defined
-_INTEGRITY_HASHES: dict[str, str] = {}
-
-
-def _compute_integrity_hashes():
-    """Compute and store integrity hashes for critical functions (called at module load)."""
-    for func in [activate_license, validate_license, _init_session]:
-        try:
-            source = inspect.getsource(func)
-            normalized = re.sub(r'\s+', ' ', source.strip())
-            _INTEGRITY_HASHES[func.__name__] = hashlib.sha256(normalized.encode()).hexdigest()
-        except Exception:
-            pass
+# Hardcoded integrity hashes for critical license functions
+_INTEGRITY_HASHES: dict[str, str] = {
+    "activate_license": "a37f13700cd11d34f66914cdf10d87871cf163633f19333bdfc5016e367ab5a7",
+    "validate_license": "d1f529d01e984d86769c2e1f978c99bae55866b0cf0df13e5a5ab04bd7031180",
+    "_init_session": "ab222ccfb478d3ffe976a964dc7dbd610914bcb48dc9105ba58ff1f6d17a181f",
+}
 
 
 def term_width() -> int:
@@ -279,6 +272,9 @@ def load_config() -> dict:
                         decrypted[real_key] = plain
             elif k in _SENSITIVE_FIELDS:
                 # Legacy plaintext sensitive field — migrate it
+                # Don't migrate license_validated — must be set by real validation
+                if k == "license_validated":
+                    continue
                 decrypted[k] = v
                 needs_migration = True
             else:
@@ -2434,10 +2430,6 @@ def uninstall():
     print()
     print(f"  {GREEN}GhostReply uninstalled.{RESET} Restart your terminal to finish.")
     print()
-
-
-# Compute integrity hashes at module load (before any tampering check)
-_compute_integrity_hashes()
 
 
 if __name__ == "__main__":
