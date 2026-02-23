@@ -1194,6 +1194,7 @@ def first_time_setup():
                     config["trial_started_at"] = server_ts
             except Exception:
                 pass  # use local time as fallback
+            save_config(config)  # save immediately so trial is never lost
             print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
             print(f"{GRAY}Buy a license at https://hrampell.github.io/ghostreply to keep using it.{RESET}")
             # Optional email for follow-up
@@ -1212,6 +1213,7 @@ def first_time_setup():
             config["machine_id"] = machine_id
             config["instance_id"] = result.get("instance_id", "")
             config["license_validated"] = True
+            save_config(config)  # save immediately so key is never lost
             break
         else:
             trial_offered = True  # Once they've tried a real key, no more trial option
