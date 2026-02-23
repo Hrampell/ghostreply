@@ -49,7 +49,7 @@ PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 # --- Runtime State ---
 config: dict = {}
@@ -976,6 +976,7 @@ def first_time_setup():
             sys.exit(0)
         if key.lower() == "trial":
             config["trial_started_at"] = time.time()
+            config["license_validated"] = True
             print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
             print(f"{GRAY}Buy a license at https://hrampell.github.io/ghostreply to keep using it.{RESET}")
             # Optional email for follow-up
@@ -1148,13 +1149,12 @@ def first_time_setup():
         print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
         add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
         opener = get_ai_response(selected["handle"])
+        # Clear the fake prompt from history, keep only the opener if it works
         conversation_history[selected["handle"]] = []
         if opener:
             add_to_history(selected["handle"], "assistant", opener)
             if send_imessage(selected["handle"], opener):
                 print(f"{GREEN}Sent:{RESET} {opener}")
-            else:
-                conversation_history[selected["handle"]] = []
         else:
             print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
     else:
@@ -1609,7 +1609,11 @@ def reply_delay(their_text: str):
         delay = random.uniform(2, 4)
     else:
         delay = random.uniform(4, 6)
-    time.sleep(delay)
+    # Sleep in small chunks so stop_event is responsive
+    for _ in range(int(delay * 10)):
+        if stop_event.is_set():
+            return
+        time.sleep(0.1)
 
 
 def handle_batch(contact: str, texts: list[str]):
@@ -1941,9 +1945,10 @@ def main():
                 print(f"{RED}Free trial expired!{RESET}")
                 print(f"{GRAY}Buy a license at{RESET} {BLUE}https://hrampell.github.io/ghostreply{RESET}")
                 print()
-                key = input(f"Enter your license key: ").strip()
-                if not key:
-                    sys.exit(1)
+                key = input(f"Enter your license key ('q' to quit): ").strip()
+                if not key or key.lower() in ("q", "quit", "exit"):
+                    print(f"{GRAY}Goodbye!{RESET}")
+                    sys.exit(0)
                 machine_id = get_machine_id()
                 result = activate_license(key, machine_id)
                 if result["status"] != "valid":
@@ -2061,8 +2066,6 @@ def main():
                 add_to_history(selected["handle"], "assistant", opener)
                 if send_imessage(selected["handle"], opener):
                     print(f"{GREEN}Sent:{RESET} {opener}")
-                else:
-                    conversation_history[selected["handle"]] = []
             else:
                 print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
         else:
