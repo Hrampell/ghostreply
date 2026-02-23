@@ -209,9 +209,9 @@ def _revalidation_loop():
 
 # Hardcoded integrity hashes for critical license functions
 _INTEGRITY_HASHES: dict[str, str] = {
-    "activate_license": "a37f13700cd11d34f66914cdf10d87871cf163633f19333bdfc5016e367ab5a7",
-    "validate_license": "d1f529d01e984d86769c2e1f978c99bae55866b0cf0df13e5a5ab04bd7031180",
-    "_init_session": "ab222ccfb478d3ffe976a964dc7dbd610914bcb48dc9105ba58ff1f6d17a181f",
+    "activate_license": "ee8144f9de686fd7addae7617e08a34bf285eb26971abf7a6cb8a73c67595ce0",
+    "validate_license": "81e4fe53459ce795f923edc674819b71baa0bd2753c9dec84ff10e1648280cab",
+    "_init_session": "894f6a77f9a5fcac8748fe70fffee876e9a590fe29f7cf6be179177544f38bb0",
 }
 
 
@@ -1175,8 +1175,8 @@ def first_time_setup():
             # Try to anchor to server time
             try:
                 req = urllib.request.Request(
-                    f"{LEMONSQUEEZY_API}/validate",
-                    headers={"Accept": "application/json"},
+                    "https://api.lemonsqueezy.com",
+                    method="HEAD",
                 )
                 resp = urllib.request.urlopen(req, timeout=5)
                 server_date = resp.headers.get("Date", "")
