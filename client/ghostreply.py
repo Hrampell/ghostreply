@@ -1158,14 +1158,21 @@ def first_time_setup():
     print()
 
     # --- Step 1: License key or free trial ---
+    # If user already has a groq key, they've been through setup before — no trial bypass
+    returning_user = bool(config.get("groq_api_key"))
+    trial_offered = returning_user
     while True:
-        key = input(f"Enter your license key (or '{GREEN}trial{RESET}' for 24hr free trial, 'q' to quit): ").strip()
+        if trial_offered:
+            # After a failed license attempt or returning user, don't offer trial
+            key = input(f"Enter your license key ('q' to quit): ").strip()
+        else:
+            key = input(f"Enter your license key (or '{GREEN}trial{RESET}' for 24hr free trial, 'q' to quit): ").strip()
         if not key:
             continue
         if key.lower() in ("q", "quit", "exit"):
             print(f"{GRAY}Goodbye!{RESET}")
             sys.exit(0)
-        if key.lower() == "trial":
+        if key.lower() == "trial" and not trial_offered:
             now = time.time()
             config["trial_started_at"] = now
             config["trial_wall_start"] = now
@@ -1206,6 +1213,7 @@ def first_time_setup():
             config["license_validated"] = True
             break
         else:
+            trial_offered = True  # Once they've tried a real key, no more trial option
             print(f"{RED}FAILED{RESET}")
             print(f"  {result['message']}")
 
