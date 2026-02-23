@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: radial-gradient(ellipse at 50% 40%, #111 0%, #0a0a0a 70%);
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 40px;
+}
+.heading {
+    text-align: center;
+}
+.heading h2 {
+    font-size: 38px; font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+.heading p {
+    color: #666; font-size: 18px; margin-top: 8px;
+}
+.terminal {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 32px 40px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 15.5px;
+    line-height: 2.1;
+    width: 820px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+}
+.dots { display: flex; gap: 8px; margin-bottom: 22px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; }
+.dot.r { background: #ff5f57; }
+.dot.y { background: #febc2e; }
+.dot.g { background: #28c840; }
+
+/* Match actual GhostReply terminal colors */
+.green { color: #5fff87; }        /* GREEN \033[92m */
+.cyan { color: #5fffff; }         /* BLUE \033[96m */
+.gray { color: #8a8a8a; }         /* GRAY \033[90m */
+.white { color: #fff; }           /* WHITE \033[97m */
+.bold { color: #fff; font-weight: 700; } /* BOLD */
+.input-text { color: #5fffff; }   /* user input shows as cyan-ish */
+
+.divider {
+    border: none;
+    border-top: 1px solid #222;
+    margin: 4px 0;
+}
+</style>
+</head>
+<body>
+
+<div class="heading">
+    <h2>Zero-config setup. Under 2 minutes.</h2>
+    <p>Enter a key, get a free AI key, and you're running.</p>
+</div>
+
+<div class="terminal">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+
+    <span class="bold">=== GhostReply Setup ===</span><br>
+    <br>
+    <span class="white">Enter your license key (or '</span><span class="green">trial</span><span class="white">' for 24hr free trial): </span><span class="input-text">trial</span><br>
+    <span class="green">Free trial activated! You have 24 hours.</span><br>
+    <span class="gray">Buy a license at https://ghostreply.app to keep using it.</span><br>
+    <br>
+
+    <hr class="divider">
+    <br>
+
+    <span class="bold">=== AI Setup ===</span><br>
+    <span class="white">GhostReply needs a free AI key from Groq</span> <span class="green">(no credit card, takes 30 seconds)</span><span class="white">.</span><br>
+    <br>
+    <span class="white">&nbsp;&nbsp;1.</span> <span class="gray">Sign up with Google (one click)</span><br>
+    <span class="white">&nbsp;&nbsp;2.</span> <span class="gray">Click "Create API Key"</span><br>
+    <span class="white">&nbsp;&nbsp;3.</span> <span class="gray">Copy it — come back here and hit Enter</span><br>
+    <br>
+    <span class="gray">&nbsp;&nbsp;Paste your Groq API key:</span> <span class="input-text">gsk_FTo...qNid</span><br>
+    <span class="gray">&nbsp;&nbsp;Verifying...</span> <span class="green">OK</span><br>
+    <br>
+
+    <hr class="divider">
+    <br>
+
+    <span class="bold">=== Scanning Your Messages ===</span><br>
+    <span class="gray">Reading your iMessage history to learn how you text...</span><br>
+    <br>
+    <span class="gray">&nbsp;&nbsp;[1/3] Pulling your sent messages...</span> <span class="green">347 texts found.</span><br>
+    <span class="gray">&nbsp;&nbsp;[2/3] Reading conversations for context...</span> <span class="green">12 contacts scanned.</span><br>
+    <span class="gray">&nbsp;&nbsp;[3/3] Analyzing your texting style...</span> <span class="green">done.</span><br>
+    <br>
+    <span class="green">&nbsp;&nbsp;&#10003;</span> <span class="gray">Profile ready.</span><br>
+</div>
+
+</body>
+</html>

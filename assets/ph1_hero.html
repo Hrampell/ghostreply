@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: radial-gradient(ellipse at 30% 50%, #111 0%, #0a0a0a 70%);
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+.badge {
+    position: absolute; top: 40px; left: 0; right: 0;
+    text-align: center;
+}
+.badge span {
+    display: inline-block;
+    background: linear-gradient(135deg, #1a1a1a, #222);
+    border: 1px solid #333;
+    border-radius: 100px;
+    padding: 10px 28px;
+    font-size: 15px;
+    color: #888;
+    letter-spacing: 0.5px;
+}
+.badge span em {
+    color: #4ade80;
+    font-style: normal;
+    font-weight: 600;
+}
+.container {
+    display: flex; gap: 50px; align-items: center;
+    padding: 40px 70px;
+    margin-top: 20px;
+}
+.terminal {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 28px 32px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 15px;
+    line-height: 2;
+    width: 600px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.dots { display: flex; gap: 8px; margin-bottom: 18px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; }
+.dot.r { background: #ff5f57; }
+.dot.y { background: #febc2e; }
+.dot.g { background: #28c840; }
+
+/* Match actual GhostReply terminal colors */
+.green { color: #5fff87; }        /* GREEN \033[92m */
+.cyan { color: #5fffff; }         /* BLUE \033[96m */
+.gray { color: #8a8a8a; }         /* GRAY \033[90m */
+.white { color: #fff; }           /* WHITE \033[97m */
+.bold-green { color: #5fff87; font-weight: 700; } /* GREEN+BOLD */
+.light-gray { color: #bcbcbc; }   /* LIGHT_GRAY \033[38;5;250m */
+.box { color: #8a8a8a; }          /* box is GRAY */
+
+.right-side { display: flex; flex-direction: column; gap: 20px; }
+.imessage {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 24px;
+    padding: 24px 20px;
+    width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.msg-header {
+    text-align: center;
+    color: #888; font-size: 13px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #222;
+}
+.msg-header strong { color: #fff; display: block; font-size: 18px; margin-bottom: 2px; }
+.bubble {
+    max-width: 80%;
+    padding: 11px 15px;
+    border-radius: 20px;
+    font-size: 15.5px;
+    line-height: 1.4;
+    margin-bottom: 6px;
+    clear: both;
+}
+.bubble-blue {
+    background: #0b84fe; color: #fff;
+    margin-left: auto; border-bottom-right-radius: 4px;
+    float: right;
+}
+.bubble-gray {
+    background: #333; color: #fff;
+    margin-right: auto; border-bottom-left-radius: 4px;
+    float: left;
+}
+.clear { clear: both; }
+.bot-label {
+    font-size: 10px; color: #4ade80;
+    text-align: right; margin-bottom: 3px; margin-top: 8px;
+    clear: both;
+    letter-spacing: 0.5px;
+}
+.spacer { clear: both; height: 4px; }
+
+.bottom-text {
+    position: absolute; bottom: 44px; left: 0; right: 0;
+    text-align: center;
+    color: #444; font-size: 14px;
+    letter-spacing: 0.3px;
+}
+.bottom-text code {
+    color: #666;
+    background: #1a1a1a;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 13px;
+}
+</style>
+</head>
+<body>
+<div class="badge"><span><em>GhostReply</em> &mdash; AI auto-reply for iMessage</span></div>
+
+<div class="container">
+    <div class="terminal">
+        <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+        <span class="box">╔══════════════════════════════════════╗</span><br>
+        <span class="box">║</span><span class="white" style="font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GhostReply v1.0.6</span><span class="box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;║</span><br>
+        <span class="box">║</span><span class="green">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMessage Auto-Reply Bot</span><span class="box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;║</span><br>
+        <span class="box">╚══════════════════════════════════════╝</span><br>
+        <br>
+        <span class="gray">Checking license...</span> <span class="green">OK</span><br>
+        <span class="green">Free trial</span> <span class="gray">—</span> <span class="cyan">22.4 hours left</span><br>
+        <br>
+        <span class="bold-green">GhostReply is running!</span> <span class="white">Replying to</span> <span class="cyan">Andrew</span><span class="white">.</span><br>
+        <span class="gray">Type '</span><span class="white">stop</span><span class="gray">' to quit, or just reply to Andrew yourself.</span><br>
+        <br>
+        <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Yo wanna play rocket league</span><br>
+        <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">Yeah gimme like 20 min</span><br>
+        <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Did u do the history essay</span><br>
+        <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">Nah not yet</span><br>
+        <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Its due tmrw bro</span><br>
+        <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">I know ill do it later lol</span><br>
+    </div>
+
+    <div class="right-side">
+        <div class="imessage">
+            <div class="msg-header"><strong>Andrew</strong>iMessage</div>
+            <div class="bubble bubble-gray">Yo wanna play rocket league</div>
+            <div class="clear"></div>
+            <div class="bot-label">GHOSTREPLY &darr;</div>
+            <div class="bubble bubble-blue">Yeah gimme like 20 min</div>
+            <div class="clear"></div>
+            <div class="spacer"></div>
+            <div class="bubble bubble-gray">Bet. Did u do the history essay</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Nah not yet</div>
+            <div class="clear"></div>
+            <div class="spacer"></div>
+            <div class="bubble bubble-gray">Its due tmrw bro</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">I know ill do it later lol</div>
+            <div class="clear"></div>
+            <div class="spacer"></div>
+            <div class="bubble bubble-gray">Lmao ok see u on rl</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Bet</div>
+            <div class="clear"></div>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-text">macOS only &middot; <code>curl -sL ghostreply.app/install.sh | bash</code></div>
+</body>
+</html>

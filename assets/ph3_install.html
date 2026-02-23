@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: radial-gradient(ellipse at 50% 50%, #0f0f0f 0%, #080808 70%);
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 50px;
+}
+
+.heading {
+    text-align: center;
+}
+.heading h2 {
+    font-size: 44px; font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+.heading p {
+    color: #555; font-size: 20px; margin-top: 12px;
+}
+
+.terminal {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 36px 44px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 18px;
+    line-height: 2.4;
+    width: 900px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.dots { display: flex; gap: 8px; margin-bottom: 24px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; }
+.dot.r { background: #ff5f57; }
+.dot.y { background: #febc2e; }
+.dot.g { background: #28c840; }
+
+/* Match actual GhostReply terminal colors */
+.green { color: #5fff87; }
+.cyan { color: #5fffff; }
+.gray { color: #8a8a8a; }
+.white { color: #fff; }
+.url { color: #5fffff; }
+
+.steps {
+    display: flex; gap: 60px; text-align: center;
+}
+.step {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.step-icon {
+    width: 64px; height: 64px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+}
+.step-label {
+    color: #888; font-size: 16px;
+}
+.step-label strong {
+    color: #fff; display: block; font-size: 18px; margin-bottom: 4px;
+}
+.arrow {
+    color: #333; font-size: 28px;
+    display: flex; align-items: center;
+}
+</style>
+</head>
+<body>
+
+<div class="heading">
+    <h2>One command. That's it.</h2>
+    <p>Install, set up, and start auto-replying in under 2 minutes.</p>
+</div>
+
+<div class="terminal">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <span class="green">$</span> <span class="white">curl -sL</span> <span class="url">https://hrampell.github.io/ghostreply/install.sh</span> <span class="white">| bash</span><br>
+    <br>
+    <span class="gray">&nbsp;&nbsp;Downloading GhostReply...</span> <span class="green">done</span><br>
+    <span class="gray">&nbsp;&nbsp;Installing to ~/.ghostreply/...</span> <span class="green">done</span><br>
+    <span class="gray">&nbsp;&nbsp;Adding 'ghostreply' command...</span> <span class="green">done</span><br>
+    <br>
+    <span class="green">&nbsp;&nbsp;&#10003; GhostReply installed!</span><br>
+    <span class="gray">&nbsp;&nbsp;Type</span> <span class="white">ghostreply</span> <span class="gray">+ Enter to start.</span><br>
+</div>
+
+
+</body>
+</html>
