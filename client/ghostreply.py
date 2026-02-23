@@ -53,6 +53,7 @@ DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 VERSION = "1.0.6"
+_DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
 config: dict = {}
@@ -2163,8 +2164,11 @@ def main():
     # Discover contacts DB
     discover_contacts_db()
 
+    # Dev machine bypass — skip license entirely
+    _is_dev = get_machine_id() in _DEV_MACHINES
+
     # First-time setup if needed (license + groq + scan messages)
-    has_license = config.get("license_key")
+    has_license = config.get("license_key") or _is_dev
     has_trial = config.get("trial_started_at")
     first_run = (not has_license and not has_trial) or not config.get("groq_api_key")
 
@@ -2244,6 +2248,9 @@ def main():
                 print(f"{GREEN}License activated!{RESET}")
             else:
                 print(f"{GREEN}Free trial{RESET} — {BLUE}{hours_left:.1f} hours left{RESET}")
+        elif _is_dev:
+            print(f"{GREEN}Dev machine — license bypassed.{RESET}")
+            config["license_validated"] = True
         else:
             license_key = config.get("license_key", "")
             if not license_key:
