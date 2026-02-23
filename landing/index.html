@@ -175,6 +175,7 @@
             font-size: 13px;
             line-height: 1.9;
             overflow: hidden;
+            text-align: left;
         }
 
         .term-dots { display: flex; gap: 6px; margin-bottom: 14px; }
@@ -212,6 +213,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            text-align: center;
         }
 
         .imsg-header {
@@ -224,12 +226,13 @@
         .imsg-header span { font-size: 12px; color: #888; }
 
         .imsg-body {
-            padding: 12px 14px;
+            padding: 10px 14px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
             flex: 1;
-            position: relative;
+            overflow: hidden;
+            text-align: left;
         }
 
         .msg-row {
@@ -244,7 +247,7 @@
         }
 
         .msg-in { align-items: flex-start; }
-        .msg-out { align-items: flex-end; margin-top: 2px; margin-bottom: 6px; }
+        .msg-out { align-items: flex-end; }
 
         .msg-bubble {
             max-width: 85%;
@@ -270,20 +273,24 @@
             font-size: 9px;
             color: #4ade80;
             letter-spacing: 0.5px;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
             margin-right: 4px;
         }
 
-        /* Typing indicator — inline in flow, hidden until shown */
+        /* Typing indicator — takes up no space, positioned over next message */
         .typing-row {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
             opacity: 0;
+            height: 0;
+            overflow: visible;
             transition: opacity 0.2s ease;
         }
 
-        .typing-row.visible { opacity: 1; }
+        .typing-row.visible {
+            opacity: 1;
+        }
 
         .typing-dots {
             display: inline-flex;
