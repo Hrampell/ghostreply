@@ -259,6 +259,7 @@ def load_config() -> dict:
         # Decrypt sensitive fields
         mid = get_machine_id()
         decrypted = {}
+        needs_migration = False
         for k, v in raw.items():
             if k.startswith(_ENC_PREFIX) and isinstance(v, str):
                 real_key = k[len(_ENC_PREFIX):]
@@ -276,9 +277,15 @@ def load_config() -> dict:
                         decrypted[real_key] = json.loads(plain)
                     except (json.JSONDecodeError, ValueError):
                         decrypted[real_key] = plain
-            elif k not in _SENSITIVE_FIELDS:
+            elif k in _SENSITIVE_FIELDS:
+                # Legacy plaintext sensitive field — migrate it
                 decrypted[k] = v
-            # If a sensitive field is stored unencrypted (legacy), ignore it
+                needs_migration = True
+            else:
+                decrypted[k] = v
+        # Auto-migrate: re-save with encryption if legacy fields found
+        if needs_migration:
+            save_config(decrypted)
         return decrypted
     return {}
 
