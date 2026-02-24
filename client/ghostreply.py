@@ -1076,8 +1076,12 @@ def build_system_prompt(contact_name: str = "") -> str:
                 )
                 break
 
-    # Safe mode — keep everything appropriate
-    if config.get("safe_mode"):
+    # Safe mode — keep everything appropriate (per-contact or legacy global)
+    safe_contacts = config.get("safe_contacts", [])
+    is_safe = config.get("safe_mode", False)  # legacy global fallback
+    if not is_safe and contact_name and safe_contacts:
+        is_safe = any(s.lower() in contact_name.lower() or contact_name.lower() in s.lower() for s in safe_contacts)
+    if is_safe:
         parts.append(
             "\nSAFE MODE (CRITICAL): Keep ALL replies completely appropriate. "
             "No swearing, no sexual jokes, no crude humor, no insults, nothing inappropriate. "
@@ -1319,18 +1323,25 @@ def first_time_setup():
 
     # --- Step 3: Swearing + safe mode preferences ---
     print()
-    swear_input = input(f"{WHITE}Do you usually swear with your friends?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+    swear_input = input(f"{WHITE}Do you usually swear with your friends? (y/n, hit enter):{RESET} ").strip().lower()
     if swear_input in ("n", "no", "never"):
         config["swearing"] = "never"
     else:
         config["swearing"] = "on"
     print()
-    safe_input = input(f"{WHITE}Are there people you text who should never get anything inappropriate?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+    safe_input = input(f"{WHITE}Are there contacts GhostReply should never say anything inappropriate to? (y/n, hit enter):{RESET} ").strip().lower()
     if safe_input in ("y", "yes"):
-        config["safe_mode"] = True
-        print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean and appropriate for everyone.{RESET}")
+        print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
+        names_input = input(f"  {WHITE}> {RESET}").strip()
+        safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
+        config["safe_contacts"] = safe_contacts
+        if safe_contacts:
+            print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}")
+        else:
+            config["safe_contacts"] = []
     else:
-        config["safe_mode"] = False
+        config["safe_contacts"] = []
+    config.pop("safe_mode", None)
     save_config(config)
 
     # --- Step 4: Auto-detect user's name from macOS ---
@@ -2213,8 +2224,27 @@ def setup_permissions():
 # Main
 # ============================================================
 
+def _ensure_dark_terminal():
+    """If macOS is in light mode, set Terminal background to dark so colors look best."""
+    try:
+        result = subprocess.run(
+            ["defaults", "read", "-g", "AppleInterfaceStyle"],
+            capture_output=True, text=True
+        )
+        # If "Dark" is returned, we're already in dark mode — do nothing
+        if result.returncode == 0 and "Dark" in result.stdout:
+            return
+        # Light mode: set Terminal background to dark via ANSI escape
+        sys.stdout.write("\033]11;#1c1c1e\007")
+        sys.stdout.flush()
+    except Exception:
+        pass
+
+
 def main():
     global config, profile, custom_tone
+
+    _ensure_dark_terminal()
 
     w = min(term_width() - 4, 40)
     inner = w - 2  # inside the box
