@@ -35,17 +35,10 @@ from pathlib import Path
 
 def _ssl_context() -> ssl.SSLContext:
     """Create an SSL context that works on macOS (fresh Python installs lack certs)."""
-    # Try certifi first — most reliable on macOS
+    # Try certifi first — most reliable on macOS (python.org Python has no certs)
     try:
         import certifi
         return ssl.create_default_context(cafile=certifi.where())
-    except Exception:
-        pass
-    # Try default context with a real connection test
-    try:
-        ctx = ssl.create_default_context()
-        urllib.request.urlopen("https://api.groq.com", timeout=5, context=ctx)
-        return ctx
     except Exception:
         pass
     # Try macOS system cert file locations
@@ -247,8 +240,8 @@ def _revalidation_loop():
 
 # Hardcoded integrity hashes for critical license functions
 _INTEGRITY_HASHES: dict[str, str] = {
-    "activate_license": "9b759fbaa8ee480831a9c68429741080f0b350b1e0672adde9c3eedb6dd14ab4",
-    "validate_license": "f733e16294aee88e57311b6e2f8c897f5be05f03026e55583311c21bf0f9386c",
+    "activate_license": "00e74f7c3787413fee30e405d09efb8c906c77e6122315c05244ead09df430c2",
+    "validate_license": "ad7133282513c400ae791b3d51356834036cce66a7c5a58d8110ef2fabbe52d9",
     "_init_session": "ab222ccfb478d3ffe976a964dc7dbd610914bcb48dc9105ba58ff1f6d17a181f",
 }
 
@@ -425,7 +418,10 @@ def activate_license(key: str, instance_name: str) -> dict:
         # Offline: allow if previously activated, deny if never validated
         if config.get("license_validated"):
             return {"status": "valid", "message": f"Offline mode (last validation passed)"}
-        return {"status": "invalid", "message": f"Can't reach license server: {e}"}
+        msg = f"Can't reach license server: {e}"
+        if "CERTIFICATE_VERIFY_FAILED" in str(e) or "SSL" in str(e):
+            msg = "SSL certificate error. Fix: pip3 install --upgrade certifi"
+        return {"status": "invalid", "message": msg}
 
 
 def validate_license(key: str, instance_id: str = "") -> dict:
@@ -461,7 +457,10 @@ def validate_license(key: str, instance_id: str = "") -> dict:
         # Offline: allow if previously validated, deny if never validated
         if config.get("license_validated"):
             return {"status": "valid", "message": f"Offline mode (last validation passed)"}
-        return {"status": "invalid", "message": f"Can't reach license server: {e}"}
+        msg = f"Can't reach license server: {e}"
+        if "CERTIFICATE_VERIFY_FAILED" in str(e) or "SSL" in str(e):
+            msg = "SSL certificate error. Fix: pip3 install --upgrade certifi"
+        return {"status": "invalid", "message": msg}
 
 
 def check_for_updates():
@@ -556,8 +555,13 @@ def verify_groq_key(api_key: str) -> bool:
             print(f"\n  {YELLOW}API error: {e.code} {e.reason}{RESET}")
         return False
     except urllib.error.URLError as e:
-        print(f"\n  {YELLOW}Connection error: {e.reason}{RESET}")
-        print(f"  {GRAY}Check your internet connection.{RESET}")
+        reason = str(e.reason)
+        if "CERTIFICATE_VERIFY_FAILED" in reason or "SSL" in reason:
+            print(f"\n  {YELLOW}SSL certificate error.{RESET}")
+            print(f"  {GRAY}Fix: pip3 install --upgrade certifi{RESET}")
+        else:
+            print(f"\n  {YELLOW}Connection error: {e.reason}{RESET}")
+            print(f"  {GRAY}Check your internet connection.{RESET}")
         return False
     except Exception as e:
         print(f"\n  {YELLOW}Error: {e}{RESET}")
