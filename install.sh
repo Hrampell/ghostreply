@@ -134,12 +134,28 @@ fi
 echo "  Using: $PYTHON"
 echo ""
 
-echo "[1/4] Creating ~/.ghostreply directory..."
+echo "[1/4] Setting up alias..."
 mkdir -p ~/.ghostreply
+
+# Set up the alias FIRST so 'ghostreply' always works — even if later steps fail
+if [[ "$SHELL" == */zsh ]]; then
+    SHELL_RC="$HOME/.zshrc"
+elif [[ "$SHELL" == */bash ]]; then
+    SHELL_RC="$HOME/.bash_profile"
+else
+    SHELL_RC="$HOME/.zshrc"
+fi
+
+touch "$SHELL_RC"
+sed -i '' '/# GhostReply - iMessage Auto-Reply/d' "$SHELL_RC" 2>/dev/null
+sed -i '' '/alias ghostreply=/d' "$SHELL_RC" 2>/dev/null
+echo '# GhostReply - iMessage Auto-Reply' >> "$SHELL_RC"
+echo "alias ghostreply=\"$PYTHON ~/.ghostreply/ghostreply.py\"" >> "$SHELL_RC"
 
 echo "[2/4] Downloading GhostReply..."
 if ! curl -sfL https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py -o ~/.ghostreply/ghostreply.py; then
     echo "  ERROR: Failed to download GhostReply. Check your internet connection."
+    echo "  The 'ghostreply' command is set up — just run the install again."
     exit 1
 fi
 
@@ -175,26 +191,7 @@ if [[ "$PIP_EXIT" -ne 0 ]]; then
     exit 1
 fi
 
-echo "[4/4] Setting up alias..."
-
-# Determine shell config file
-if [[ "$SHELL" == */zsh ]]; then
-    SHELL_RC="$HOME/.zshrc"
-elif [[ "$SHELL" == */bash ]]; then
-    SHELL_RC="$HOME/.bash_profile"
-else
-    SHELL_RC="$HOME/.zshrc"
-fi
-
-# Create shell config if it doesn't exist
-touch "$SHELL_RC"
-
-# Remove old alias if present, then add fresh one
-sed -i '' '/# GhostReply - iMessage Auto-Reply/d' "$SHELL_RC" 2>/dev/null
-sed -i '' '/alias ghostreply=/d' "$SHELL_RC" 2>/dev/null
-echo '# GhostReply - iMessage Auto-Reply' >> "$SHELL_RC"
-echo "alias ghostreply=\"$PYTHON ~/.ghostreply/ghostreply.py\"" >> "$SHELL_RC"
-
+echo "[4/4] Ready!"
 echo ""
 echo "  ✓ GhostReply installed successfully!"
 echo ""
