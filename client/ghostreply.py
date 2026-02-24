@@ -1321,37 +1321,13 @@ def first_time_setup():
     # Initialize AI client so we can use it for the next steps
     init_groq_client()
 
-    # --- Step 3: Swearing + safe mode preferences ---
-    print()
-    swear_input = input(f"{WHITE}Do you usually swear with your friends? (y/n, hit enter):{RESET} ").strip().lower()
-    if swear_input in ("n", "no", "never"):
-        config["swearing"] = "never"
-        config["safe_contacts"] = []
-    else:
-        config["swearing"] = "on"
-        print()
-        safe_input = input(f"{WHITE}Are there contacts GhostReply should never say anything inappropriate to? (y/n, hit enter):{RESET} ").strip().lower()
-        if safe_input in ("y", "yes"):
-            print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
-            names_input = input(f"  {WHITE}> {RESET}").strip()
-            safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
-            config["safe_contacts"] = safe_contacts
-            if safe_contacts:
-                print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}")
-            else:
-                config["safe_contacts"] = []
-        else:
-            config["safe_contacts"] = []
-    config.pop("safe_mode", None)
-    save_config(config)
-
-    # --- Step 4: Auto-detect user's name from macOS ---
+    # --- Step 3: Auto-detect user's name from macOS ---
     mac_name = get_mac_user_name()
     if mac_name:
         profile["name"] = mac_name.split()[0]  # first name
         print(f"\n{GRAY}Detected your name:{RESET} {WHITE}{mac_name}{RESET}")
 
-    # --- Step 5: Scan messages + conversations (fully automatic) ---
+    # --- Step 4: Scan messages + conversations (fully automatic) ---
     print()
     print(f"{BOLD}=== Scanning Your Messages ==={RESET}")
     print(f"{GRAY}Reading your iMessage history to learn how you text...{RESET}")
@@ -1380,7 +1356,7 @@ def first_time_setup():
     else:
         print(f"  {GRAY}[3/3] No texts to analyze, using default style.{RESET}")
 
-    # --- Step 6: Build life profile from conversations ---
+    # --- Step 5: Build life profile from conversations ---
     if convos:
         print()
         print(f"{GRAY}Building your profile from your conversations...{RESET}", end=" ", flush=True)
@@ -1393,6 +1369,34 @@ def first_time_setup():
         print(f"{GREEN}done!{RESET}")
 
     print(f"  {GREEN}✓{RESET} {GRAY}Profile built from your messages.{RESET}")
+
+    # --- Step 6: Swearing detection + safe contacts ---
+    _SWEAR_WORDS = {"fuck", "shit", "damn", "ass", "bitch", "hell", "dick", "piss", "crap", "bastard", "wtf", "stfu", "lmao", "lmfao"}
+    swears_detected = False
+    if my_texts:
+        sample = " ".join(my_texts).lower()
+        swears_detected = any(w in sample.split() or w in sample for w in _SWEAR_WORDS)
+    if swears_detected:
+        config["swearing"] = "on"
+        print(f"\n  {GREEN}✓{RESET} {GRAY}Detected you swear in your texts — GhostReply will match that.{RESET}")
+        print()
+        safe_input = input(f"{WHITE}Are there contacts GhostReply should never say anything inappropriate to? (y/n, hit enter):{RESET} ").strip().lower()
+        if safe_input in ("y", "yes"):
+            print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
+            names_input = input(f"  {WHITE}> {RESET}").strip()
+            safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
+            config["safe_contacts"] = safe_contacts
+            if safe_contacts:
+                print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}")
+            else:
+                config["safe_contacts"] = []
+        else:
+            config["safe_contacts"] = []
+    else:
+        config["swearing"] = "never"
+        config["safe_contacts"] = []
+    config.pop("safe_mode", None)
+    save_config(config)
 
     # Save profile now so it's not lost if user quits during contact selection
     save_profile(profile)
