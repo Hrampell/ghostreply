@@ -77,11 +77,15 @@ WHEAT = "\033[38;5;223m"       # #ffd787 — personality summary text
 
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".ghostreply"
+_TRIAL_BREADCRUMB = Path.home() / "Library" / "Application Support" / ".ghostreply_trial"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
+# Friend key verification
+_FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
+_FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 VERSION = "1.0.8"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
@@ -219,6 +223,9 @@ def _revalidation_loop():
         instance_id = config.get("instance_id", "")
         if not license_key:
             return
+        # Friend keys are validated locally — skip API re-validation
+        if license_key.startswith("grf_"):
+            continue
         try:
             result = validate_license(license_key, instance_id)
             if result["status"] == "valid":
@@ -461,6 +468,20 @@ def validate_license(key: str, instance_id: str = "") -> dict:
         if "CERTIFICATE_VERIFY_FAILED" in str(e) or "SSL" in str(e):
             msg = "SSL certificate error. Fix: pip3 install --upgrade certifi"
         return {"status": "invalid", "message": msg}
+
+
+def _verify_friend_key(key: str) -> bool:
+    """Check if key is a valid HMAC-signed friend key (format: grf_<name>_<sig>)."""
+    if not key.startswith("grf_"):
+        return False
+    rest = key[4:]  # strip 'grf_' prefix
+    # Split on LAST underscore — sig is always 12 hex chars at the end
+    parts = rest.rsplit("_", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return False
+    name, sig = parts[0], parts[1]
+    expected = hmac.new(_FK_KEY, name.encode(), hashlib.sha256).hexdigest()[:12]
+    return hmac.compare_digest(sig, expected)
 
 
 def check_for_updates():
@@ -1210,7 +1231,8 @@ def first_time_setup():
     # --- Step 1: License key or free trial ---
     # If user already has a groq key, they've been through setup before — no trial bypass
     returning_user = bool(config.get("groq_api_key"))
-    trial_offered = returning_user
+    trial_already_used = _TRIAL_BREADCRUMB.exists()
+    trial_offered = returning_user or trial_already_used
     while True:
         if trial_offered:
             # After a failed license attempt or returning user, don't offer trial
@@ -1244,6 +1266,12 @@ def first_time_setup():
             except Exception:
                 pass  # use local time as fallback
             save_config(config)  # save immediately so trial is never lost
+            # Drop breadcrumb so trial can't be reused after uninstall
+            try:
+                _TRIAL_BREADCRUMB.parent.mkdir(parents=True, exist_ok=True)
+                _TRIAL_BREADCRUMB.write_text(str(now))
+            except Exception:
+                pass
             print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
             print(f"{GRAY}Buy a license at https://hrampell.github.io/ghostreply to keep using it.{RESET}")
             # Optional email for follow-up
@@ -1252,6 +1280,15 @@ def first_time_setup():
             if email and "@" in email:
                 config["email"] = email
                 print(f"  {GREEN}✓{RESET} {GRAY}We'll remind you before it expires.{RESET}")
+            break
+        # Friend keys (grf_<name>_<sig>) — validated locally, no API call
+        if _verify_friend_key(key):
+            print(f"{GREEN}Activated!{RESET}")
+            config["license_key"] = key
+            config["machine_id"] = get_machine_id()
+            config["instance_id"] = "friend"
+            config["license_validated"] = True
+            save_config(config)
             break
         machine_id = get_machine_id()
         print("Activating...", end=" ", flush=True)
@@ -2205,15 +2242,15 @@ def main():
     profile = load_profile()
 
     # 48h offline check — if license user hasn't checked in for 48h and is offline, refuse
+    # (friend keys skip this — they don't need server validation)
     last_check = config.get("last_server_check")
-    if last_check and config.get("license_key") and not config.get("trial_started_at"):
+    lk = config.get("license_key", "")
+    if last_check and lk and not lk.startswith("grf_") and not config.get("trial_started_at"):
         hours_since_check = (time.time() - last_check) / 3600
         if hours_since_check > 48:
             # Try a quick server check
             try:
-                result = validate_license(
-                    config["license_key"], config.get("instance_id", "")
-                )
+                result = validate_license(lk, config.get("instance_id", ""))
                 if result["status"] == "valid":
                     config["last_server_check"] = time.time()
                     save_config(config)
@@ -2298,14 +2335,20 @@ def main():
                 if not key or key.lower() in ("q", "quit", "exit"):
                     print(f"{GRAY}Goodbye!{RESET}")
                     sys.exit(0)
-                machine_id = get_machine_id()
-                result = activate_license(key, machine_id)
-                if result["status"] != "valid":
-                    print(f"  {RED}{result['message']}{RESET}")
-                    sys.exit(1)
-                config["license_key"] = key
-                config["machine_id"] = machine_id
-                config["instance_id"] = result.get("instance_id", "")
+                if _verify_friend_key(key):
+                    config["license_key"] = key
+                    config["machine_id"] = get_machine_id()
+                    config["instance_id"] = "friend"
+                    config["license_validated"] = True
+                else:
+                    machine_id = get_machine_id()
+                    result = activate_license(key, machine_id)
+                    if result["status"] != "valid":
+                        print(f"  {RED}{result['message']}{RESET}")
+                        sys.exit(1)
+                    config["license_key"] = key
+                    config["machine_id"] = machine_id
+                    config["instance_id"] = result.get("instance_id", "")
                 config.pop("trial_started_at", None)
                 config.pop("trial_wall_start", None)
                 config.pop("trial_boot_offset", None)
@@ -2323,19 +2366,31 @@ def main():
                 print(f"{RED}No license key found.{RESET}")
                 print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
                 sys.exit(1)
-            print(f"{GRAY}Checking license...{RESET}", end=" ", flush=True)
-            instance_id = config.get("instance_id", "")
-            result = validate_license(license_key, instance_id)
-            if result["status"] != "valid":
-                print(f"{RED}FAILED{RESET}")
-                print(f"  {result['message']}")
-                print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
-                config.pop("license_key", None)
+            # Friend keys are validated locally — no server check needed
+            if license_key.startswith("grf_"):
+                if _verify_friend_key(license_key):
+                    config["license_validated"] = True
+                    save_config(config)
+                    print(f"{GREEN}License OK{RESET}")
+                else:
+                    print(f"{RED}Invalid license key.{RESET}")
+                    config.pop("license_key", None)
+                    save_config(config)
+                    sys.exit(1)
+            else:
+                print(f"{GRAY}Checking license...{RESET}", end=" ", flush=True)
+                instance_id = config.get("instance_id", "")
+                result = validate_license(license_key, instance_id)
+                if result["status"] != "valid":
+                    print(f"{RED}FAILED{RESET}")
+                    print(f"  {result['message']}")
+                    print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+                    config.pop("license_key", None)
+                    save_config(config)
+                    sys.exit(1)
+                config["license_validated"] = True
                 save_config(config)
-                sys.exit(1)
-            config["license_validated"] = True
-            save_config(config)
-            print(f"{GREEN}OK{RESET}")
+                print(f"{GREEN}OK{RESET}")
 
         # Initialize session (token + background re-validation)
         _init_session()
