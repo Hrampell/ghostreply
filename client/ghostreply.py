@@ -87,7 +87,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.0.8"
+VERSION = "1.0.9"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -1657,7 +1657,30 @@ def format_contact_list(contacts: list[dict]) -> list[str]:
     return result
 
 
+def local_find_contact(query: str, contacts: list[dict]) -> list[dict]:
+    """Fast local fuzzy search — no AI needed."""
+    q = query.lower().strip()
+    exact, starts, contains = [], [], []
+    for c in contacts:
+        name = (c["name"] or "").lower()
+        handle = c["handle"].lower()
+        first = name.split()[0] if name else ""
+        if q == name or q == first or q == handle:
+            exact.append(c)
+        elif name.startswith(q) or first.startswith(q) or handle.startswith(q):
+            starts.append(c)
+        elif q in name or q in handle:
+            contains.append(c)
+    results = exact + starts + contains
+    return results[:3]
+
+
 def ai_find_contact(query: str, contacts: list[dict]) -> list[dict]:
+    # Try fast local search first
+    local = local_find_contact(query, contacts)
+    if local:
+        return local
+    # Fall back to AI search for fuzzy/nickname matching
     contact_list_str = "\n".join(
         f'{i+1}. {c["name"]} — {c["handle"]}' if c["name"]
         else f'{i+1}. {c["handle"]}'
@@ -1673,10 +1696,11 @@ def ai_find_contact(query: str, contacts: list[dict]) -> list[dict]:
     )
     try:
         answer = ai_call([{"role": "user", "content": prompt}], max_tokens=50)
-        if not answer or answer.upper() == "NONE":
+        if not answer or "NONE" in answer.upper():
             return []
-        indices = [int(x.strip()) - 1 for x in answer.split(",") if x.strip().isdigit()]
-        return [contacts[i] for i in indices if 0 <= i < len(contacts)]
+        nums = re.findall(r'\d+', answer)
+        indices = [int(n) - 1 for n in nums]
+        return [contacts[i] for i in indices if 0 <= i < len(contacts)][:3]
     except Exception:
         return []
 
