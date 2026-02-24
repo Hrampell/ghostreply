@@ -27,9 +27,47 @@ import sys
 import textwrap
 import threading
 import time
+import ssl
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """Create an SSL context that works on macOS (fresh Python installs lack certs)."""
+    try:
+        return ssl.create_default_context()
+    except Exception:
+        pass
+    # Try certifi if installed
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        pass
+    # Try macOS system certs
+    try:
+        ctx = ssl.create_default_context()
+        ctx.load_default_certs()
+        return ctx
+    except Exception:
+        pass
+    # Last resort: try the macOS Install Certificates command path
+    import subprocess as _sp
+    try:
+        _sp.run([sys.executable, "-c",
+                 "import ssl; ssl.create_default_context()"],
+                capture_output=True, timeout=5)
+    except Exception:
+        pass
+    # If nothing works, return unverified (better than crashing)
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+_SSL_CTX = _ssl_context()
 
 # --- Terminal Colors ---
 GREEN = "\033[92m"
@@ -210,8 +248,8 @@ def _revalidation_loop():
 
 # Hardcoded integrity hashes for critical license functions
 _INTEGRITY_HASHES: dict[str, str] = {
-    "activate_license": "a37f13700cd11d34f66914cdf10d87871cf163633f19333bdfc5016e367ab5a7",
-    "validate_license": "d1f529d01e984d86769c2e1f978c99bae55866b0cf0df13e5a5ab04bd7031180",
+    "activate_license": "9b759fbaa8ee480831a9c68429741080f0b350b1e0672adde9c3eedb6dd14ab4",
+    "validate_license": "f733e16294aee88e57311b6e2f8c897f5be05f03026e55583311c21bf0f9386c",
     "_init_session": "ab222ccfb478d3ffe976a964dc7dbd610914bcb48dc9105ba58ff1f6d17a181f",
 }
 
@@ -365,7 +403,7 @@ def activate_license(key: str, instance_name: str) -> dict:
                 "Content-Type": "application/x-www-form-urlencoded",
             },
         )
-        resp = urllib.request.urlopen(req, timeout=10)
+        resp = urllib.request.urlopen(req, timeout=10, context=_SSL_CTX)
         result = json.loads(resp.read().decode())
         if result.get("activated"):
             return {
@@ -406,7 +444,7 @@ def validate_license(key: str, instance_id: str = "") -> dict:
                 "Content-Type": "application/x-www-form-urlencoded",
             },
         )
-        resp = urllib.request.urlopen(req, timeout=10)
+        resp = urllib.request.urlopen(req, timeout=10, context=_SSL_CTX)
         result = json.loads(resp.read().decode())
         if result.get("valid"):
             return {"status": "valid", "message": "License is active"}
@@ -433,7 +471,7 @@ def check_for_updates():
     hash_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py.sha256"
     try:
         req = urllib.request.Request(update_url, headers={"User-Agent": "GhostReply/1.0"})
-        resp = urllib.request.urlopen(req, timeout=10)
+        resp = urllib.request.urlopen(req, timeout=10, context=_SSL_CTX)
         remote_code = resp.read().decode("utf-8")
 
         # Extract version from remote file
@@ -458,7 +496,7 @@ def check_for_updates():
         actual_hash = hashlib.sha256(remote_code.encode("utf-8")).hexdigest()
         try:
             hash_req = urllib.request.Request(hash_url, headers={"User-Agent": "GhostReply/1.0"})
-            hash_resp = urllib.request.urlopen(hash_req, timeout=10)
+            hash_resp = urllib.request.urlopen(hash_req, timeout=10, context=_SSL_CTX)
             expected_hash = hash_resp.read().decode("utf-8").strip().split()[0]
             if actual_hash != expected_hash:
                 print(f"{YELLOW}[WARN]{RESET} {GRAY}Update integrity check failed, skipping update.{RESET}")
@@ -504,7 +542,7 @@ def verify_groq_key(api_key: str) -> bool:
                 "User-Agent": "GhostReply/1.0",
             },
         )
-        resp = urllib.request.urlopen(req, timeout=15)
+        resp = urllib.request.urlopen(req, timeout=15, context=_SSL_CTX)
         return resp.status == 200
     except urllib.error.HTTPError as e:
         body = ""
@@ -1186,7 +1224,7 @@ def first_time_setup():
                     "https://api.lemonsqueezy.com",
                     method="HEAD",
                 )
-                resp = urllib.request.urlopen(req, timeout=5)
+                resp = urllib.request.urlopen(req, timeout=5, context=_SSL_CTX)
                 server_date = resp.headers.get("Date", "")
                 if server_date:
                     from email.utils import parsedate_to_datetime
@@ -1589,11 +1627,19 @@ def init_groq_client():
     if not api_key:
         print(f"{RED}[ERROR]{RESET} No Groq API key found. Run {GREEN}ghostreply{RESET} again to set up.")
         sys.exit(1)
-    groq_client = OpenAI(
-        api_key=api_key,
-        base_url="https://api.groq.com/openai/v1",
-        default_headers={"User-Agent": "GhostReply/1.0"},
-    )
+    try:
+        import httpx
+        http_client = httpx.Client(verify=_SSL_CTX)
+    except Exception:
+        http_client = None
+    kwargs = {
+        "api_key": api_key,
+        "base_url": "https://api.groq.com/openai/v1",
+        "default_headers": {"User-Agent": "GhostReply/1.0"},
+    }
+    if http_client:
+        kwargs["http_client"] = http_client
+    groq_client = OpenAI(**kwargs)
 
 
 def ai_call(messages: list[dict], max_tokens: int = 60) -> str:
