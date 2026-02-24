@@ -2264,8 +2264,9 @@ def _ensure_dark_terminal():
         # If "Dark" is returned, we're already in dark mode — do nothing
         if result.returncode == 0 and "Dark" in result.stdout:
             return
-        # Light mode: set Terminal background to dark via ANSI escape
-        sys.stdout.write("\033]11;#1c1c1e\007")
+        # Light mode: set Terminal background to dark and text to white
+        sys.stdout.write("\033]11;#1c1c1e\007")  # background
+        sys.stdout.write("\033]10;#ffffff\007")   # foreground text
         sys.stdout.flush()
     except Exception:
         pass
