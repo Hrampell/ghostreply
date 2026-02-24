@@ -641,7 +641,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* ===== Feedback Button ===== */
+        /* ===== Feedback Button + Modal ===== */
         .feedback-btn {
             position: fixed;
             bottom: 24px;
@@ -656,6 +656,7 @@
             justify-content: center;
             font-size: 22px;
             text-decoration: none;
+            cursor: pointer;
             z-index: 99;
             transition: border-color 0.2s, transform 0.2s;
         }
@@ -663,6 +664,100 @@
         .feedback-btn:hover {
             border-color: #4ade80;
             transform: scale(1.1);
+        }
+
+        .feedback-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feedback-overlay.open { display: flex; }
+
+        .feedback-modal {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 16px;
+            padding: 28px;
+            width: 90%;
+            max-width: 420px;
+        }
+
+        .feedback-modal h3 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .feedback-modal p {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .feedback-modal textarea {
+            width: 100%;
+            min-height: 120px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 12px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 15px;
+            resize: vertical;
+            outline: none;
+        }
+
+        .feedback-modal textarea:focus { border-color: #4ade80; }
+
+        .feedback-modal input[type="email"] {
+            width: 100%;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            margin-top: 10px;
+        }
+
+        .feedback-modal input[type="email"]:focus { border-color: #4ade80; }
+
+        .feedback-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+            justify-content: flex-end;
+        }
+
+        .feedback-actions button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+
+        .fb-cancel {
+            background: #222;
+            color: #888;
+        }
+
+        .fb-send {
+            background: #4ade80;
+            color: #000;
+        }
+
+        .fb-send:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
         }
 
         /* ===== Responsive ===== */
@@ -1128,11 +1223,27 @@
         </div>
 
         <div class="footer">
-            <p>GhostReply &copy; 2026 &middot; <a href="mailto:harrisonrampell@gmail.com">Support</a> &middot; <a href="mailto:harrisonrampell@gmail.com?subject=GhostReply%20Feedback">Feedback</a></p>
+            <p>GhostReply &copy; 2026 &middot; <a href="mailto:harrisonrampell@gmail.com">Support</a> &middot; <a href="#" onclick="event.preventDefault();document.getElementById('feedback-overlay').classList.add('open')">Feedback</a></p>
         </div>
 
         <!-- Floating feedback button -->
-        <a href="mailto:harrisonrampell@gmail.com?subject=GhostReply%20Feedback" class="feedback-btn" title="Send Feedback">💬</a>
+        <div class="feedback-btn" onclick="document.getElementById('feedback-overlay').classList.add('open')" title="Send Feedback">💬</div>
+
+        <!-- Feedback modal -->
+        <div class="feedback-overlay" id="feedback-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+            <div class="feedback-modal">
+                <h3>Send Feedback</h3>
+                <p>Bug, feature request, or just wanna say something — send it here.</p>
+                <form id="feedback-form">
+                    <textarea id="fb-msg" placeholder="What's on your mind?" required></textarea>
+                    <input type="email" id="fb-email" placeholder="Your email (optional)">
+                    <div class="feedback-actions">
+                        <button type="button" class="fb-cancel" onclick="document.getElementById('feedback-overlay').classList.remove('open')">Cancel</button>
+                        <button type="submit" class="fb-send" id="fb-send-btn">Send</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1215,6 +1326,37 @@
                 setTimeout(s.action, elapsed);
             });
         })();
+
+        // === Feedback form ===
+        document.getElementById('feedback-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('fb-send-btn');
+            const msg = document.getElementById('fb-msg').value.trim();
+            if (!msg) return;
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const body = new FormData();
+                body.append('message', msg);
+                body.append('email', document.getElementById('fb-email').value.trim() || 'not provided');
+                body.append('_subject', 'GhostReply Feedback');
+                await fetch('https://formsubmit.co/ajax/harrisonrampell@gmail.com', {
+                    method: 'POST',
+                    body: body,
+                });
+                btn.textContent = 'Sent!';
+                document.getElementById('fb-msg').value = '';
+                document.getElementById('fb-email').value = '';
+                setTimeout(() => {
+                    document.getElementById('feedback-overlay').classList.remove('open');
+                    btn.textContent = 'Send';
+                    btn.disabled = false;
+                }, 1200);
+            } catch {
+                btn.textContent = 'Failed — try again';
+                btn.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>
