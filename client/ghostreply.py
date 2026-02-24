@@ -82,7 +82,7 @@ PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATH = None  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -1052,14 +1052,22 @@ def build_system_prompt(contact_name: str = "") -> str:
                 )
                 break
 
-    # Swearing rules
-    swear_setting = config.get("swearing", "on")
-    if swear_setting == "never":
-        parts.append("\nSWEARING: NEVER swear. Do not use any profanity or curse words under any circumstances.")
-    elif swear_setting == "off":
-        parts.append("\nSWEARING: Do not swear or use profanity in your replies.")
+    # Safe mode — keep everything appropriate
+    if config.get("safe_mode"):
+        parts.append(
+            "\nSAFE MODE (CRITICAL): Keep ALL replies completely appropriate. "
+            "No swearing, no sexual jokes, no crude humor, no insults, nothing inappropriate. "
+            "Be friendly and respectful. This person could be anyone — keep it clean."
+        )
     else:
-        parts.append("\nSWEARING: You can swear naturally if it fits your texting style. Don't force it.")
+        # Swearing rules
+        swear_setting = config.get("swearing", "on")
+        if swear_setting == "never":
+            parts.append("\nSWEARING: NEVER swear. Do not use any profanity or curse words under any circumstances.")
+        elif swear_setting == "off":
+            parts.append("\nSWEARING: Do not swear or use profanity in your replies.")
+        else:
+            parts.append("\nSWEARING: You can swear naturally if it fits your texting style. Don't force it.")
 
     # Anti-AI detection (always)
     parts.append(
@@ -1269,13 +1277,20 @@ def first_time_setup():
     # Initialize AI client so we can use it for the next steps
     init_groq_client()
 
-    # --- Step 3: Swearing preference (asked once, saved forever) ---
+    # --- Step 3: Swearing + safe mode preferences ---
     print()
     swear_input = input(f"{WHITE}Do you usually swear with your friends?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
     if swear_input in ("n", "no", "never"):
         config["swearing"] = "never"
     else:
         config["swearing"] = "on"
+    print()
+    safe_input = input(f"{WHITE}Are there people you text who should never get anything inappropriate?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
+    if safe_input in ("y", "yes"):
+        config["safe_mode"] = True
+        print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean and appropriate for everyone.{RESET}")
+    else:
+        config["safe_mode"] = False
     save_config(config)
 
     # --- Step 4: Auto-detect user's name from macOS ---
