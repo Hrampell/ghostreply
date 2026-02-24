@@ -152,7 +152,7 @@
             transform-origin: bottom center;
             position: relative;
             z-index: 1;
-            transition: transform 0.1s linear;
+            will-change: transform;
             background: #0f0f0f;
             overflow: hidden;
         }
@@ -646,7 +646,7 @@
             html, body { overflow-x: hidden; }
             h1 { font-size: 36px; }
             .features { grid-template-columns: 1fr; }
-            .installer-command { font-size: 12px; }
+            .installer-command { font-size: 12px; flex-wrap: wrap; word-break: break-all; }
             .demos-row { flex-direction: column !important; }
             .demos-row .imessage-demo { min-width: 0 !important; width: 100% !important; }
 
