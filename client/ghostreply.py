@@ -1326,21 +1326,22 @@ def first_time_setup():
     swear_input = input(f"{WHITE}Do you usually swear with your friends? (y/n, hit enter):{RESET} ").strip().lower()
     if swear_input in ("n", "no", "never"):
         config["swearing"] = "never"
+        config["safe_contacts"] = []
     else:
         config["swearing"] = "on"
-    print()
-    safe_input = input(f"{WHITE}Are there contacts GhostReply should never say anything inappropriate to? (y/n, hit enter):{RESET} ").strip().lower()
-    if safe_input in ("y", "yes"):
-        print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
-        names_input = input(f"  {WHITE}> {RESET}").strip()
-        safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
-        config["safe_contacts"] = safe_contacts
-        if safe_contacts:
-            print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}")
+        print()
+        safe_input = input(f"{WHITE}Are there contacts GhostReply should never say anything inappropriate to? (y/n, hit enter):{RESET} ").strip().lower()
+        if safe_input in ("y", "yes"):
+            print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
+            names_input = input(f"  {WHITE}> {RESET}").strip()
+            safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
+            config["safe_contacts"] = safe_contacts
+            if safe_contacts:
+                print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}")
+            else:
+                config["safe_contacts"] = []
         else:
             config["safe_contacts"] = []
-    else:
-        config["safe_contacts"] = []
     config.pop("safe_mode", None)
     save_config(config)
 
