@@ -35,32 +35,31 @@ from pathlib import Path
 
 def _ssl_context() -> ssl.SSLContext:
     """Create an SSL context that works on macOS (fresh Python installs lack certs)."""
-    try:
-        return ssl.create_default_context()
-    except Exception:
-        pass
-    # Try certifi if installed
+    # Try certifi first — most reliable on macOS
     try:
         import certifi
         return ssl.create_default_context(cafile=certifi.where())
     except Exception:
         pass
-    # Try macOS system certs
+    # Try default context with a real connection test
     try:
         ctx = ssl.create_default_context()
-        ctx.load_default_certs()
+        urllib.request.urlopen("https://api.groq.com", timeout=5, context=ctx)
         return ctx
     except Exception:
         pass
-    # Last resort: try the macOS Install Certificates command path
-    import subprocess as _sp
-    try:
-        _sp.run([sys.executable, "-c",
-                 "import ssl; ssl.create_default_context()"],
-                capture_output=True, timeout=5)
-    except Exception:
-        pass
-    # If nothing works, return unverified (better than crashing)
+    # Try macOS system cert file locations
+    for certpath in [
+        "/etc/ssl/cert.pem",
+        "/usr/local/etc/openssl/cert.pem",
+        "/opt/homebrew/etc/openssl/cert.pem",
+    ]:
+        try:
+            if os.path.exists(certpath):
+                return ssl.create_default_context(cafile=certpath)
+        except Exception:
+            pass
+    # Last resort: skip verification (better than crashing)
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE

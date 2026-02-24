@@ -152,8 +152,8 @@ fi
 
 echo "[3/4] Installing dependencies..."
 # Run pip in background with spinner
-( "$PYTHON" -m pip install --break-system-packages -q openai 2>/dev/null \
-    || "$PYTHON" -m pip install -q openai 2>/dev/null ) &
+( "$PYTHON" -m pip install --break-system-packages -q openai certifi 2>/dev/null \
+    || "$PYTHON" -m pip install -q openai certifi 2>/dev/null ) &
 PIP_PID=$!
 
 SPINNER='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
@@ -171,7 +171,7 @@ if [[ "$PIP_EXIT" -ne 0 ]]; then
     echo ""
     echo "  ERROR: Failed to install dependencies."
     echo "  Run this manually, then run 'ghostreply':"
-    echo "    $PYTHON -m pip install openai"
+    echo "    $PYTHON -m pip install openai certifi"
     exit 1
 fi
 
