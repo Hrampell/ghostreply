@@ -2014,6 +2014,8 @@ def handle_batch(contact: str, texts: list[str]):
         return
     # Update last known ROWID so auto-stop doesn't trigger on bot-sent messages
     _update_bot_last_known_rowid()
+    global _bot_has_replied
+    _bot_has_replied = True
     display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
     reply_log.append({"them": combined, "you": reply})
     if len(reply_log) > 20:
@@ -2049,6 +2051,7 @@ BATCH_WAIT = 5  # seconds to wait for more messages before replying
 # so auto-stop only triggers on messages sent AFTER this point
 _bot_last_known_rowid_lock = threading.Lock()
 _bot_last_known_rowid = 0
+_bot_has_replied = False  # only auto-stop after bot has sent at least one reply
 
 
 def _update_bot_last_known_rowid():
@@ -2061,7 +2064,8 @@ def _update_bot_last_known_rowid():
 
 
 def poll_loop():
-    global _bot_last_known_rowid
+    global _bot_last_known_rowid, _bot_has_replied
+    _bot_has_replied = False
     baseline = get_latest_rowid()
     # Set last known ROWID to NOW — anything before this (including setup messages) is ignored
     with _bot_last_known_rowid_lock:
@@ -2078,7 +2082,8 @@ def poll_loop():
     while not stop_event.is_set():
         try:
             # Check if user manually sent a message to the target contact
-            if target_contact:
+            # Only after bot has sent at least one reply (so user can send the first msg)
+            if target_contact and _bot_has_replied:
                 with _bot_last_known_rowid_lock:
                     current_known = _bot_last_known_rowid
                 manual_rowid = check_user_sent_message(current_known, target_contact)
