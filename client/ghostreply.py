@@ -1347,7 +1347,7 @@ def first_time_setup():
     print()
 
     while True:
-        choice = input(f"{WHITE}Pick a number or search by name:{RESET} ").strip()
+        choice = input(f"{WHITE}Type a number and hit Enter (or search by name):{RESET} ").strip()
         if not choice:
             continue
 
@@ -1371,7 +1371,7 @@ def first_time_setup():
         for i, label in enumerate(match_names):
             print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
         print()
-        pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
+        pick = input(f"{WHITE}Type a number and hit Enter:{RESET} ").strip()
         if pick.isdigit() and 1 <= int(pick) <= len(matches):
             selected = matches[int(pick) - 1]
             break
@@ -2344,7 +2344,7 @@ def main():
         print()
 
         while True:
-            choice = input(f"{WHITE}Pick a number or search by name:{RESET} ").strip()
+            choice = input(f"{WHITE}Type a number and hit Enter (or search by name):{RESET} ").strip()
             if not choice:
                 continue
             if choice.isdigit() and 1 <= int(choice) <= len(recent):
@@ -2363,7 +2363,7 @@ def main():
             for i, label in enumerate(match_names):
                 print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
             print()
-            pick = input(f"{WHITE}Pick a number:{RESET} ").strip()
+            pick = input(f"{WHITE}Type a number and hit Enter:{RESET} ").strip()
             if pick.isdigit() and 1 <= int(pick) <= len(matches):
                 selected = matches[int(pick) - 1]
                 break
@@ -2447,7 +2447,9 @@ def main():
     target_name = config.get("target_name", "?")
     print()
     print(f"{GREEN}{BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-    print(f"{GRAY}Type '{WHITE}stop{GRAY}' to quit, or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
+    print()
+    print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
+    print(f"  {GRAY}Or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
     print()
 
     # Start stdin listener in background thread
