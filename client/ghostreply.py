@@ -86,6 +86,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 # Friend key verification
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
+_REVOKED_KEYS: set[str] = set()
 VERSION = "1.0.8"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
@@ -480,6 +481,8 @@ def _verify_friend_key(key: str) -> bool:
     if len(parts) != 2 or not parts[0] or not parts[1]:
         return False
     name, sig = parts[0], parts[1]
+    if name in _REVOKED_KEYS:
+        return False
     expected = hmac.new(_FK_KEY, name.encode(), hashlib.sha256).hexdigest()[:12]
     return hmac.compare_digest(sig, expected)
 
