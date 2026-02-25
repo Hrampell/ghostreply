@@ -2036,14 +2036,23 @@ def handle_batch(contact: str, texts: list[str]):
 
 def stdin_listener():
     """Listen for typed commands while the bot is running."""
+    import select
     while not stop_event.is_set():
         try:
-            cmd = input().strip().lower()
+            # Use select to avoid blocking forever — check every 0.5s
+            if hasattr(select, 'select'):
+                ready, _, _ = select.select([sys.stdin], [], [], 0.5)
+                if not ready:
+                    continue
+            line = sys.stdin.readline()
+            if not line:  # EOF
+                break
+            cmd = line.strip().lower()
         except (EOFError, KeyboardInterrupt, OSError):
             break
         except Exception:
             break
-        if cmd == "stop":
+        if cmd in ("stop", "quit", "exit", "q"):
             print(f"\n{GRAY}GhostReply stopped.{RESET}")
             stop_event.set()
             break
