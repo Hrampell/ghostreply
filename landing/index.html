@@ -319,7 +319,7 @@
 
         /* ===== Sticky Scroll Sequence ===== */
         .sticky-sequence {
-            height: 300vh;
+            height: 400vh;
             position: relative;
         }
 
@@ -943,6 +943,7 @@
                 <img src="../assets/ph1_hero.png" class="seq-img active" data-step="0" alt="GhostReply running">
                 <img src="../assets/ph2_setup.png" class="seq-img" data-step="1" alt="GhostReply setup flow">
                 <img src="../assets/ph3_install.png" class="seq-img" data-step="2" alt="GhostReply install">
+                <img src="../assets/ph_troll.png" class="seq-img" data-step="3" alt="GhostReply ragebait mode">
             </div>
             <div class="sticky-text">
                 <div class="seq-caption active" data-step="0">
@@ -952,6 +953,7 @@
                         <div class="seq-dot active" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
                         <div class="seq-dot" data-dot="2"></div>
+                        <div class="seq-dot" data-dot="3"></div>
                     </div>
                 </div>
                 <div class="seq-caption" data-step="1">
@@ -961,6 +963,7 @@
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot active" data-dot="1"></div>
                         <div class="seq-dot" data-dot="2"></div>
+                        <div class="seq-dot" data-dot="3"></div>
                     </div>
                 </div>
                 <div class="seq-caption" data-step="2">
@@ -970,6 +973,17 @@
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
                         <div class="seq-dot active" data-dot="2"></div>
+                        <div class="seq-dot" data-dot="3"></div>
+                    </div>
+                </div>
+                <div class="seq-caption" data-step="3">
+                    <h3>Ragebait mode</h3>
+                    <p>Turn on ragebait and let it troll your friends for you. It sends unhinged replies that start fights on autopilot.</p>
+                    <div class="seq-dots">
+                        <div class="seq-dot" data-dot="0"></div>
+                        <div class="seq-dot" data-dot="1"></div>
+                        <div class="seq-dot" data-dot="2"></div>
+                        <div class="seq-dot active" data-dot="3"></div>
                     </div>
                 </div>
             </div>
@@ -1281,7 +1295,7 @@
             const scrollable = rect.height - window.innerHeight;
             if (scrollable <= 0) return;
             const progress = Math.min(1, Math.max(0, -rect.top / scrollable));
-            const step = Math.min(2, Math.floor(progress * 3));
+            const step = Math.min(3, Math.floor(progress * 4));
 
             seqImgs.forEach((img, i) => img.classList.toggle('active', i === step));
             seqCaptions.forEach((cap, i) => cap.classList.toggle('active', i === step));
