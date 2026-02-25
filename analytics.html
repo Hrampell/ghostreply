@@ -415,8 +415,8 @@
         if (e.key !== 'Enter') return;
         const pw = this.value;
         const hash = await sha256(pw);
-        // Accept "ghostreply" as password
-        if (hash === '49101931409f584b695d1b61ed3b4c4aced8c81d93d636eee365abfd97434ff9') {
+        // Accept "rampell" as password
+        if (hash === '31998ec8d822f59fe4277dd9d5cb7f9cd357450199e5ba24a556c360859c0dc5') {
             document.getElementById('gate').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
             localStorage.setItem('gr_analytics_pw', pw);
@@ -436,7 +436,7 @@
         const saved = localStorage.getItem('gr_analytics_pw');
         if (saved) {
             const hash = await sha256(saved);
-            if (hash === '49101931409f584b695d1b61ed3b4c4aced8c81d93d636eee365abfd97434ff9') {
+            if (hash === '31998ec8d822f59fe4277dd9d5cb7f9cd357450199e5ba24a556c360859c0dc5') {
                 document.getElementById('gate').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
                 loadAll();
