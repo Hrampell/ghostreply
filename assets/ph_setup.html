@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.title {
+    text-align: center;
+    margin-bottom: 56px;
+}
+.title h2 {
+    font-size: 44px; font-weight: 700; color: #fff;
+    letter-spacing: -1px;
+}
+.title p { color: #888; font-size: 20px; margin-top: 10px; }
+.terminal {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 36px 44px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 16px;
+    line-height: 2.2;
+    width: 800px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+}
+.dots { display: flex; gap: 8px; margin-bottom: 24px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; }
+.dot.r { background: #ff5f57; }
+.dot.y { background: #febc2e; }
+.dot.g { background: #28c840; }
+.green { color: #4ade80; }
+.cyan { color: #5fffff; }
+.white { color: #fff; }
+.gray { color: #888; }
+.yellow { color: #fbbf24; }
+.blue { color: #60a5fa; }
+.bold { font-weight: 700; }
+
+.steps {
+    display: flex; gap: 32px; margin-top: 56px;
+}
+.step {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 16px;
+    padding: 24px;
+    width: 240px;
+    text-align: center;
+}
+.step-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #4ade80;
+    color: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    margin: 0 auto 12px;
+}
+.step h3 { font-size: 16px; color: #fff; margin-bottom: 6px; }
+.step p { font-size: 13px; color: #888; line-height: 1.5; }
+.checkmark { color: #4ade80; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="title">
+    <h2>One command. 30 seconds. Done.</h2>
+    <p>No app to download. No account to create. Just paste and go.</p>
+</div>
+<div class="terminal">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <span class="green">$</span> <span class="white">curl -sL ghostreply.lol/install.sh | bash</span><br>
+    <br>
+    <span class="gray">[1/4] Setting up alias...</span><br>
+    <span class="gray">[2/4] Downloading GhostReply...</span><br>
+    <span class="gray">[3/4] Installing dependencies...</span><br>
+    <span class="gray">[4/4] Ready!</span><br>
+    <br>
+    <span class="green checkmark">&#10003;</span> <span class="green">GhostReply installed successfully!</span><br>
+    <br>
+    <span class="gray">Starting GhostReply...</span><br>
+    <br>
+    <span class="white bold">=== GhostReply Setup ===</span><br>
+    <span class="white">Enter your license key (or '</span><span class="green">trial</span><span class="white">' for 24hr free trial): </span><span class="cyan">trial</span><br>
+    <span class="green">Free trial activated! You have 24 hours.</span>
+</div>
+<div class="steps">
+    <div class="step">
+        <div class="step-num">1</div>
+        <h3>Paste in Terminal</h3>
+        <p>One curl command. Installs everything automatically.</p>
+    </div>
+    <div class="step">
+        <div class="step-num">2</div>
+        <h3>Type "trial"</h3>
+        <p>24-hour free trial. No credit card. No sign up.</p>
+    </div>
+    <div class="step">
+        <div class="step-num">3</div>
+        <h3>Pick a contact</h3>
+        <p>Choose who the bot replies to. It loads your conversation.</p>
+    </div>
+    <div class="step">
+        <div class="step-num">4</div>
+        <h3>It texts for you</h3>
+        <p>Replies in your style. Reply yourself to stop.</p>
+    </div>
+</div>
+</body>
+</html>
