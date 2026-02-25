@@ -9,6 +9,9 @@ echo "  ║   iMessage Auto-Reply on Mac     ║"
 echo "  ╚══════════════════════════════════╝"
 echo ""
 
+# Analytics: track install event (non-blocking)
+curl -s "https://ghostreply.lol/ping?e=install" >/dev/null 2>&1 &
+
 # Check macOS
 if [[ "$(uname)" != "Darwin" ]]; then
     echo "  ERROR: GhostReply only works on macOS (needs iMessage)."
