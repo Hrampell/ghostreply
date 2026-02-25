@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.title {
+    text-align: center;
+    margin-bottom: 56px;
+}
+.title h2 {
+    font-size: 44px; font-weight: 700; color: #fff;
+    letter-spacing: -1px;
+}
+.title p { color: #888; font-size: 20px; margin-top: 10px; }
+.compare {
+    display: flex; gap: 80px; align-items: flex-start;
+}
+.side {
+    text-align: center;
+}
+.side-label {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    padding: 8px 20px;
+    border-radius: 8px;
+}
+.side-label.you { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.2); }
+.side-label.bot { color: #60a5fa; background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); }
+
+.imessage {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 24px;
+    padding: 24px 20px;
+    width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    text-align: left;
+}
+.msg-header {
+    text-align: center; color: #888; font-size: 13px;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid #222;
+}
+.msg-header strong { color: #fff; display: block; font-size: 18px; margin-bottom: 2px; }
+.bubble {
+    max-width: 80%; padding: 10px 14px;
+    border-radius: 20px; font-size: 16px;
+    line-height: 1.4; margin-bottom: 7px; clear: both;
+}
+.bubble-blue { background: #0b84fe; color: #fff; margin-left: auto; border-bottom-right-radius: 4px; float: right; }
+.bubble-gray { background: #333; color: #fff; margin-right: auto; border-bottom-left-radius: 4px; float: left; }
+.clear { clear: both; }
+
+.vs {
+    font-size: 48px; font-weight: 700;
+    color: #333;
+    align-self: center;
+    margin-top: 60px;
+}
+
+.verdict {
+    margin-top: 56px;
+    text-align: center;
+    background: linear-gradient(135deg, #0a1a0a, #111);
+    border: 1px solid #1a3a1a;
+    border-radius: 16px;
+    padding: 24px 48px;
+}
+.verdict h3 { font-size: 24px; color: #4ade80; margin-bottom: 6px; }
+.verdict p { color: #888; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="title">
+    <h2>Can you tell which is the bot?</h2>
+    <p>It learns from hundreds of your real texts — your slang, your abbreviations, your vibe.</p>
+</div>
+<div class="compare">
+    <div class="side">
+        <div class="side-label you">Conversation A</div>
+        <div class="imessage">
+            <div class="msg-header"><strong>Andrew</strong>iMessage</div>
+            <div class="bubble bubble-gray">Wanna get food later</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Yeah im down where</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-gray">Chipotle?</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Bet lmk when</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-gray">Like 7?</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Works for me</div>
+            <div class="clear"></div>
+        </div>
+    </div>
+    <div class="vs">vs</div>
+    <div class="side">
+        <div class="side-label bot">Conversation B</div>
+        <div class="imessage">
+            <div class="msg-header"><strong>Andrew</strong>iMessage</div>
+            <div class="bubble bubble-gray">You free tmrw night</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Yeah whats up</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-gray">Movies? New marvel one</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Im down what time</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-gray">9:30 showing</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Bet ill be there</div>
+            <div class="clear"></div>
+        </div>
+    </div>
+</div>
+<div class="verdict">
+    <h3>Conversation B is the bot.</h3>
+    <p>Same length. Same slang. Same energy. Indistinguishable.</p>
+</div>
+</body>
+</html>

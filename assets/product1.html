@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.container {
+    display: flex; gap: 60px; align-items: center;
+    padding: 80px;
+}
+.terminal {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 32px 36px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 16px;
+    line-height: 2;
+    width: 620px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.dots { display: flex; gap: 8px; margin-bottom: 20px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; }
+.dot.r { background: #ff5f57; }
+.dot.y { background: #febc2e; }
+.dot.g { background: #28c840; }
+.prompt { color: #4ade80; }
+.cmd { color: #fff; }
+.output { color: #888; }
+.success { color: #4ade80; }
+.name { color: #60a5fa; }
+
+.right-side { display: flex; flex-direction: column; gap: 24px; }
+.imessage {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 24px;
+    padding: 28px 20px;
+    width: 360px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.msg-header {
+    text-align: center;
+    color: #888; font-size: 14px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #222;
+}
+.msg-header strong { color: #fff; display: block; font-size: 18px; margin-bottom: 2px; }
+.bubble {
+    max-width: 78%;
+    padding: 11px 15px;
+    border-radius: 20px;
+    font-size: 16px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    clear: both;
+}
+.bubble-blue {
+    background: #0b84fe; color: #fff;
+    margin-left: auto; border-bottom-right-radius: 4px;
+    float: right;
+}
+.bubble-gray {
+    background: #333; color: #fff;
+    margin-right: auto; border-bottom-left-radius: 4px;
+    float: left;
+}
+.clear { clear: both; }
+.bot-label {
+    font-size: 11px; color: #4ade80;
+    text-align: right; margin-bottom: 4px; margin-top: 10px;
+    clear: both;
+}
+.title {
+    position: absolute; top: 60px; left: 0; right: 0;
+    text-align: center;
+}
+.title h1 {
+    font-size: 52px; font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.title p { color: #666; font-size: 20px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="terminal">
+        <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+        <span class="prompt">$</span> <span class="cmd">ghostreply</span><br>
+        <span class="output">Scanning your iMessages...</span><br>
+        <span class="output">&nbsp;&nbsp;Found 347 sent texts</span><br>
+        <span class="success">&nbsp;&nbsp;[OK] Learned your texting style</span><br>
+        <br>
+        <span class="output">Who to auto-reply to?</span><br>
+        <span class="output">&nbsp;&nbsp;1. <span class="name">Andrew</span>&nbsp;&nbsp;2. <span class="name">Kieran</span></span><br>
+        <span class="output">&nbsp;&nbsp;3. <span class="name">Mom</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4. <span class="name">Nikhil</span></span><br>
+        <span class="output">Pick: </span><span class="cmd">1</span><br>
+        <br>
+        <span class="success">GhostReply is running!</span><br>
+        <span class="success">Replying to Andrew.</span><br>
+        <span class="output">Press Ctrl+C to stop.</span>
+    </div>
+
+    <div class="right-side">
+        <div class="imessage">
+            <div class="msg-header"><strong>Andrew</strong>iMessage</div>
+            <div class="bubble bubble-gray">Yo wanna play rocket league</div>
+            <div class="clear"></div>
+            <div class="bot-label">GhostReply ↓</div>
+            <div class="bubble bubble-blue">Yeah gimme like 20 min</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-gray">Bet. Did u do the essay</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Nah not yet</div>
+            <div class="clear"></div>
+        </div>
+
+        <div class="imessage">
+            <div class="msg-header"><strong>Kieran</strong>iMessage</div>
+            <div class="bubble bubble-gray">Bro are you using AI</div>
+            <div class="clear"></div>
+            <div class="bot-label">GhostReply ↓</div>
+            <div class="bubble bubble-blue">Bro what lmao</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-gray">You're replying too fast</div>
+            <div class="clear"></div>
+            <div class="bubble bubble-blue">Im literally on my phone rn</div>
+            <div class="clear"></div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

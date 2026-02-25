@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1600">
+<title>GhostReply — Multi-Contact Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── macOS Window ── */
+  .macos-window {
+    width: 1200px; height: 850px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow:
+      0 40px 80px rgba(0,0,0,.55),
+      0 12px 32px rgba(0,0,0,.35),
+      0 0 0 0.5px rgba(255,255,255,.08);
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+
+  /* ── Titlebar ── */
+  .titlebar {
+    height: 52px; min-height: 52px;
+    background: linear-gradient(180deg, #f6f6f6 0%, #e8e8e8 100%);
+    border-bottom: 1px solid #c8c8c8;
+    display: flex; align-items: center;
+    padding: 0 16px;
+    position: relative;
+    z-index: 2;
+  }
+  .traffic-lights { display: flex; gap: 8px; }
+  .traffic-light {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .tl-close  { background: #ff5f57; border: 0.5px solid #e0443e; }
+  .tl-min    { background: #febc2e; border: 0.5px solid #dea123; }
+  .tl-max    { background: #28c840; border: 0.5px solid #1aab29; }
+  .titlebar-text {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    font-size: 13px; font-weight: 600; color: #4d4d4d;
+    letter-spacing: 0.01em;
+  }
+
+  /* ── Body ── */
+  .window-body {
+    flex: 1; display: flex; overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 300px; min-width: 300px;
+    background: #f5f5f5;
+    border-right: 1px solid #d1d1d1;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .search-bar {
+    padding: 12px 14px 10px;
+  }
+  .search-input {
+    width: 100%; height: 32px;
+    background: #e2e2e7;
+    border: none; border-radius: 8px;
+    padding: 0 12px 0 32px;
+    font-size: 13px; color: #8e8e93;
+    outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%238e8e93'%3E%3Ccircle cx='6' cy='6' r='5' stroke='%238e8e93' stroke-width='1.5' fill='none'/%3E%3Cline x1='9.5' y1='9.5' x2='13' y2='13' stroke='%238e8e93' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 10px center;
+  }
+
+  .contact-list { flex: 1; overflow-y: auto; }
+  .contact-item {
+    display: flex; align-items: center;
+    padding: 10px 14px;
+    cursor: default;
+    position: relative;
+    border-bottom: 0.5px solid #e0e0e0;
+  }
+  .contact-item.selected {
+    background: #007AFF;
+    border-bottom-color: transparent;
+  }
+  .contact-item.selected .contact-name,
+  .contact-item.selected .contact-preview,
+  .contact-item.selected .contact-time {
+    color: #fff;
+  }
+  .contact-item.selected .contact-preview { opacity: .85; }
+
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 600; color: #fff;
+    margin-right: 12px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .ghost-badge {
+    position: absolute; bottom: -2px; right: -4px;
+    font-size: 14px; line-height: 1;
+    filter: drop-shadow(0 0 2px rgba(0,200,80,.45));
+  }
+
+  .contact-info { flex: 1; min-width: 0; }
+  .contact-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+  .contact-name { font-size: 15px; font-weight: 600; color: #1c1c1e; }
+  .contact-time { font-size: 12px; color: #8e8e93; flex-shrink: 0; margin-left: 6px; }
+  .contact-preview { font-size: 13px; color: #8e8e93; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Chat Panel ── */
+  .chat-panel {
+    flex: 1; display: flex; flex-direction: column;
+    background: #fff;
+  }
+  .chat-header {
+    height: 52px; min-height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid #d1d1d1;
+    background: #fafafa;
+  }
+  .chat-header-name {
+    font-size: 15px; font-weight: 600; color: #1c1c1e;
+  }
+  .chat-messages {
+    flex: 1; padding: 20px 18px;
+    display: flex; flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+  }
+
+  .msg-row {
+    display: flex;
+    max-width: 65%;
+  }
+  .msg-row.received { align-self: flex-start; }
+  .msg-row.sent     { align-self: flex-end; }
+
+  .bubble {
+    padding: 9px 14px;
+    border-radius: 18px;
+    font-size: 16px; line-height: 1.35;
+    position: relative;
+    word-wrap: break-word;
+  }
+  .msg-row.received .bubble {
+    background: #E5E5EA;
+    color: #1c1c1e;
+    border-bottom-left-radius: 6px;
+  }
+  .msg-row.sent .bubble {
+    background: #007AFF;
+    color: #fff;
+    border-bottom-right-radius: 6px;
+  }
+
+  .bot-indicator {
+    font-size: 10px;
+    color: #8e8e93;
+    text-align: right;
+    margin-top: 1px;
+    margin-right: 4px;
+    letter-spacing: .02em;
+  }
+
+  .msg-spacer { height: 6px; }
+
+  /* ── iMessage input bar ── */
+  .input-bar {
+    height: 48px; min-height: 48px;
+    border-top: 1px solid #d1d1d1;
+    display: flex; align-items: center;
+    padding: 0 14px;
+    background: #fafafa;
+    gap: 10px;
+  }
+  .input-field {
+    flex: 1; height: 32px;
+    border: 1px solid #d1d1d1;
+    border-radius: 16px;
+    padding: 0 14px;
+    font-size: 14px;
+    background: #fff;
+    color: #c7c7cc;
+    outline: none;
+  }
+
+  /* ── Floating Badge ── */
+  .floating-badge {
+    position: absolute;
+    bottom: 46px; right: 56px;
+    background: rgba(22,22,24,.92);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px;
+    padding: 14px 22px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 10;
+  }
+  .pulse-dot {
+    width: 10px; height: 10px;
+    background: #34c759;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(52,199,89,.6); }
+    50%      { box-shadow: 0 0 0 6px rgba(52,199,89,0); }
+  }
+  .badge-text  { font-size: 15px; font-weight: 500; color: #fff; white-space: nowrap; }
+  .badge-count { font-size: 13px; color: rgba(255,255,255,.55); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="macos-window">
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <div class="traffic-light tl-close"></div>
+      <div class="traffic-light tl-min"></div>
+      <div class="traffic-light tl-max"></div>
+    </div>
+    <span class="titlebar-text">Messages</span>
+  </div>
+
+  <div class="window-body">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="search-bar">
+        <input class="search-input" type="text" value="Search" readonly>
+      </div>
+      <div class="contact-list">
+
+        <!-- Andrew (selected) -->
+        <div class="contact-item selected">
+          <div class="avatar" style="background:#5856d6;">
+            A
+            <span class="ghost-badge">👻</span>
+          </div>
+          <div class="contact-info">
+            <div class="contact-top">
+              <span class="contact-name">Andrew</span>
+              <span class="contact-time">12:04 PM</span>
+            </div>
+            <div class="contact-preview">perfect see you there 🍜</div>
+          </div>
+        </div>
+
+        <!-- Mom -->
+        <div class="contact-item">
+          <div class="avatar" style="background:#ff2d55;">
+            M
+            <span class="ghost-badge">👻</span>
+          </div>
+          <div class="contact-info">
+            <div class="contact-top">
+              <span class="contact-name">Mom</span>
+              <span class="contact-time">11:47 AM</span>
+            </div>
+            <div class="contact-preview">sounds good, love you too!</div>
+          </div>
+        </div>
+
+        <!-- Kieran -->
+        <div class="contact-item">
+          <div class="avatar" style="background:#ff9500;">
+            K
+            <span class="ghost-badge">👻</span>
+          </div>
+          <div class="contact-info">
+            <div class="contact-top">
+              <span class="contact-name">Kieran</span>
+              <span class="contact-time">11:32 AM</span>
+            </div>
+            <div class="contact-preview">haha yeah that was insane</div>
+          </div>
+        </div>
+
+        <!-- Sarah -->
+        <div class="contact-item">
+          <div class="avatar" style="background:#34c759;">
+            S
+            <span class="ghost-badge">👻</span>
+          </div>
+          <div class="contact-info">
+            <div class="contact-top">
+              <span class="contact-name">Sarah</span>
+              <span class="contact-time">10:58 AM</span>
+            </div>
+            <div class="contact-preview">i'll send you the link later</div>
+          </div>
+        </div>
+
+        <!-- Jake -->
+        <div class="contact-item">
+          <div class="avatar" style="background:#007aff;">
+            J
+            <span class="ghost-badge">👻</span>
+          </div>
+          <div class="contact-info">
+            <div class="contact-top">
+              <span class="contact-name">Jake</span>
+              <span class="contact-time">10:15 AM</span>
+            </div>
+            <div class="contact-preview">bet, lmk when you're free</div>
+          </div>
+        </div>
+
+        <!-- Tyler -->
+        <div class="contact-item">
+          <div class="avatar" style="background:#af52de;">
+            T
+            <span class="ghost-badge">👻</span>
+          </div>
+          <div class="contact-info">
+            <div class="contact-top">
+              <span class="contact-name">Tyler</span>
+              <span class="contact-time">9:40 AM</span>
+            </div>
+            <div class="contact-preview">nah i think thursday works better</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <span class="chat-header-name">Andrew</span>
+      </div>
+
+      <div class="chat-messages">
+
+        <!-- Exchange 1 -->
+        <div class="msg-row received">
+          <div class="bubble">you wanna grab lunch tomorrow?</div>
+        </div>
+        <div class="msg-row sent">
+          <div class="bubble">yeah where were you thinking</div>
+        </div>
+        <div class="bot-indicator">👻 GhostReply</div>
+
+        <div class="msg-spacer"></div>
+
+        <!-- Exchange 2 -->
+        <div class="msg-row received">
+          <div class="bubble">that new ramen place on main</div>
+        </div>
+        <div class="msg-row sent">
+          <div class="bubble">oh yesss i've been wanting to try that</div>
+        </div>
+        <div class="bot-indicator">👻 GhostReply</div>
+
+        <div class="msg-spacer"></div>
+
+        <!-- Exchange 3 -->
+        <div class="msg-row received">
+          <div class="bubble">cool meet there at noon?</div>
+        </div>
+        <div class="msg-row sent">
+          <div class="bubble">perfect see you there 🍜</div>
+        </div>
+        <div class="bot-indicator">👻 GhostReply</div>
+
+      </div>
+
+      <div class="input-bar">
+        <input class="input-field" type="text" value="iMessage" readonly>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Badge -->
+<div class="floating-badge">
+  <div class="pulse-dot"></div>
+  <div>
+    <div class="badge-text">👻 Replying to 6 contacts</div>
+    <div class="badge-count">All conversations active</div>
+  </div>
+</div>
+
+</body>
+</html>

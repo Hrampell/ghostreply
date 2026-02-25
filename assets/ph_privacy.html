@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.title {
+    text-align: center;
+    margin-bottom: 64px;
+}
+.title h2 {
+    font-size: 48px; font-weight: 700; color: #fff;
+    letter-spacing: -1px;
+}
+.title p { color: #888; font-size: 20px; margin-top: 12px; max-width: 600px; line-height: 1.6; }
+.flow {
+    display: flex; align-items: center; gap: 32px;
+}
+.node {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 20px;
+    padding: 36px 40px;
+    text-align: center;
+    width: 260px;
+}
+.node-icon { font-size: 48px; margin-bottom: 12px; }
+.node h3 { font-size: 20px; color: #fff; margin-bottom: 6px; }
+.node p { font-size: 14px; color: #888; line-height: 1.5; }
+.node.you { border-color: #4ade80; box-shadow: 0 0 30px rgba(74,222,128,0.15); }
+.node.ai { border-color: #60a5fa; box-shadow: 0 0 30px rgba(96,165,250,0.15); }
+
+.arrow {
+    font-size: 32px;
+    color: #333;
+}
+.arrow-label {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+    margin-top: 4px;
+}
+
+.cross-out {
+    position: relative;
+    margin-top: 72px;
+}
+.cross-out .node {
+    border-color: #ff4444;
+    opacity: 0.3;
+}
+.cross-line {
+    position: absolute;
+    top: 50%; left: -20px; right: -20px;
+    height: 3px;
+    background: #ff4444;
+    transform: rotate(-3deg);
+}
+.no-label {
+    color: #ff4444;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 16px;
+    letter-spacing: 1px;
+}
+
+.features {
+    display: flex; gap: 48px;
+    margin-top: 64px;
+}
+.feat {
+    text-align: center;
+}
+.feat-icon { font-size: 28px; margin-bottom: 8px; }
+.feat h4 { color: #fff; font-size: 15px; margin-bottom: 4px; }
+.feat p { color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="title">
+    <h2>100% Local. 100% Private.</h2>
+    <p>Your messages never touch our servers. Everything runs on your Mac.</p>
+</div>
+<div class="flow">
+    <div class="node you">
+        <div class="node-icon">&#x1F4BB;</div>
+        <h3>Your Mac</h3>
+        <p>Reads your iMessages locally. Nothing leaves your machine.</p>
+    </div>
+    <div>
+        <div class="arrow">&#x27F7;</div>
+        <div class="arrow-label">encrypted</div>
+    </div>
+    <div class="node ai">
+        <div class="node-icon">&#x1F916;</div>
+        <h3>Groq AI</h3>
+        <p>Generates replies. Free tier. No data stored.</p>
+    </div>
+    <div>
+        <div class="arrow">&#x27F7;</div>
+        <div class="arrow-label">encrypted</div>
+    </div>
+    <div class="node you">
+        <div class="node-icon">&#x1F4AC;</div>
+        <h3>iMessage</h3>
+        <p>Reply sent as a normal blue bubble. They see it from you.</p>
+    </div>
+</div>
+
+<div class="cross-out">
+    <div class="node" style="width: 280px; margin: 0 auto;">
+        <div class="node-icon">&#x1F5A5;</div>
+        <h3>Our Servers</h3>
+        <p>We never see your texts, contacts, or conversations.</p>
+    </div>
+    <div class="cross-line"></div>
+</div>
+<div class="no-label">NEVER TOUCHES OUR SERVERS</div>
+
+<div class="features">
+    <div class="feat">
+        <div class="feat-icon">&#x1F512;</div>
+        <h4>No cloud storage</h4>
+        <p>Nothing uploaded anywhere</p>
+    </div>
+    <div class="feat">
+        <div class="feat-icon">&#x1F4E1;</div>
+        <h4>No telemetry</h4>
+        <p>No analytics or tracking</p>
+    </div>
+    <div class="feat">
+        <div class="feat-icon">&#x1F50D;</div>
+        <h4>Open for inspection</h4>
+        <p>Single Python file, readable</p>
+    </div>
+    <div class="feat">
+        <div class="feat-icon">&#x1F6AB;</div>
+        <h4>No account needed</h4>
+        <p>No sign up, no login</p>
+    </div>
+</div>
+</body>
+</html>

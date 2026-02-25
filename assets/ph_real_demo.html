@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1600">
+<title>GhostReply — macOS Messages Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1600px;
+    height: 1200px;
+    overflow: hidden;
+    font-family: -apple-system, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── macOS Window ── */
+  .window {
+    width: 1180px;
+    height: 820px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow:
+      0 40px 80px rgba(0,0,0,0.55),
+      0 0 0 0.5px rgba(255,255,255,0.08),
+      0 2px 6px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Title Bar ── */
+  .titlebar {
+    height: 52px;
+    min-height: 52px;
+    background: linear-gradient(180deg, #f6f6f6 0%, #ececec 100%);
+    border-bottom: 1px solid #c8c8c8;
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+  }
+  .titlebar-left {
+    display: flex;
+    align-items: center;
+    width: 280px;
+    height: 100%;
+    border-right: 1px solid #c8c8c8;
+    position: relative;
+  }
+  .traffic-lights {
+    display: flex;
+    gap: 8px;
+    padding-left: 20px;
+    align-items: center;
+  }
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .dot.red    { background: #ff5f57; border: 0.5px solid #e0443e; }
+  .dot.yellow { background: #febc2e; border: 0.5px solid #dea123; }
+  .dot.green  { background: #28c840; border: 0.5px solid #1aab29; }
+  .titlebar-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .compose-btn {
+    position: absolute;
+    right: 16px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .compose-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: #007AFF;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ── Body ── */
+  .body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: #f5f5f5;
+    border-right: 1px solid #c8c8c8;
+    display: flex;
+    flex-direction: column;
+  }
+  .search-wrapper {
+    padding: 10px 14px 10px 14px;
+  }
+  .search-bar {
+    height: 30px;
+    background: #e2e2e7;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 6px;
+  }
+  .search-bar svg {
+    width: 13px;
+    height: 13px;
+    fill: none;
+    stroke: #8e8e93;
+    stroke-width: 2;
+    stroke-linecap: round;
+    flex-shrink: 0;
+  }
+  .search-bar span {
+    font-size: 13px;
+    color: #8e8e93;
+    letter-spacing: -0.08px;
+  }
+
+  .contact-list {
+    flex: 1;
+    overflow: hidden;
+  }
+  .contact {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    gap: 10px;
+    cursor: default;
+  }
+  .contact + .contact {
+    border-top: 0.5px solid #dcdcdc;
+  }
+  .contact.selected {
+    background: #007AFF;
+    border-radius: 10px;
+    margin: 0 8px;
+    padding: 10px 10px;
+  }
+  .contact.selected + .contact {
+    border-top: none;
+  }
+  .contact .avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+    letter-spacing: -0.2px;
+  }
+  .contact .info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .contact .info .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .contact .info .name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1c1c1e;
+    letter-spacing: -0.2px;
+  }
+  .contact.selected .info .name { color: #fff; }
+  .contact .info .time {
+    font-size: 12px;
+    color: #8e8e93;
+    flex-shrink: 0;
+    letter-spacing: -0.08px;
+  }
+  .contact.selected .info .time { color: rgba(255,255,255,0.7); }
+  .contact .info .preview {
+    font-size: 13px;
+    color: #8e8e93;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.08px;
+    line-height: 1.3;
+  }
+  .contact.selected .info .preview { color: rgba(255,255,255,0.7); }
+
+  .contact .chevron {
+    font-size: 14px;
+    color: #c7c7cc;
+    flex-shrink: 0;
+    margin-left: 2px;
+  }
+  .contact.selected .chevron { color: rgba(255,255,255,0.45); }
+
+  /* ── Chat Panel ── */
+  .chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+  }
+
+  /* Chat header */
+  .chat-header {
+    height: 52px;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #e0e0e0;
+    background: linear-gradient(180deg, #f6f6f6 0%, #ececec 100%);
+    position: relative;
+  }
+  .chat-header .header-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #5856d6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-right: 8px;
+  }
+  .chat-header .header-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1c1c1e;
+    letter-spacing: -0.08px;
+  }
+  .chat-header .header-chevron {
+    font-size: 10px;
+    color: #8e8e93;
+    margin-left: 4px;
+  }
+  .header-actions {
+    position: absolute;
+    right: 16px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .header-actions svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: #007AFF;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Messages area */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 48px 12px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: #fff;
+  }
+
+  .timestamp-divider {
+    text-align: center;
+    font-size: 11.5px;
+    color: #8e8e93;
+    margin: 8px 0 10px 0;
+    letter-spacing: -0.05px;
+    font-weight: 400;
+  }
+
+  .msg-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 6px;
+  }
+
+  .msg-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+  }
+  .msg-row.them {
+    justify-content: flex-start;
+  }
+  .msg-row.me {
+    justify-content: flex-end;
+  }
+
+  .bubble {
+    max-width: 62%;
+    padding: 8px 14px;
+    font-size: 16px;
+    line-height: 1.35;
+    letter-spacing: -0.15px;
+    word-wrap: break-word;
+    position: relative;
+  }
+  .bubble.them-bubble {
+    background: #E5E5EA;
+    color: #1c1c1e;
+    border-radius: 18px;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.me-bubble {
+    background: #007AFF;
+    color: #fff;
+    border-radius: 18px;
+    border-bottom-right-radius: 4px;
+  }
+
+  /* Ghost indicator */
+  .ghost-indicator {
+    font-size: 10px;
+    opacity: 0.35;
+    align-self: flex-end;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-bottom: 6px;
+    user-select: none;
+  }
+
+  /* Delivered label */
+  .delivered {
+    text-align: right;
+    font-size: 11px;
+    color: #8e8e93;
+    margin-top: 2px;
+    padding-right: 2px;
+    letter-spacing: -0.05px;
+  }
+
+  /* ── Input Bar ── */
+  .input-bar {
+    min-height: 48px;
+    padding: 6px 14px 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid #e0e0e0;
+    background: #f9f9f9;
+  }
+  .input-bar .plus-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .input-bar .plus-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: #8e8e93;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+  .input-field {
+    flex: 1;
+    height: 34px;
+    background: #fff;
+    border: 1px solid #c7c7cc;
+    border-radius: 18px;
+    padding: 0 14px;
+    font-size: 15px;
+    color: #c7c7cc;
+    display: flex;
+    align-items: center;
+    letter-spacing: -0.15px;
+  }
+  .send-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #007AFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .send-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: #fff;
+    margin-left: 1px;
+    margin-top: -1px;
+  }
+
+  /* Spacer between message groups */
+  .msg-spacer { height: 6px; }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <!-- Title Bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="traffic-lights">
+        <div class="dot red"></div>
+        <div class="dot yellow"></div>
+        <div class="dot green"></div>
+      </div>
+    </div>
+    <div class="titlebar-right">
+      <div class="compose-btn">
+        <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="search-wrapper">
+        <div class="search-bar">
+          <svg viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="5"/><line x1="10.5" y1="10.5" x2="15" y2="15"/></svg>
+          <span>Search</span>
+        </div>
+      </div>
+      <div class="contact-list">
+        <!-- Andrew — selected -->
+        <div class="contact selected">
+          <div class="avatar" style="background:#5856d6;">A</div>
+          <div class="info">
+            <div class="top-row">
+              <span class="name">Andrew</span>
+              <span class="time">5:42 PM</span>
+            </div>
+            <div class="preview">sick see you then</div>
+          </div>
+          <span class="chevron">&#8250;</span>
+        </div>
+        <!-- Mom -->
+        <div class="contact">
+          <div class="avatar" style="background:#ff2d55;">M</div>
+          <div class="info">
+            <div class="top-row">
+              <span class="name">Mom</span>
+              <span class="time">3:15 PM</span>
+            </div>
+            <div class="preview">Can you pick up milk on your way home?</div>
+          </div>
+          <span class="chevron">&#8250;</span>
+        </div>
+        <!-- Kieran -->
+        <div class="contact">
+          <div class="avatar" style="background:#34c759;">K</div>
+          <div class="info">
+            <div class="top-row">
+              <span class="name">Kieran</span>
+              <span class="time">1:08 PM</span>
+            </div>
+            <div class="preview">lol that's hilarious</div>
+          </div>
+          <span class="chevron">&#8250;</span>
+        </div>
+        <!-- Sarah -->
+        <div class="contact">
+          <div class="avatar" style="background:#ff9500;">S</div>
+          <div class="info">
+            <div class="top-row">
+              <span class="name">Sarah</span>
+              <span class="time">Yesterday</span>
+            </div>
+            <div class="preview">Thanks for sending that!</div>
+          </div>
+          <span class="chevron">&#8250;</span>
+        </div>
+        <!-- Jake -->
+        <div class="contact">
+          <div class="avatar" style="background:#007AFF;">J</div>
+          <div class="info">
+            <div class="top-row">
+              <span class="name">Jake</span>
+              <span class="time">Yesterday</span>
+            </div>
+            <div class="preview">I'll bring the stuff for tonight</div>
+          </div>
+          <span class="chevron">&#8250;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat">
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="header-avatar">A</div>
+        <span class="header-name">Andrew</span>
+        <span class="header-chevron">&#8250;</span>
+        <div class="header-actions">
+          <!-- Video call -->
+          <svg viewBox="0 0 24 24"><rect x="2" y="6" width="13" height="12" rx="2"/><polyline points="17 9 22 6 22 18 17 15"/></svg>
+          <!-- Info -->
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><circle cx="12" cy="8" r="0.5" fill="#007AFF" stroke="none"/></svg>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="messages">
+        <div class="timestamp-divider">Today 5:34 PM</div>
+
+        <!-- Andrew: yo are you coming tonight? -->
+        <div class="msg-row them">
+          <div class="bubble them-bubble">yo are you coming tonight?</div>
+        </div>
+
+        <div class="msg-spacer"></div>
+
+        <!-- Me: yeah probably, what time? -->
+        <div class="msg-row me">
+          <span class="ghost-indicator">👻</span>
+          <div class="bubble me-bubble">yeah probably, what time?</div>
+        </div>
+
+        <div class="msg-spacer"></div>
+
+        <!-- Andrew: like 8ish, jake's bringing food -->
+        <div class="msg-row them">
+          <div class="bubble them-bubble">like 8ish, jake's bringing food</div>
+        </div>
+
+        <div class="msg-spacer"></div>
+
+        <!-- Me: bet, i'll be there -->
+        <div class="msg-row me">
+          <span class="ghost-indicator">👻</span>
+          <div class="bubble me-bubble">bet, i'll be there</div>
+        </div>
+
+        <div class="msg-spacer"></div>
+
+        <!-- Andrew: sick see you then -->
+        <div class="msg-row them">
+          <div class="bubble them-bubble">sick see you then</div>
+        </div>
+
+        <div class="msg-spacer"></div>
+
+        <!-- Me: shaka emoji -->
+        <div class="msg-row me">
+          <span class="ghost-indicator">👻</span>
+          <div class="bubble me-bubble" style="font-size: 32px; padding: 4px 14px; line-height:1.3;">🤙</div>
+        </div>
+
+        <div class="delivered">Delivered</div>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="input-bar">
+        <div class="plus-btn">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="7" x2="12" y2="17"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        </div>
+        <div class="input-field">iMessage</div>
+        <div class="send-btn">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

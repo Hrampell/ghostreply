@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: radial-gradient(ellipse at 50% 30%, #111 0%, #080808 70%);
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 50px;
+}
+
+.heading {
+    text-align: center;
+}
+.heading h2 {
+    font-size: 44px; font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+.heading p {
+    color: #555; font-size: 20px; margin-top: 10px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    padding: 0 80px;
+    width: 100%;
+}
+
+.card {
+    background: #151515;
+    border: 1px solid #252525;
+    border-radius: 20px;
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.card:hover {
+    border-color: #333;
+}
+.card-icon {
+    font-size: 32px;
+    width: 56px; height: 56px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+}
+.card h3 {
+    font-size: 20px; font-weight: 600;
+    color: #fff;
+    margin-top: 4px;
+}
+.card p {
+    font-size: 15px; line-height: 1.55;
+    color: #777;
+}
+.card .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    width: fit-content;
+}
+.tag-green { background: #0d2818; color: #4ade80; }
+.tag-blue { background: #0c1f3d; color: #60a5fa; }
+.tag-yellow { background: #2a2000; color: #facc15; }
+.tag-purple { background: #1f0c3d; color: #c084fc; }
+.tag-red { background: #2d0c0c; color: #f87171; }
+.tag-cyan { background: #0c2a2d; color: #22d3ee; }
+
+.bottom {
+    color: #444; font-size: 15px;
+    text-align: center;
+}
+.bottom strong { color: #666; }
+</style>
+</head>
+<body>
+
+<div class="heading">
+    <h2>How GhostReply works</h2>
+    <p>Reads your messages. Learns your style. Replies like you.</p>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <div class="card-icon">&#128270;</div>
+        <span class="tag tag-green">AUTOMATIC</span>
+        <h3>Learns your style</h3>
+        <p>Scans your iMessage history to learn how you actually text — slang, capitalization, emoji habits, everything.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#129504;</div>
+        <span class="tag tag-blue">CONTEXT-AWARE</span>
+        <h3>Knows your life</h3>
+        <p>Reads your conversations to understand your friends, interests, and inside jokes. Replies make sense, not just generic AI.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#127917;</div>
+        <span class="tag tag-purple">CUSTOM</span>
+        <h3>Custom personality</h3>
+        <p>Tell the bot how to act — roast your friends, be extra nice to your mom, or let it just be you. Your call.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#9995;</div>
+        <span class="tag tag-yellow">SMART</span>
+        <h3>Auto-stops</h3>
+        <p>When you reply manually, it stops automatically. No awkward double-replies. Pick up the conversation whenever you want.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#128274;</div>
+        <span class="tag tag-cyan">PRIVATE</span>
+        <h3>100% local</h3>
+        <p>Runs on your Mac, reads your local iMessage database. Your messages never touch our servers. Bring your own AI key.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#9889;</div>
+        <span class="tag tag-red">FAST</span>
+        <h3>30-second install</h3>
+        <p>One terminal command. No app to download, no account to create. Paste a key and you're running.</p>
+    </div>
+</div>
+
+<div class="bottom">macOS only &middot; Terminal app &middot; <strong>$8 one-time</strong> or 24hr free trial</div>
+
+</body>
+</html>

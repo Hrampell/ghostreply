@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+.header .emoji { font-size: 48px; margin-bottom: 8px; }
+.header h1 {
+    font-size: 56px; font-weight: 700; letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header p { color: #888; font-size: 22px; margin-top: 10px; }
+.main {
+    display: flex; gap: 48px; align-items: flex-start;
+    position: relative;
+}
+/* Glow behind */
+.main::before {
+    content: '';
+    position: absolute;
+    inset: -40px;
+    background: radial-gradient(ellipse at center, rgba(74,222,128,0.12) 0%, transparent 70%);
+    filter: blur(60px);
+    z-index: 0;
+}
+.terminal {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 28px 32px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 15px;
+    line-height: 2;
+    width: 580px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    position: relative; z-index: 1;
+}
+.dots { display: flex; gap: 8px; margin-bottom: 18px; }
+.dot { width: 13px; height: 13px; border-radius: 50%; }
+.dot.r { background: #ff5f57; }
+.dot.y { background: #febc2e; }
+.dot.g { background: #28c840; }
+.green { color: #4ade80; }
+.cyan { color: #5fffff; }
+.white { color: #fff; }
+.gray { color: #888; }
+.lgray { color: #bbb; }
+.bold { font-weight: 700; }
+
+.imessage {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 24px;
+    padding: 24px 20px;
+    width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    position: relative; z-index: 1;
+}
+.msg-header {
+    text-align: center; color: #888; font-size: 13px;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid #222;
+}
+.msg-header strong { color: #fff; display: block; font-size: 18px; margin-bottom: 2px; }
+.bubble {
+    max-width: 80%; padding: 10px 14px;
+    border-radius: 20px; font-size: 16px;
+    line-height: 1.4; margin-bottom: 7px; clear: both;
+}
+.bubble-blue { background: #0b84fe; color: #fff; margin-left: auto; border-bottom-right-radius: 4px; float: right; }
+.bubble-gray { background: #333; color: #fff; margin-right: auto; border-bottom-left-radius: 4px; float: left; }
+.clear { clear: both; }
+.ghost-label { font-size: 10px; color: #4ade80; text-align: right; margin-bottom: 3px; margin-top: 10px; clear: both; letter-spacing: 0.5px; }
+
+.badge {
+    margin-top: 40px;
+    display: flex; gap: 20px; align-items: center; justify-content: center;
+}
+.badge-item {
+    background: #111; border: 1px solid #222;
+    border-radius: 10px; padding: 10px 20px;
+    color: #888; font-size: 15px;
+}
+.badge-item strong { color: #4ade80; }
+</style>
+</head>
+<body>
+<div class="header">
+    <div class="emoji">&#x1F47B;</div>
+    <h1>GhostReply</h1>
+    <p>AI that texts back for you on iMessage</p>
+</div>
+<div class="main">
+    <div class="terminal">
+        <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+        <span class="green bold">GhostReply is running!</span> <span class="white">Replying to</span> <span class="cyan">Andrew</span><span class="white">.</span><br>
+        <span class="gray">Type 'stop' to quit, or just reply yourself.</span><br>
+        <br>
+        <span class="gray">[REPLY]</span> <span class="lgray">them:</span> <span class="white">Yo wanna play rocket league</span><br>
+        <span class="white" style="padding-left:56px"><span class="green">you:</span>&nbsp;&nbsp;Yeah gimme like 20 min</span><br>
+        <br>
+        <span class="gray">[REPLY]</span> <span class="lgray">them:</span> <span class="white">Did u do the history essay</span><br>
+        <span class="white" style="padding-left:56px"><span class="green">you:</span>&nbsp;&nbsp;Nah not yet</span><br>
+        <br>
+        <span class="gray">[REPLY]</span> <span class="lgray">them:</span> <span class="white">Its due tmrw bro</span><br>
+        <span class="white" style="padding-left:56px"><span class="green">you:</span>&nbsp;&nbsp;I know ill do it later lol</span>
+    </div>
+    <div class="imessage">
+        <div class="msg-header"><strong>Andrew</strong>iMessage</div>
+        <div class="bubble bubble-gray">Yo wanna play rocket league</div>
+        <div class="clear"></div>
+        <div class="ghost-label">&#x1F47B; GhostReply</div>
+        <div class="bubble bubble-blue">Yeah gimme like 20 min</div>
+        <div class="clear"></div>
+        <div class="bubble bubble-gray">Did u do the history essay</div>
+        <div class="clear"></div>
+        <div class="bubble bubble-blue">Nah not yet</div>
+        <div class="clear"></div>
+        <div class="bubble bubble-gray">Its due tmrw bro</div>
+        <div class="clear"></div>
+        <div class="bubble bubble-blue">I know ill do it later lol</div>
+        <div class="clear"></div>
+    </div>
+</div>
+<div class="badge">
+    <div class="badge-item"><strong>$4.99</strong> one-time</div>
+    <div class="badge-item"><strong>24hr</strong> free trial</div>
+    <div class="badge-item"><strong>100%</strong> local &amp; private</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1600">
+<title>GhostReply — Can You Tell Which Is Which?</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .canvas {
+    width: 1600px;
+    height: 1200px;
+    background: #0a0a0a;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .windows-row {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    margin-bottom: 56px;
+  }
+
+  .window-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .window-label {
+    font-size: 22px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 14px;
+    letter-spacing: 0.3px;
+  }
+
+  .window-label .ghost {
+    font-size: 22px;
+    margin-left: 3px;
+  }
+
+  /* macOS window */
+  .macos-window {
+    width: 680px;
+    height: 700px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.7),
+      0 10px 30px rgba(0,0,0,0.5),
+      0 0 0 0.5px rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Titlebar */
+  .titlebar {
+    height: 52px;
+    background: linear-gradient(180deg, #f6f6f6 0%, #e8e8e8 100%);
+    border-bottom: 1px solid #c8c8c8;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .traffic-lights {
+    display: flex;
+    gap: 8px;
+  }
+
+  .traffic-light {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .traffic-light.close {
+    background: radial-gradient(circle at 35% 35%, #ff8a80, #ff5f57 60%);
+    border: 0.5px solid #e0443e;
+  }
+
+  .traffic-light.minimize {
+    background: radial-gradient(circle at 35% 35%, #ffd76e, #febc2e 60%);
+    border: 0.5px solid #dea123;
+  }
+
+  .traffic-light.maximize {
+    background: radial-gradient(circle at 35% 35%, #6feb83, #28c840 60%);
+    border: 0.5px solid #1aab29;
+  }
+
+  .titlebar-text {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 500;
+    color: #4a4a4a;
+  }
+
+  /* Contact bar */
+  .contact-bar {
+    height: 60px;
+    background: #f6f6f6;
+    border-bottom: 1px solid #d8d8d8;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+
+  .contact-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  .contact-avatar.k { background: linear-gradient(135deg, #FF9F0A, #FF6B00); }
+  .contact-avatar.s { background: linear-gradient(135deg, #FF6B8A, #E8405E); }
+
+  .contact-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .contact-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1c1c1e;
+  }
+
+  .contact-status {
+    font-size: 11px;
+    color: #8e8e93;
+    margin-top: 1px;
+  }
+
+  /* Chat area */
+  .chat-area {
+    flex: 1;
+    background: #ffffff;
+    padding: 24px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 3px;
+    overflow: hidden;
+  }
+
+  /* Message rows */
+  .message-row {
+    display: flex;
+    margin-bottom: 2px;
+  }
+
+  .message-row.received {
+    justify-content: flex-start;
+  }
+
+  .message-row.sent {
+    justify-content: flex-end;
+  }
+
+  .bubble {
+    max-width: 420px;
+    padding: 9px 15px;
+    font-size: 16px;
+    line-height: 1.35;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    word-wrap: break-word;
+  }
+
+  .bubble.received-bubble {
+    background: #e5e5ea;
+    color: #1c1c1e;
+    border-radius: 18px 18px 18px 6px;
+  }
+
+  .bubble.sent-bubble {
+    background: #007aff;
+    color: #ffffff;
+    border-radius: 18px 18px 6px 18px;
+  }
+
+  .spacer {
+    height: 10px;
+  }
+
+  /* Delivered label */
+  .delivered {
+    text-align: right;
+    font-size: 10px;
+    color: #8e8e93;
+    margin-top: 2px;
+    padding-right: 4px;
+  }
+
+  /* Input bar */
+  .input-bar {
+    height: 50px;
+    background: #f6f6f6;
+    border-top: 1px solid #d8d8d8;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .input-plus {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid #8e8e93;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8e8e93;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1;
+  }
+
+  .input-field {
+    flex: 1;
+    height: 34px;
+    background: #ffffff;
+    border: 1px solid #c8c8c8;
+    border-radius: 18px;
+    padding: 0 14px;
+    font-size: 14px;
+    color: #8e8e93;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Bottom tagline */
+  .tagline {
+    text-align: center;
+  }
+
+  .tagline-text {
+    font-size: 38px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+  }
+
+  .tagline-underline {
+    display: block;
+    width: 360px;
+    height: 3px;
+    background: #4ade80;
+    border-radius: 2px;
+    margin: 14px auto 0;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="windows-row">
+
+    <!-- LEFT WINDOW: "You" -->
+    <div class="window-container">
+      <div class="window-label">You</div>
+      <div class="macos-window">
+        <div class="titlebar">
+          <div class="traffic-lights">
+            <div class="traffic-light close"></div>
+            <div class="traffic-light minimize"></div>
+            <div class="traffic-light maximize"></div>
+          </div>
+          <span class="titlebar-text">Messages</span>
+        </div>
+        <div class="contact-bar">
+          <div class="contact-avatar k">K</div>
+          <div class="contact-info">
+            <div class="contact-name">Kieran</div>
+            <div class="contact-status">iMessage</div>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div class="message-row received">
+            <div class="bubble received-bubble">dude did you see the game last night</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row sent">
+            <div class="bubble sent-bubble">bro yes that was insane</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row received">
+            <div class="bubble received-bubble">right?? that last play</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row sent">
+            <div class="bubble sent-bubble">literally couldn't believe it lmao</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row received">
+            <div class="bubble received-bubble">we gotta watch the next one together</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row sent">
+            <div class="bubble sent-bubble">i'm so down</div>
+          </div>
+          <div class="delivered">Delivered</div>
+        </div>
+        <div class="input-bar">
+          <div class="input-plus">+</div>
+          <div class="input-field">iMessage</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT WINDOW: "GhostReply" -->
+    <div class="window-container">
+      <div class="window-label">GhostReply <span class="ghost">&#128123;</span></div>
+      <div class="macos-window">
+        <div class="titlebar">
+          <div class="traffic-lights">
+            <div class="traffic-light close"></div>
+            <div class="traffic-light minimize"></div>
+            <div class="traffic-light maximize"></div>
+          </div>
+          <span class="titlebar-text">Messages</span>
+        </div>
+        <div class="contact-bar">
+          <div class="contact-avatar s">S</div>
+          <div class="contact-info">
+            <div class="contact-name">Sarah</div>
+            <div class="contact-status">iMessage</div>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div class="message-row received">
+            <div class="bubble received-bubble">hey are you free this weekend</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row sent">
+            <div class="bubble sent-bubble">maybe! what were you thinking</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row received">
+            <div class="bubble received-bubble">there's this new brunch spot downtown</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row sent">
+            <div class="bubble sent-bubble">ooh that sounds so good, saturday work?</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row received">
+            <div class="bubble received-bubble">yes!! i'll send you the link</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="message-row sent">
+            <div class="bubble sent-bubble">perf can't wait</div>
+          </div>
+          <div class="delivered">Delivered</div>
+        </div>
+        <div class="input-bar">
+          <div class="input-plus">+</div>
+          <div class="input-field">iMessage</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom tagline -->
+  <div class="tagline">
+    <div class="tagline-text">Can you tell which is which?</div>
+    <span class="tagline-underline"></span>
+  </div>
+</div>
+</body>
+</html>

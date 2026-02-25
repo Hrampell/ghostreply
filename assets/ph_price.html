@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.card {
+    background: linear-gradient(135deg, #111 0%, #0a0a0a 100%);
+    border: 2px solid #4ade80;
+    border-radius: 24px;
+    padding: 64px 80px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(74,222,128,0.15), 0 0 120px rgba(74,222,128,0.05);
+    max-width: 700px;
+}
+.emoji { font-size: 64px; margin-bottom: 16px; }
+.name {
+    font-size: 40px; font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+}
+.tagline { color: #888; font-size: 20px; margin-bottom: 40px; }
+.price-row {
+    display: flex; align-items: baseline; justify-content: center; gap: 12px;
+    margin-bottom: 8px;
+}
+.price {
+    font-size: 72px; font-weight: 700; color: #fff;
+}
+.period { font-size: 24px; color: #888; }
+.trial {
+    color: #4ade80;
+    font-size: 18px;
+    margin-bottom: 40px;
+}
+.features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    text-align: left;
+    margin-top: 32px;
+}
+.feat {
+    display: flex; gap: 10px; align-items: flex-start;
+    color: #aaa; font-size: 16px; line-height: 1.4;
+}
+.feat-check { color: #4ade80; font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+.bottom {
+    margin-top: 56px;
+    display: flex; gap: 48px; justify-content: center;
+}
+.stat {
+    text-align: center;
+}
+.stat-val { font-size: 32px; font-weight: 700; color: #fff; }
+.stat-label { font-size: 14px; color: #666; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="emoji">&#x1F47B;</div>
+    <div class="name">GhostReply</div>
+    <div class="tagline">AI that texts back for you on iMessage</div>
+    <div class="price-row">
+        <span class="price">$4.99</span>
+        <span class="period">one-time</span>
+    </div>
+    <div class="trial">24-hour free trial — no credit card needed</div>
+    <div class="features">
+        <div class="feat"><span class="feat-check">&#10003;</span> Learns your exact texting style</div>
+        <div class="feat"><span class="feat-check">&#10003;</span> Knows your friends &amp; life</div>
+        <div class="feat"><span class="feat-check">&#10003;</span> Replies in your voice</div>
+        <div class="feat"><span class="feat-check">&#10003;</span> Auto-stops when you reply</div>
+        <div class="feat"><span class="feat-check">&#10003;</span> Free AI (Groq, no cost)</div>
+        <div class="feat"><span class="feat-check">&#10003;</span> 100% local &amp; private</div>
+        <div class="feat"><span class="feat-check">&#10003;</span> No app — runs in Terminal</div>
+        <div class="feat"><span class="feat-check">&#10003;</span> Denies being a bot</div>
+    </div>
+</div>
+<div class="bottom">
+    <div class="stat">
+        <div class="stat-val">30 sec</div>
+        <div class="stat-label">to install</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">$0</div>
+        <div class="stat-label">AI cost</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">$0</div>
+        <div class="stat-label">subscription</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">1</div>
+        <div class="stat-label">Python file</div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    width: 1600px; height: 1200px;
+    background: #0a0a0a;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    display: flex;
+    align-items: stretch; justify-content: center;
+    gap: 20px;
+    padding: 24px;
+    overflow: hidden;
+}
+.imessage {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 28px;
+    padding: 32px 24px;
+    flex: 1;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.msg-header {
+    text-align: center;
+    color: #888; font-size: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #222;
+}
+.msg-header strong { color: #fff; display: block; font-size: 20px; margin-bottom: 2px; }
+.bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 20px;
+    font-size: 16px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    clear: both;
+}
+.bubble-blue {
+    background: #0b84fe; color: #fff;
+    margin-left: auto; border-bottom-right-radius: 4px;
+    float: right;
+}
+.bubble-gray {
+    background: #333; color: #fff;
+    margin-right: auto; border-bottom-left-radius: 4px;
+    float: left;
+}
+.clear { clear: both; }
+.bot-label {
+    font-size: 11px; color: #4ade80;
+    text-align: right; margin-bottom: 4px; margin-top: 12px;
+    clear: both;
+}
+.spacer { clear: both; height: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Example 1: casual friend -->
+<div class="imessage">
+    <div class="msg-header"><strong>Andrew</strong>iMessage</div>
+    <div class="bubble bubble-gray">Yo wanna play rocket league</div>
+    <div class="clear"></div>
+    <div class="bot-label">GhostReply:</div>
+    <div class="bubble bubble-blue">Yeah gimme like 20 min</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Bet. Did u do the history essay</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Nah not yet</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Its due tmrw bro</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">I know ill do it later</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Lmao ok see u on rl</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Bet</div>
+    <div class="clear"></div>
+</div>
+
+<!-- Example 2: AI accusation -->
+<div class="imessage">
+    <div class="msg-header"><strong>Kieran</strong>iMessage</div>
+    <div class="bubble bubble-gray">Bro are you using that AI bot thing</div>
+    <div class="clear"></div>
+    <div class="bot-label">GhostReply:</div>
+    <div class="bubble bubble-blue">Bro what lmao</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">You're replying way too fast</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Im literally on my phone rn</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Idk man something is off</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Bro ur tripping</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Ok whatever lol</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Lol</div>
+    <div class="clear"></div>
+</div>
+
+<!-- Example 3: mom -->
+<div class="imessage">
+    <div class="msg-header"><strong>Mom</strong>iMessage</div>
+    <div class="bubble bubble-gray">When are you coming home for dinner?</div>
+    <div class="clear"></div>
+    <div class="bot-label">GhostReply:</div>
+    <div class="bubble bubble-blue">Like 6</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Ok I'm making pasta</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Sounds good</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Can you pick up milk on the way</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Yeah</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Thank you honey</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Np</div>
+    <div class="clear"></div>
+</div>
+
+<!-- Example 4: making plans -->
+<div class="imessage">
+    <div class="msg-header"><strong>Nikhil</strong>iMessage</div>
+    <div class="bubble bubble-gray">Wanna get food later</div>
+    <div class="clear"></div>
+    <div class="bot-label">GhostReply:</div>
+    <div class="bubble bubble-blue">Down where</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Chipotle?</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Yeah im down</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Cool like 7?</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">Works for me</div>
+    <div class="clear"></div>
+    <div class="spacer"></div>
+    <div class="bubble bubble-gray">Bet see u there</div>
+    <div class="clear"></div>
+    <div class="bubble bubble-blue">See u</div>
+    <div class="clear"></div>
+</div>
+
+</body>
+</html>
