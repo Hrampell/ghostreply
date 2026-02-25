@@ -1,6 +1,6 @@
 #!/bin/bash
 # GhostReply Installer
-# One-liner: curl -sL hrampell.github.io/ghostreply/install.sh | bash
+# One-liner: curl -sL ghostreply.lol/install.sh | bash
 
 echo ""
 echo "  ╔══════════════════════════════════╗"

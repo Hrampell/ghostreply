@@ -170,7 +170,7 @@ def _check_integrity():
             expected = _INTEGRITY_HASHES.get(func.__name__)
             if expected and func_hash != expected:
                 print(f"{RED}[ERROR]{RESET} Integrity check failed — source has been modified.")
-                print(f"{GRAY}Re-download GhostReply: curl -sL https://hrampell.github.io/ghostreply/install.sh | bash{RESET}")
+                print(f"{GRAY}Re-download GhostReply: curl -sL https://ghostreply.lol/install.sh | bash{RESET}")
                 sys.exit(1)
     except Exception:
         pass  # If inspect fails (e.g., running from .pyc), skip
@@ -1280,7 +1280,7 @@ def first_time_setup():
             except Exception:
                 pass
             print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
-            print(f"{GRAY}Buy a license at https://hrampell.github.io/ghostreply to keep using it.{RESET}")
+            print(f"{GRAY}Buy a license at https://ghostreply.lol to keep using it.{RESET}")
             # Optional email for follow-up
             print()
             email = input(f"{GRAY}Enter your email to get notified before your trial ends (optional, press Enter to skip):{RESET} ").strip()
@@ -2413,7 +2413,7 @@ def main():
             hours_left = max(0, 24 - wall_elapsed / 3600)
             if hours_left <= 0:
                 print(f"{RED}Free trial expired!{RESET}")
-                print(f"{GRAY}Buy a license at{RESET} {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+                print(f"{GRAY}Buy a license at{RESET} {BLUE}https://ghostreply.lol{RESET}")
                 print()
                 key = input(f"Enter your license key ('q' to quit): ").strip()
                 if not key or key.lower() in ("q", "quit", "exit"):
@@ -2448,7 +2448,7 @@ def main():
             license_key = config.get("license_key", "")
             if not license_key:
                 print(f"{RED}No license key found.{RESET}")
-                print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+                print(f"  Buy a license at {BLUE}https://ghostreply.lol{RESET}")
                 sys.exit(1)
             # Friend keys are validated locally — no server check needed
             if license_key.startswith("grf_"):
@@ -2468,7 +2468,7 @@ def main():
                 if result["status"] != "valid":
                     print(f"{RED}FAILED{RESET}")
                     print(f"  {result['message']}")
-                    print(f"  Buy a license at {BLUE}https://hrampell.github.io/ghostreply{RESET}")
+                    print(f"  Buy a license at {BLUE}https://ghostreply.lol{RESET}")
                     config.pop("license_key", None)
                     save_config(config)
                     sys.exit(1)
