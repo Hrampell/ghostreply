@@ -87,7 +87,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.0.9"
+VERSION = "1.1.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -986,7 +986,8 @@ def build_system_prompt(contact_name: str = "") -> str:
 
         avg = style.get("avg_words", 5)
         short = style.get("short_pct", 60)
-        parts.append(f"\n- Average {avg} words per text. {short}% of your texts are under 5 words. Keep it SHORT.")
+        parts.append(f"\n- Your average text is {avg} words. {short}% of your texts are under 5 words.")
+        parts.append(f"- Match this length naturally. Short for small talk, longer when someone asks a real question.")
 
         if style.get("starts_upper_pct", 50) > 60:
             parts.append("- You capitalize the first letter of texts.")
@@ -1016,18 +1017,19 @@ def build_system_prompt(contact_name: str = "") -> str:
     else:
         parts.append(
             "STYLE RULES:\n"
-            "- Average 5 words per text. Keep it SHORT.\n"
-            "- Capitalize the first letter. NO periods. Question marks only when asking.\n"
-            "- One line only. No line breaks. One thought per message.\n"
-            "- Text like a normal person. Casual, direct, brief."
+            "- Text like a normal person. Casual, direct.\n"
+            "- One line only. No line breaks.\n"
+            "- Short for small talk, but give real answers when asked real questions.\n"
+            "- No periods at the end. Question marks only when asking."
         )
 
     # General rules (always included)
     parts.append(
         "\nGENERAL RULES:\n"
-        "- One line only. No line breaks. One thought per message.\n"
-        "- NEVER explain yourself. NEVER expand. Just answer.\n"
-        "- NEVER chain multiple ideas. Pick ONE thing to say."
+        "- One line only. No line breaks.\n"
+        "- Reply naturally — if someone asks a question, give a real answer. "
+        "If it's just small talk, keep it brief.\n"
+        "- Don't be robotic. Match the energy of the conversation."
     )
 
     # Background info (from message scanning)
@@ -1855,23 +1857,63 @@ def is_attachment_only(text: str) -> bool:
 def check_user_sent_message(since_rowid: int, target_handle: str) -> int:
     """Check if the user manually sent a message to the target contact.
 
-    Returns the new max ROWID if found, or 0 if no manual message detected.
+    Distinguishes bot-sent messages from manual messages by:
+    1. Checking message text against known bot-sent texts
+    2. Applying a grace period after the bot sends (DB write can be delayed)
+
+    Returns the new max ROWID if a MANUAL message was found, or 0 if not.
     """
     if not target_handle:
         return 0
+
+    # Grace period: don't check for 2 seconds after bot sends
+    # (AppleScript -> Messages.app -> chat.db write can be delayed)
+    if time.time() - _bot_last_send_time < 2.0:
+        return 0
+
     conn = get_db_connection()
     try:
         cur = conn.execute("""
-            SELECT m.ROWID
+            SELECT m.ROWID, m.text, m.attributedBody
             FROM message m
             JOIN handle h ON m.handle_id = h.ROWID
             WHERE m.ROWID > ? AND m.is_from_me = 1 AND h.id = ?
             ORDER BY m.ROWID ASC
         """, (since_rowid, target_handle))
         rows = cur.fetchall()
-        if rows:
-            return max(row["ROWID"] for row in rows)
-        return 0
+        if not rows:
+            return 0
+
+        max_rowid = 0
+        found_manual = False
+        for row in rows:
+            rowid = row["ROWID"]
+            text = row["text"]
+            if text is None and row["attributedBody"] is not None:
+                text = extract_text_from_attributed_body(row["attributedBody"])
+
+            max_rowid = max(max_rowid, rowid)
+
+            # Check if this message matches something the bot sent
+            if text:
+                normalized = text.strip().lower()
+                with _bot_sent_lock:
+                    if normalized in _bot_sent_texts:
+                        # This is a bot-sent message — remove from tracking and skip
+                        _bot_sent_texts.remove(normalized)
+                        continue
+
+            # If we get here, it's a message we didn't send — manual reply
+            found_manual = True
+
+        # Update known ROWID regardless (so we don't re-check these messages)
+        if max_rowid:
+            with _bot_last_known_rowid_lock:
+                global _bot_last_known_rowid
+                if max_rowid > _bot_last_known_rowid:
+                    _bot_last_known_rowid = max_rowid
+
+        return max_rowid if found_manual else 0
     finally:
         conn.close()
 
@@ -1956,7 +1998,7 @@ def get_ai_response(contact: str) -> str:
 
     messages = [{"role": "system", "content": prompt}] + history
     try:
-        reply = ai_call(messages, max_tokens=30)
+        reply = ai_call(messages, max_tokens=80)
         reply = " ".join(reply.split())  # Force single line
         return reply
     except Exception as e:
@@ -1968,11 +2010,11 @@ def reply_delay(their_text: str):
     """Wait before replying based on how long their message is."""
     words = len(their_text.split())
     if words <= 3:
-        delay = random.uniform(1, 2)
+        delay = random.uniform(1, 1.5)
     elif words <= 10:
-        delay = random.uniform(2, 4)
+        delay = random.uniform(1.5, 2.5)
     else:
-        delay = random.uniform(4, 6)
+        delay = random.uniform(2.5, 4)
     # Sleep in small chunks so stop_event is responsive
     for _ in range(int(delay * 10)):
         if stop_event.is_set():
@@ -2015,11 +2057,19 @@ def handle_batch(contact: str, texts: list[str]):
 
     add_to_history(contact, "assistant", reply)
     reply_delay(texts[-1])  # delay based on their last message
+    # Track this message BEFORE sending so auto-stop can recognize it
+    global _bot_last_send_time, _bot_has_replied
+    with _bot_sent_lock:
+        _bot_sent_texts.append(reply.strip().lower())
+        # Keep only last 20 to avoid unbounded growth
+        if len(_bot_sent_texts) > 20:
+            _bot_sent_texts.pop(0)
     if not send_imessage(contact, reply):
         return
-    # Update last known ROWID so auto-stop doesn't trigger on bot-sent messages
+    _bot_last_send_time = time.time()
+    # Wait for message to land in chat.db before updating ROWID
+    time.sleep(0.5)
     _update_bot_last_known_rowid()
-    global _bot_has_replied
     _bot_has_replied = True
     display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
     reply_log.append({"them": combined, "you": reply})
@@ -2060,12 +2110,17 @@ def stdin_listener():
             print(f"  {GRAY}Type 'stop' to quit.{RESET}")
 
 
-BATCH_WAIT = 5  # seconds to wait for more messages before replying
+BATCH_WAIT = 2  # seconds to wait for more messages before replying
 # Track the latest ROWID the bot knows about (bot-sent or otherwise)
 # so auto-stop only triggers on messages sent AFTER this point
 _bot_last_known_rowid_lock = threading.Lock()
 _bot_last_known_rowid = 0
 _bot_has_replied = False  # only auto-stop after bot has sent at least one reply
+
+# Track bot-sent messages so we can distinguish them from manual sends
+_bot_sent_texts: list[str] = []  # texts the bot has sent (for matching)
+_bot_sent_lock = threading.Lock()
+_bot_last_send_time: float = 0  # timestamp of last bot send (grace period)
 
 
 def _update_bot_last_known_rowid():
