@@ -1814,10 +1814,10 @@ def first_time_setup():
     }
 
     mode = select_option("Choose a reply mode:", [
-        {"label": "Autopilot",     "desc": "texts like you",        "color": GREEN},
-        {"label": "Custom",        "desc": "set a persona",         "color": BLUE},
-        {"label": "Pranks",        "desc": "mess with them",        "color": RED},
-        {"label": "Professional",  "desc": "clean & concise",       "color": WHITE},
+        {"label": "Autopilot",      "desc": "texts like you",        "color": GREEN},
+        {"label": "Custom",         "desc": "set a persona",         "color": BLUE},
+        {"label": "Pranks ▸",       "desc": "mess with them",        "color": RED},
+        {"label": "Professional ▸", "desc": "clean & concise",       "color": WHITE},
     ])
     if mode == 2:  # Pranks → submenu
         prank = select_option("Choose a prank:", [
@@ -3136,10 +3136,10 @@ def main():
         }
 
         mode = select_option("Choose a reply mode:", [
-            {"label": "Autopilot",     "desc": "texts like you",        "color": GREEN},
-            {"label": "Custom",        "desc": "set a persona",         "color": BLUE},
-            {"label": "Pranks",        "desc": "mess with them",        "color": RED},
-            {"label": "Professional",  "desc": "clean & concise",       "color": WHITE},
+            {"label": "Autopilot",      "desc": "texts like you",        "color": GREEN},
+            {"label": "Custom",         "desc": "set a persona",         "color": BLUE},
+            {"label": "Pranks ▸",       "desc": "mess with them",        "color": RED},
+            {"label": "Professional ▸", "desc": "clean & concise",       "color": WHITE},
         ])
         if mode == 2:  # Pranks → submenu
             prank = select_option("Choose a prank:", [
