@@ -1535,17 +1535,17 @@ def first_time_setup():
     }
 
     mode = select_option("Choose a reply mode:", [
-        {"label": "Be Myself",     "color": GREEN},
-        {"label": "Custom",        "color": BLUE},
-        {"label": "Pranks",        "color": RED},
-        {"label": "Professional",  "color": WHITE},
+        {"label": "Autopilot",     "desc": "texts like you",        "color": GREEN},
+        {"label": "Custom",        "desc": "set a persona",         "color": BLUE},
+        {"label": "Pranks",        "desc": "mess with them",        "color": RED},
+        {"label": "Professional",  "desc": "clean & concise",       "color": WHITE},
     ])
-    if mode == 2:  # Prank → submenu
+    if mode == 2:  # Pranks → submenu
         prank = select_option("Choose a prank:", [
-            {"label": "Ragebait", "color": RED},
-            {"label": "Breakup",  "color": SOFT_PINK},
-            {"label": "Rizz",     "color": HOT_PINK},
-            {"label": "Drunk",    "color": YELLOW},
+            {"label": "Ragebait", "desc": "troll mode",                 "color": RED},
+            {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
+            {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
+            {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
         ])
         mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
     elif mode == 3:  # Sophisticated
@@ -1767,8 +1767,9 @@ def select_option(prompt: str, options: list[dict]) -> int:
 
     def _render():
         for i, opt in enumerate(options):
+            desc = f"  {GRAY}{opt['desc']}{RESET}" if i == selected and opt.get("desc") else ""
             if i == selected:
-                sys.stdout.write(f"\033[2K {opt['color']}❯ {opt['label']}{RESET}\r\n")
+                sys.stdout.write(f"\033[2K {opt['color']}❯ {opt['label']}{desc}{RESET}\r\n")
             else:
                 sys.stdout.write(f"\033[2K {DIM}  {opt['label']}{RESET}\r\n")
         sys.stdout.flush()
@@ -1783,8 +1784,9 @@ def select_option(prompt: str, options: list[dict]) -> int:
     else:
         print(f"{prompt_line}{hint}")
     for i, opt in enumerate(options):
+        desc = f"  {GRAY}{opt['desc']}{RESET}" if i == selected and opt.get("desc") else ""
         if i == selected:
-            print(f" {opt['color']}❯ {opt['label']}{RESET}")
+            print(f" {opt['color']}❯ {opt['label']}{desc}{RESET}")
         else:
             print(f" {DIM}  {opt['label']}{RESET}")
 
@@ -2826,17 +2828,17 @@ def main():
         }
 
         mode = select_option("Choose a reply mode:", [
-            {"label": "Be Myself",     "color": GREEN},
-            {"label": "Custom",        "color": BLUE},
-            {"label": "Pranks",        "color": RED},
-            {"label": "Professional",  "color": WHITE},
+            {"label": "Autopilot",     "desc": "texts like you",        "color": GREEN},
+            {"label": "Custom",        "desc": "set a persona",         "color": BLUE},
+            {"label": "Pranks",        "desc": "mess with them",        "color": RED},
+            {"label": "Professional",  "desc": "clean & concise",       "color": WHITE},
         ])
-        if mode == 2:  # Prank → submenu
+        if mode == 2:  # Pranks → submenu
             prank = select_option("Choose a prank:", [
-                {"label": "Ragebait", "color": RED},
-                {"label": "Breakup",  "color": SOFT_PINK},
-                {"label": "Rizz",     "color": HOT_PINK},
-                {"label": "Drunk",    "color": YELLOW},
+                {"label": "Ragebait", "desc": "troll mode",                 "color": RED},
+                {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
+                {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
+                {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
             ])
             mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
         elif mode == 3:  # Sophisticated
