@@ -1535,10 +1535,10 @@ def first_time_setup():
     }
 
     mode = select_option("Choose a reply mode:", [
-        {"label": "Normal",        "color": GREEN},
+        {"label": "Be Myself",     "color": GREEN},
         {"label": "Custom",        "color": BLUE},
         {"label": "Pranks",        "color": RED},
-        {"label": "Sophisticated", "color": WHITE},
+        {"label": "Professional",  "color": WHITE},
     ])
     if mode == 2:  # Prank → submenu
         prank = select_option("Choose a prank:", [
@@ -2826,10 +2826,10 @@ def main():
         }
 
         mode = select_option("Choose a reply mode:", [
-            {"label": "Normal",        "color": GREEN},
+            {"label": "Be Myself",     "color": GREEN},
             {"label": "Custom",        "color": BLUE},
             {"label": "Pranks",        "color": RED},
-            {"label": "Sophisticated", "color": WHITE},
+            {"label": "Professional",  "color": WHITE},
         ])
         if mode == 2:  # Prank → submenu
             prank = select_option("Choose a prank:", [
