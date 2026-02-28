@@ -6,7 +6,7 @@
     <title>GhostReply — iMessage Auto-Reply Bot</title>
 
     <!-- SEO -->
-    <meta name="description" content="AI that texts back for you on iMessage. Learns your exact texting style from your real messages and replies as you. $4.99 one-time, 24-hour free trial.">
+    <meta name="description" content="AI that texts back for you on iMessage. Learns your exact texting style from your real messages and replies as you. $4.99 one-time, 10 free replies.">
     <meta name="keywords" content="iMessage, auto reply, AI texting bot, Mac, ghostreply">
     <meta name="author" content="Harrison Rampell">
 
@@ -37,6 +37,70 @@
             color: #fff;
             min-height: 100vh;
             overflow-x: hidden;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* ===== Ghost Particle Canvas ===== */
+        #ghost-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ===== Page Content Wrapper ===== */
+        .page-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== Glow Orbs ===== */
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.12;
+            animation: float-orb 15s ease-in-out infinite;
+        }
+        .glow-orb-hero {
+            width: 500px;
+            height: 500px;
+            background: #4ade80;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .glow-orb-features {
+            width: 400px;
+            height: 400px;
+            background: #3b82f6;
+            top: -80px;
+            right: -100px;
+            animation-delay: -5s;
+        }
+        .glow-orb-cta {
+            width: 300px;
+            height: 300px;
+            background: #4ade80;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation-delay: -10s;
+        }
+        @keyframes float-orb {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            33% { transform: translateX(-45%) translateY(-20px); }
+            66% { transform: translateX(-55%) translateY(15px); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .glow-orb { animation: none; }
         }
 
         .container {
@@ -49,6 +113,7 @@
         .hero {
             text-align: center;
             padding: 80px 0 20px;
+            position: relative;
         }
 
         .logo { font-size: 48px; margin-bottom: 8px; }
@@ -58,7 +123,17 @@
             font-weight: 700;
             letter-spacing: -1.5px;
             margin-bottom: 16px;
-            background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+            background: linear-gradient(135deg, #fff 30%, #4ade80 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 32px;
+            text-align: center;
+            background: linear-gradient(135deg, #fff 40%, #4ade80 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -73,13 +148,6 @@
 
         /* Sections */
         .section { padding: 60px 0; }
-
-        h2 {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 32px;
-            text-align: center;
-        }
 
         /* ===== Price ===== */
         @keyframes neon-pulse {
@@ -176,13 +244,36 @@
             line-height: 1.9;
             overflow: hidden;
             text-align: left;
+            display: flex;
+            flex-direction: column;
         }
 
-        .term-dots { display: flex; gap: 6px; margin-bottom: 14px; }
+        .term-dots { display: flex; gap: 6px; margin-bottom: 14px; flex-shrink: 0; }
         .td { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
         .td.r { background: #ff5f57; }
         .td.y { background: #febc2e; }
         .td.g { background: #28c840; }
+
+        .tp-body {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .tp-body::-webkit-scrollbar { width: 4px; }
+        .tp-body::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .tp-line {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .tp-cursor {
+            animation: blink-cursor 0.8s step-end infinite;
+        }
+        @keyframes blink-cursor {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
 
         .t-green { color: #5fff87; }
         .t-bold { font-weight: 700; }
@@ -191,18 +282,28 @@
         .t-lgray { color: #bcbcbc; }
         .t-white { color: #fff; }
 
-        .term-reply {
-            opacity: 0;
-            margin-top: 2px;
-            transition: opacity 0.4s ease;
+        /* Hero controls */
+        .hero-controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            padding: 12px 24px 16px;
+            background: #0f0f0f;
         }
-
-        .term-reply.visible {
-            opacity: 1;
+        .hero-ctrl-btn {
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #1a1a1a;
+            color: #888;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
         }
-
-        .reply-out {
-            padding-left: 56px;
+        .hero-ctrl-btn:hover {
+            border-color: #4ade80;
+            color: #fff;
         }
 
         .hero-imsg {
@@ -231,19 +332,15 @@
             flex-direction: column;
             gap: 3px;
             flex: 1;
-            overflow: hidden;
+            overflow-y: auto;
             text-align: left;
         }
+        .imsg-body::-webkit-scrollbar { width: 4px; }
+        .imsg-body::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 
         .msg-row {
             display: flex;
             flex-direction: column;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .msg-row.visible {
-            opacity: 1;
         }
 
         .msg-in { align-items: flex-start; }
@@ -277,19 +374,13 @@
             margin-right: 4px;
         }
 
-        /* Typing indicator — takes up no space, positioned over next message */
+        /* Typing indicator */
         .typing-row {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            opacity: 0;
+            align-items: flex-end;
             height: 0;
             overflow: visible;
-            transition: opacity 0.2s ease;
-        }
-
-        .typing-row.visible {
-            opacity: 1;
         }
 
         .typing-dots {
@@ -354,6 +445,7 @@
             visibility: hidden;
             transition: none;
             box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            will-change: transform, opacity;
         }
 
         .seq-img.active {
@@ -419,10 +511,13 @@
         .imessage-demo {
             max-width: none;
             margin: 24px 0;
-            background: #111;
-            border: 1px solid #222;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: 20px;
             padding: 24px 16px;
+            will-change: transform, opacity;
         }
 
         .imessage-demo .demo-header {
@@ -492,17 +587,27 @@
             justify-content: space-between;
             gap: 16px;
             cursor: pointer;
-            transition: border-color 0.2s;
-            user-select: all;
+            user-select: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
 
         .installer-command:hover { border-color: #4ade80; }
+
+        .installer-command.copied {
+            border-color: #4ade80;
+            box-shadow: 0 0 12px rgba(74, 222, 128, 0.25);
+        }
 
         .installer-command .copy-hint {
             color: #555;
             font-size: 12px;
             flex-shrink: 0;
             font-family: -apple-system, sans-serif;
+            transition: color 0.2s, opacity 0.2s;
+        }
+
+        .installer-command.copied .copy-hint {
+            color: #4ade80;
         }
 
         /* ===== Terminal Demo ===== */
@@ -527,12 +632,15 @@
 
         /* ===== Installer Boxes ===== */
         .installer-box {
-            background: #111;
-            border: 1px solid #333;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: 16px;
             padding: 32px;
             text-align: center;
             margin: 40px 0;
+            will-change: transform, opacity;
         }
 
         .installer-box h3 { font-size: 20px; margin-bottom: 8px; }
@@ -595,10 +703,57 @@
         }
 
         .feature {
-            background: #111;
-            border: 1px solid #222;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: 12px;
             padding: 20px;
+            position: relative;
+            overflow: hidden;
+            will-change: transform, opacity;
+        }
+
+        /* Spotlight hover glow — follows cursor */
+        .feature::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            background: radial-gradient(
+                300px circle at var(--cx, 50%) var(--cy, 50%),
+                rgba(74, 222, 128, 0.12),
+                transparent 70%
+            );
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .feature:hover::before {
+            opacity: 1;
+        }
+        /* Border glow that follows cursor */
+        .feature::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: radial-gradient(
+                250px circle at var(--cx, 50%) var(--cy, 50%),
+                rgba(74, 222, 128, 0.3),
+                transparent 70%
+            );
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .feature:hover::after {
+            opacity: 1;
         }
 
         .feature h3 { font-size: 16px; margin-bottom: 6px; }
@@ -608,6 +763,7 @@
         .faq-item {
             border-bottom: 1px solid #222;
             padding: 20px 0;
+            will-change: transform, opacity;
         }
 
         .faq-item h3 { font-size: 17px; margin-bottom: 8px; }
@@ -641,6 +797,33 @@
             letter-spacing: 0.5px;
         }
 
+        .top-bar a {
+            color: #555;
+            font-size: 13px;
+            text-decoration: none;
+            pointer-events: auto;
+            transition: color 0.2s;
+        }
+        .top-bar a:hover { color: #4ade80; }
+
+        /* ===== Noise Grain Overlay ===== */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.035;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            background-size: 256px 256px;
+        }
+
+        /* ===== Text Scramble ===== */
+        .scramble-text {
+            display: inline;
+        }
+
         /* ===== Feedback Button + Modal ===== */
         .feedback-btn {
             position: fixed;
@@ -667,16 +850,22 @@
         }
 
         .feedback-overlay {
-            display: none;
             position: fixed;
             inset: 0;
             background: rgba(0,0,0,0.7);
             z-index: 200;
+            display: flex;
             align-items: center;
             justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
-        .feedback-overlay.open { display: flex; }
+        .feedback-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
 
         .feedback-modal {
             background: #111;
@@ -685,6 +874,14 @@
             padding: 28px;
             width: 90%;
             max-width: 420px;
+            transform: translateY(20px) scale(0.96);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+
+        .feedback-overlay.open .feedback-modal {
+            transform: translateY(0) scale(1);
+            opacity: 1;
         }
 
         .feedback-modal h3 {
@@ -760,6 +957,248 @@
             cursor: not-allowed;
         }
 
+        /* ===== Live Counter ===== */
+        .live-counter {
+            text-align: center;
+            padding: 32px 24px;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        .live-counter .counter-number {
+            font-size: 48px;
+            font-weight: 700;
+            color: #4ade80;
+            font-variant-numeric: tabular-nums;
+            transition: transform 0.2s ease;
+        }
+        .live-counter .counter-label {
+            font-size: 16px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* ===== Testimonials ===== */
+        .testimonials {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+        .testimonial-row {
+            display: flex;
+            gap: 16px;
+        }
+        .testimonial-card {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        .testimonial-card .quote-mark {
+            font-size: 36px;
+            color: #333;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .testimonial-card .quote-text {
+            font-size: 15px;
+            color: #ccc;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        .testimonial-card .quote-author {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* ===== Animated Demo Bubbles ===== */
+        .imessage-demo[data-animated] .anim-msg,
+        .imessage-demo[data-animated] .anim-typing {
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .imessage-demo[data-animated] .anim-msg.visible,
+        .imessage-demo[data-animated] .anim-typing.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .anim-msg.anim-gray {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            font-size: 15px;
+            line-height: 1.4;
+            margin-bottom: 6px;
+            background: #333;
+            color: #fff;
+            float: left;
+            clear: both;
+        }
+        .anim-msg.anim-blue {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            border-bottom-right-radius: 4px;
+            font-size: 15px;
+            line-height: 1.4;
+            margin-bottom: 6px;
+            background: #0b84fe;
+            color: #fff;
+            float: right;
+            clear: both;
+        }
+        .anim-typing {
+            clear: both;
+            margin-bottom: 6px;
+        }
+        .anim-typing .typing-dots {
+            float: right;
+        }
+        .anim-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+            margin-top: 12px;
+            clear: both;
+            text-align: right;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* ===== Install Walkthrough ===== */
+        .install-walkthrough {
+            display: flex;
+            gap: 24px;
+            margin: 32px 0;
+            min-height: 320px;
+        }
+        .iw-terminal {
+            flex: 1.2;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-family: 'SF Mono', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .iw-term-body {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .iw-term-body::-webkit-scrollbar { width: 4px; }
+        .iw-term-body::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        .iw-steps-panel {
+            flex: 0 0 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .iw-progress {
+            height: 4px;
+            background: #222;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+        .iw-progress-fill {
+            height: 100%;
+            width: 0;
+            background: #4ade80;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+        .iw-step {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 1px solid #222;
+            background: #111;
+            opacity: 0.4;
+            transition: opacity 0.3s, border-color 0.3s, background 0.3s;
+        }
+        .iw-step.iw-active {
+            opacity: 1;
+            border-color: #4ade80;
+            background: rgba(74,222,128,0.05);
+        }
+        .iw-step.iw-done {
+            opacity: 0.6;
+            border-color: #333;
+        }
+        .iw-step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #222;
+            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            flex-shrink: 0;
+            transition: background 0.3s, color 0.3s;
+        }
+        .iw-step.iw-active .iw-step-num {
+            background: #4ade80;
+            color: #000;
+        }
+        .iw-step.iw-done .iw-step-num {
+            background: #333;
+            color: #4ade80;
+        }
+        .iw-step-info h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .iw-step-info p {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.3;
+        }
+
+        /* ===== Install Explainer ===== */
+        .install-explainer summary {
+            color: #666;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            list-style: none;
+            padding: 8px;
+        }
+        .install-explainer summary::-webkit-details-marker {
+            display: none;
+        }
+        .install-explainer summary:hover {
+            color: #aaa;
+        }
+        .install-explainer {
+            margin-top: 12px;
+        }
+        .install-explainer p {
+            color: #777;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-top: 12px;
+            text-align: center;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
         /* ===== Responsive ===== */
         @media (max-width: 768px) {
             html, body { overflow-x: hidden; }
@@ -771,7 +1210,7 @@
 
             .hero-mockup-wrap { overflow: hidden; }
             .hero-demo { flex-direction: column; height: auto; }
-            .hero-terminal { font-size: 11px; }
+            .hero-terminal { font-size: 11px; min-height: 180px; }
             .hero-imsg { min-height: 200px; }
 
             /* Disable sticky scroll — stack images and captions normally */
@@ -806,9 +1245,29 @@
                 visibility: visible !important;
                 transform: none !important;
             }
-            /* Hide captions 2 & 3 (redundant when images are all visible) — show only first */
+            /* Hide all captions except the first (redundant when images are all visible) */
             .seq-caption:not(:first-child) { display: none; }
             .seq-dots { display: none; }
+
+            .testimonial-row { flex-direction: column; }
+
+            /* Glassmorphism mobile fallback */
+            .feature,
+            .installer-box,
+            .testimonial-card,
+            .imessage-demo {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: #111;
+            }
+
+            /* Install walkthrough stacks */
+            .install-walkthrough {
+                flex-direction: column;
+            }
+            .iw-steps-panel {
+                flex: none;
+            }
         }
 
         @media (max-width: 480px) {
@@ -861,19 +1320,28 @@
             .imessage-demo { padding: 16px 12px; }
             .bubble { font-size: 14px; padding: 8px 12px; }
 
+            .live-counter .counter-number { font-size: 36px; }
+            .testimonial-card { padding: 20px; }
+            .anim-msg.anim-gray, .anim-msg.anim-blue { font-size: 14px; padding: 8px 12px; }
+
             .feedback-btn { bottom: 16px; right: 16px; width: 42px; height: 42px; font-size: 20px; }
         }
     </style>
 </head>
 <body>
+    <canvas id="ghost-particles"></canvas>
+
+    <div class="page-content">
     <div class="top-bar">
-        <span>Harrison Rampell &middot; v1.0.9</span>
+        <span>Harrison Rampell &middot; v1.1.0</span>
+        <a href="#" onclick="event.preventDefault();document.getElementById('feedback-overlay').classList.add('open')" style="margin-left:12px;">Feedback</a>
     </div>
 
     <div class="container">
 
         <!-- Hero + Price -->
         <div class="hero">
+            <div class="glow-orb glow-orb-hero"></div>
             <div class="logo">👻</div>
             <h1>GhostReply</h1>
             <p class="subtitle">AI that texts back for you on iMessage. It reads your messages, learns how you talk, and replies like you.</p>
@@ -882,9 +1350,9 @@
                 <span class="price">$4.99</span>
                 <span class="price-period">one-time</span>
             </div>
-            <p style="color:#4ade80; font-size:15px; margin-top:12px; margin-bottom:20px;">24-hour free trial — no credit card needed</p>
+            <p style="color:#4ade80; font-size:15px; margin-top:12px; margin-bottom:20px;">10 free replies — no credit card needed</p>
             <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-                <a href="#instructions" class="cta-button" style="background:#4ade80; color:#000;">Try Free for 24 Hours</a>
+                <a href="#instructions" class="cta-button" style="background:#4ade80; color:#000;">Try Free — 10 Replies</a>
                 <a href="#" id="checkout-btn" class="cta-button">Buy for $4.99</a>
             </div>
             <p style="color:#555; font-size:13px; margin-top:16px;">Runs in your Mac's Terminal. Install once, then just type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:12px; color:#4ade80;">ghostreply</code> to start.</p>
@@ -894,41 +1362,19 @@
                 <div class="hero-mockup" id="hero-img">
                     <div class="hero-demo">
                         <!-- Terminal side -->
-                        <div class="hero-terminal">
+                        <div class="hero-terminal" id="hero-term">
                             <div class="term-dots"><span class="td r"></span><span class="td y"></span><span class="td g"></span></div>
-                            <div class="term-body">
-                                <div class="term-line"><span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Andrew</span><span class="t-white">.</span></div>
-                                <div class="term-line t-gray">Type 'stop' to quit, or just reply yourself.</div>
-                                <div class="term-line">&nbsp;</div>
-                                <div class="term-reply" data-anim="0">
-                                    <div><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Yo wanna play rocket league</span></div>
-                                    <div class="reply-out"><span class="t-green">you:</span>&nbsp;&nbsp;<span class="t-white">Yeah gimme like 20 min</span></div>
-                                </div>
-                                <div class="term-reply" data-anim="1">
-                                    <div><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Did u do the history essay</span></div>
-                                    <div class="reply-out"><span class="t-green">you:</span>&nbsp;&nbsp;<span class="t-white">Nah not yet</span></div>
-                                </div>
-                                <div class="term-reply" data-anim="2">
-                                    <div><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Its due tmrw bro</span></div>
-                                    <div class="reply-out"><span class="t-green">you:</span>&nbsp;&nbsp;<span class="t-white">I know ill do it later lol</span></div>
-                                </div>
-                            </div>
+                            <div class="tp-body" id="hero-term-body"></div>
                         </div>
                         <!-- iMessage side -->
                         <div class="hero-imsg">
                             <div class="imsg-header"><strong>Andrew</strong><span>iMessage</span></div>
-                            <div class="imsg-body">
-                                <div class="msg-row msg-in" data-anim="0"><div class="msg-bubble gray-b">Yo wanna play rocket league</div></div>
-                                <div class="typing-row" data-typing="0"><div class="typing-dots"><span></span><span></span><span></span></div></div>
-                                <div class="msg-row msg-out" data-anim="0"><div class="msg-bubble blue-b">Yeah gimme like 20 min</div></div>
-                                <div class="msg-row msg-in" data-anim="1"><div class="msg-bubble gray-b">Did u do the history essay</div></div>
-                                <div class="typing-row" data-typing="1"><div class="typing-dots"><span></span><span></span><span></span></div></div>
-                                <div class="msg-row msg-out" data-anim="1"><div class="msg-bubble blue-b">Nah not yet</div></div>
-                                <div class="msg-row msg-in" data-anim="2"><div class="msg-bubble gray-b">Its due tmrw bro</div></div>
-                                <div class="typing-row" data-typing="2"><div class="typing-dots"><span></span><span></span><span></span></div></div>
-                                <div class="msg-row msg-out" data-anim="2"><div class="msg-bubble blue-b">I know ill do it later lol</div></div>
-                            </div>
+                            <div class="imsg-body" id="hero-imsg-body"></div>
                         </div>
+                    </div>
+                    <div class="hero-controls">
+                        <button id="hero-skip" class="hero-ctrl-btn">Skip ▸</button>
+                        <button id="hero-replay" class="hero-ctrl-btn" style="display:none;">Replay ↺</button>
                     </div>
                 </div>
             </div>
@@ -940,10 +1386,10 @@
     <section class="sticky-sequence" id="sticky-seq">
         <div class="sticky-frame">
             <div class="sticky-images">
-                <img src="../assets/ph1_hero.png" class="seq-img active" data-step="0" alt="GhostReply running">
-                <img src="../assets/ph2_setup.png" class="seq-img" data-step="1" alt="GhostReply setup flow">
-                <img src="../assets/ph3_install.png" class="seq-img" data-step="2" alt="GhostReply install">
-                <img src="../assets/ph_troll.png" class="seq-img" data-step="3" alt="GhostReply ragebait mode">
+                <img src="assets/ph1_hero.png" class="seq-img active" data-step="0" alt="GhostReply running">
+                <img src="assets/ph4_contact.png" class="seq-img" data-step="1" alt="GhostReply contact picker">
+                <img src="assets/ph5_personality.png" class="seq-img" data-step="2" alt="GhostReply personality chat">
+                <img src="assets/ph2_setup.png" class="seq-img" data-step="3" alt="GhostReply setup flow">
             </div>
             <div class="sticky-text">
                 <div class="seq-caption active" data-step="0">
@@ -957,8 +1403,8 @@
                     </div>
                 </div>
                 <div class="seq-caption" data-step="1">
-                    <h3>Zero config. It learns from you.</h3>
-                    <p>First run scans your message history, learns your texting style, and reads your conversations for context. No setup, no training — it just works.</p>
+                    <h3>Pick a contact, pick a mode</h3>
+                    <p>Choose who to reply to from your recent contacts. Then pick Normal, Custom, or Ragebait mode with arrow keys.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot active" data-dot="1"></div>
@@ -967,8 +1413,8 @@
                     </div>
                 </div>
                 <div class="seq-caption" data-step="2">
-                    <h3>One command to install</h3>
-                    <p>Paste one line in Terminal. No Homebrew, no Python setup, no app download. It installs and starts automatically.</p>
+                    <h3>Customize the personality</h3>
+                    <p>Tell the bot how to text — sarcastic, chill, chaotic — or just let it match your natural style from your messages.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
@@ -977,8 +1423,8 @@
                     </div>
                 </div>
                 <div class="seq-caption" data-step="3">
-                    <h3>Ragebait mode</h3>
-                    <p>Turn on ragebait and let it troll your friends for you. It sends unhinged replies that start fights on autopilot.</p>
+                    <h3>Zero config. It learns from you.</h3>
+                    <p>First run scans your message history, learns your texting style, and reads your conversations for context. No setup, no training — it just works.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
@@ -999,46 +1445,46 @@
 
             <div class="demos-row" style="display:flex; gap:16px; overflow-x:auto; padding-bottom:8px;">
 
-            <div class="imessage-demo" style="flex:1; min-width:280px; margin:24px 0;">
+            <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
                 <div class="demo-header"><strong>Andrew</strong>iMessage</div>
-                <div class="bubble bubble-gray">Yo wanna play rocket league</div>
+                <div class="anim-msg anim-gray">Yo wanna play rocket league</div>
+                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                <div class="anim-label">GhostReply:</div>
+                <div class="anim-msg anim-blue">Yeah gimme like 20 min</div>
                 <div style="clear:both"></div>
-                <div class="bubble-label right">GhostReply:</div>
-                <div class="bubble bubble-blue">Yeah gimme like 20 min</div>
+                <div class="anim-msg anim-gray">Bet. Also did u do the history essay</div>
+                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                <div class="anim-msg anim-blue">Nah not yet</div>
                 <div style="clear:both"></div>
-                <div class="bubble bubble-gray">Bet. Also did u do the history essay</div>
-                <div style="clear:both"></div>
-                <div class="bubble bubble-blue">Nah not yet</div>
-                <div style="clear:both"></div>
-                <div class="bubble bubble-gray">Its due tmrw bro</div>
-                <div style="clear:both"></div>
-                <div class="bubble bubble-blue">I know ill do it later</div>
+                <div class="anim-msg anim-gray">Its due tmrw bro</div>
+                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                <div class="anim-msg anim-blue">I know ill do it later</div>
                 <div style="clear:both"></div>
             </div>
 
-            <div class="imessage-demo" style="flex:1; min-width:280px; margin:24px 0;">
+            <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
                 <div class="demo-header"><strong>Kieran</strong>iMessage</div>
-                <div class="bubble bubble-gray">Bro are you using that AI bot thing again</div>
+                <div class="anim-msg anim-gray">Bro are you using that AI bot thing again</div>
+                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                <div class="anim-label">GhostReply:</div>
+                <div class="anim-msg anim-blue">Bro what lmao</div>
                 <div style="clear:both"></div>
-                <div class="bubble-label right">GhostReply:</div>
-                <div class="bubble bubble-blue">Bro what lmao</div>
-                <div style="clear:both"></div>
-                <div class="bubble bubble-gray">You're replying way too fast</div>
-                <div style="clear:both"></div>
-                <div class="bubble bubble-blue">Im literally on my phone rn</div>
+                <div class="anim-msg anim-gray">You're replying way too fast</div>
+                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                <div class="anim-msg anim-blue">Im literally on my phone rn</div>
                 <div style="clear:both"></div>
             </div>
 
-            <div class="imessage-demo" style="flex:1; min-width:280px; margin:24px 0;">
+            <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
                 <div class="demo-header"><strong>Mom</strong>iMessage</div>
-                <div class="bubble bubble-gray">When are you coming home for dinner?</div>
+                <div class="anim-msg anim-gray">When are you coming home for dinner?</div>
+                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                <div class="anim-label">GhostReply:</div>
+                <div class="anim-msg anim-blue">Like 6</div>
                 <div style="clear:both"></div>
-                <div class="bubble-label right">GhostReply:</div>
-                <div class="bubble bubble-blue">Like 6</div>
-                <div style="clear:both"></div>
-                <div class="bubble bubble-gray">Ok I'm making pasta</div>
-                <div style="clear:both"></div>
-                <div class="bubble bubble-blue">Sounds good</div>
+                <div class="anim-msg anim-gray">Ok I'm making pasta</div>
+                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                <div class="anim-msg anim-blue">Sounds good</div>
                 <div style="clear:both"></div>
             </div>
 
@@ -1050,91 +1496,76 @@
     <div class="container">
 
         <!-- Instructions -->
-        <div class="section" id="instructions">
+        <div class="section" id="instructions" style="position:relative;">
+            <div class="glow-orb glow-orb-features"></div>
             <h2>Get Started</h2>
 
-            <div id="tab-trial" class="tab-content">
-                <div class="installer-box" style="border-color:#4ade80; border-width:1px;">
-                    <p style="color:#4ade80; font-size:15px; margin-bottom:0;">The free trial gives you full access for 24 hours. After that, GhostReply will stop working until you buy a license ($4.99). Your settings and profile are saved — just enter a key and you're back.</p>
+            <div class="installer-box" style="text-align:center; padding:40px 32px;">
+                <p style="color:#aaa; font-size:15px; margin-bottom:16px;">Open Terminal and paste this:</p>
+                <div class="installer-command" id="install-cmd">
+                    <span>curl -sL ghostreply.lol/install.sh | bash</span>
+                    <span class="copy-hint">click to copy</span>
                 </div>
+                <p style="color:#555; font-size:13px; margin-top:14px;">Press <strong style="color:#888;">Cmd + Space</strong>, type <strong style="color:#888;">Terminal</strong>, hit Enter. Paste with <strong style="color:#888;">Cmd + V</strong> and press Enter.</p>
 
-                <div class="installer-box">
-                    <h3>Step 1: Open Terminal</h3>
-                    <p>Press <strong style="color:#fff;">Cmd + Space</strong>, type "Terminal", hit Enter.</p>
+                <details class="install-explainer">
+                    <summary>What does this do? &#9662;</summary>
+                    <p>Downloads GhostReply to your Mac, adds the <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">ghostreply</code> command, and starts setup. Nothing is installed system-wide — everything lives in ~/.ghostreply/</p>
+                </details>
+            </div>
+
+            <!-- Interactive Install Walkthrough -->
+            <div class="install-walkthrough" id="install-walkthrough">
+                <div class="iw-terminal">
+                    <div class="term-dots"><span class="td r"></span><span class="td y"></span><span class="td g"></span></div>
+                    <div class="iw-term-body" id="iw-term-body"></div>
                 </div>
-
-                <div class="installer-box">
-                    <h3>Step 2: Paste this and hit Enter</h3>
-                    <p>It installs and starts GhostReply automatically.</p>
-                    <div class="installer-command" onclick="navigator.clipboard.writeText('curl -sL ghostreply.lol/install.sh | bash'); this.querySelector('.copy-hint').textContent = 'Copied!';">
-                        <span>curl -sL ghostreply.lol/install.sh | bash</span>
-                        <span class="copy-hint">click to copy</span>
+                <div class="iw-steps-panel">
+                    <div class="iw-progress"><div class="iw-progress-fill" id="iw-progress-fill"></div></div>
+                    <div class="iw-step" data-iw-step="0">
+                        <div class="iw-step-num">1</div>
+                        <div class="iw-step-info">
+                            <h4>Run installer</h4>
+                            <p>One curl command downloads everything</p>
+                        </div>
                     </div>
-                </div>
-
-                <div class="installer-box">
-                    <h3>Step 3: Allow permissions</h3>
-                    <p style="color:#aaa; text-align:left; line-height:1.8;">
-                        GhostReply walks you through this automatically. macOS will ask you to allow a couple things — just click Allow. It only asks once.
-                    </p>
-                </div>
-
-                <div class="installer-box">
-                    <h3>Step 4: Follow the setup</h3>
-                    <p style="color:#aaa; text-align:left; line-height:1.8;">
-                        <strong style="color:#fff;">License key:</strong> Type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">trial</code> to start your free 24-hour trial.<br>
-                        <strong style="color:#fff;">AI key:</strong> It opens Groq in your browser — sign up with Google, create a key, come back. Free, takes 30 seconds.<br>
-                        <strong style="color:#fff;">Pick a contact:</strong> Choose who the bot replies to.<br>
-                        <strong style="color:#fff;">Customize:</strong> Tell the bot how you want it to talk, or skip for your natural style.<br>
-                        <strong style="color:#fff;">Done!</strong> The bot is now replying for you. Reply yourself to auto-stop, or type 'stop' in Terminal.
-                    </p>
-                </div>
-
-                <div class="installer-box" style="background:#1a1a0a; border-color:#4a3a00;">
-                    <h3 style="color:#fbbf24;">After 24 hours</h3>
-                    <p style="color:#aaa;">Your trial will expire and GhostReply will stop replying. To keep using it, buy a license for $4.99 — run <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#fff;">ghostreply</code> again and paste your license key when prompted. Everything you set up (your profile, style, contacts) is saved.</p>
-                    <br>
-                    <a href="#" class="cta-button" style="font-size:15px; padding:12px 32px;" onclick="event.preventDefault(); window.location.href=LEMONSQUEEZY_CHECKOUT;">Buy a License — $4.99</a>
+                    <div class="iw-step" data-iw-step="1">
+                        <div class="iw-step-num">2</div>
+                        <div class="iw-step-info">
+                            <h4>Python check</h4>
+                            <p>Verifies Python 3.10+ is installed</p>
+                        </div>
+                    </div>
+                    <div class="iw-step" data-iw-step="2">
+                        <div class="iw-step-num">3</div>
+                        <div class="iw-step-info">
+                            <h4>Dependencies</h4>
+                            <p>Installs required packages automatically</p>
+                        </div>
+                    </div>
+                    <div class="iw-step" data-iw-step="3">
+                        <div class="iw-step-num">4</div>
+                        <div class="iw-step-info">
+                            <h4>Ready!</h4>
+                            <p>GhostReply is installed and ready to run</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Privacy -->
-            <div style="margin-top:40px; background:linear-gradient(135deg, #0a1a0a, #111); border:1px solid #1a3a1a; border-radius:16px; padding:32px; text-align:center; max-width:700px; margin:40px auto 0;">
-                <h2 style="font-size:24px; margin-bottom:12px;">100% Local. 100% Private.</h2>
-                <p style="color:#888; font-size:15px; line-height:1.7; max-width:520px; margin:0 auto;">
-                    GhostReply runs entirely on your Mac. Your messages never touch our servers — they go straight from your Mac to Groq's AI and back. We can't see your texts, your contacts, or your conversations. Ever.
-                </p>
+            <div class="installer-box" style="border-color:#4ade80; border-width:1px;">
+                <p style="color:#4ade80; font-size:15px; margin-bottom:0;">10 free replies — no credit card needed. Type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">trial</code> during setup.</p>
+            </div>
+
+            <div class="installer-box">
+                <h3>After 10 replies</h3>
+                <p style="color:#888;">Buy a license for $4.99 — run <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">ghostreply</code> again and paste your license key. Everything you set up is saved.</p>
+                <br>
+                <a href="#" class="cta-button" style="font-size:15px; padding:12px 32px;" onclick="event.preventDefault(); window.location.href=LEMONSQUEEZY_CHECKOUT;">Buy a License — $4.99</a>
             </div>
 
         </div>
 
-        <!-- What it does -->
-        <div class="section">
-            <h2>How It Works</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>Scans your iMessages</h3>
-                        <p>Reads your texting history to learn your style — your abbreviations, your slang, how short you keep it. Also figures out your friends, interests, and life from your conversations.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>You pick who to reply to</h3>
-                        <p>Choose a contact during setup. The bot only replies to that person. It loads your recent conversation with them so it knows what you've been talking about.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>Replies as you — stops when you're back</h3>
-                        <p>When that person texts you, the AI replies in your exact texting style. Short messages, your words, your vibe. When you're ready to take over, just reply yourself — the bot stops automatically.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Features -->
         <div class="section">
@@ -1177,10 +1608,18 @@
                     <p>Send a message yourself and the bot stops automatically. No need to go back to your laptop — just text back and you're in control.</p>
                 </div>
                 <div class="feature">
-                    <h3>24-Hour Free Trial</h3>
-                    <p>Try it before you buy. No credit card, no sign up. Just type "trial" during setup.</p>
+                    <h3>10 Free Replies</h3>
+                    <p>Try it before you buy. No credit card, no sign up. Just type "trial" during setup. You get 10 auto-replies to see it in action.</p>
                 </div>
             </div>
+        </div>
+
+        <!-- Privacy -->
+        <div style="margin:40px auto; background:linear-gradient(135deg, #0a1a0a, #111); border:1px solid #1a3a1a; border-radius:16px; padding:32px; text-align:center; max-width:700px;">
+            <h2 style="font-size:24px; margin-bottom:12px;">100% Local. 100% Private.</h2>
+            <p style="color:#888; font-size:15px; line-height:1.7; max-width:520px; margin:0 auto;">
+                GhostReply runs entirely on your Mac. Your messages never touch our servers — they go straight from your Mac to Groq's AI and back. We can't see your texts, your contacts, or your conversations. Ever.
+            </p>
         </div>
 
         <!-- FAQ -->
@@ -1200,7 +1639,7 @@
             </div>
             <div class="faq-item">
                 <h3>How does the free trial work?</h3>
-                <p>Type "trial" instead of a license key during setup. You get full access for 24 hours. After that, GhostReply will ask for a license key when you try to run it. Your profile and settings are saved — just enter a key and you're back.</p>
+                <p>Type "trial" instead of a license key during setup. You get 10 free auto-replies. After that, GhostReply will ask for a license key when you run it again. Your profile and settings are saved — just enter a key and you're back.</p>
             </div>
             <div class="faq-item">
                 <h3>Can I customize how the bot talks?</h3>
@@ -1224,15 +1663,22 @@
             </div>
         </div>
 
+        <!-- Live Counter -->
+        <div class="live-counter">
+            <div class="counter-number" id="live-counter">0</div>
+            <div class="counter-label">replies sent by GhostReply</div>
+        </div>
+
         <!-- Final CTA -->
-        <div style="text-align:center; padding: 40px 0 20px;">
+        <div style="text-align:center; padding: 40px 0 20px; position:relative;">
+            <div class="glow-orb glow-orb-cta"></div>
             <div class="price-tag">
                 <span class="price">$4.99</span>
                 <span class="price-period">one-time</span>
             </div>
             <br><br>
             <a href="#" id="checkout-btn-2" class="cta-button">Get GhostReply</a>
-            <p style="color:#4ade80; font-size:14px; margin-top:12px;">or try free for 24 hours — no credit card needed</p>
+            <p style="color:#4ade80; font-size:14px; margin-top:12px;">or try free — 10 replies, no credit card needed</p>
             <p style="color:#555; font-size:14px; margin-top:8px;">Works on any Mac with iMessage.</p>
         </div>
 
@@ -1259,9 +1705,17 @@
             </div>
         </div>
     </div>
+    </div><!-- end page-content -->
+
+    <!-- GSAP CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 
     <script>
+        gsap.registerPlugin(ScrollTrigger);
+
         const LEMONSQUEEZY_CHECKOUT = 'https://ghostreply.lemonsqueezy.com/checkout/buy/877e5f9a-3f63-4b5e-84f2-95e624643828';
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         document.getElementById('checkout-btn').addEventListener('click', (e) => {
             e.preventDefault();
@@ -1272,85 +1726,831 @@
             window.location.href = LEMONSQUEEZY_CHECKOUT;
         });
 
-        // === Hero mockup: un-tilt on scroll ===
-        const heroImg = document.getElementById('hero-img');
-        const heroWrap = document.querySelector('.hero-mockup-wrap');
-
-        function updateHeroTilt() {
-            const rect = heroWrap.getBoundingClientRect();
-            const viewH = window.innerHeight;
-            const progress = Math.min(1, Math.max(0, 1 - (rect.top / viewH)));
-            const tilt = 16 * (1 - progress);
-            const scale = 0.92 + 0.08 * progress;
-            heroImg.style.transform = 'rotateX(' + tilt + 'deg) scale(' + scale + ')';
-        }
-
-        // === Sticky scroll sequence ===
-        const seqSection = document.getElementById('sticky-seq');
-        const seqImgs = document.querySelectorAll('.seq-img');
-        const seqCaptions = document.querySelectorAll('.seq-caption');
-
-        function updateStickySeq() {
-            const rect = seqSection.getBoundingClientRect();
-            const scrollable = rect.height - window.innerHeight;
-            if (scrollable <= 0) return;
-            const progress = Math.min(1, Math.max(0, -rect.top / scrollable));
-            const step = Math.min(3, Math.floor(progress * 4));
-
-            seqImgs.forEach((img, i) => img.classList.toggle('active', i === step));
-            seqCaptions.forEach((cap, i) => cap.classList.toggle('active', i === step));
-        }
-
-        // Combined scroll handler
-        function onScroll() {
-            updateHeroTilt();
-            updateStickySeq();
-        }
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-        onScroll(); // initial state
-
-        // === Hero animation: messages appear one by one (plays once) ===
+        // ===== Copy Install Command =====
         (function() {
-            const termReplies = document.querySelectorAll('.term-reply');
-            const typingRows = document.querySelectorAll('.typing-row');
+            var cmd = document.getElementById('install-cmd');
+            if (!cmd) return;
+            var hint = cmd.querySelector('.copy-hint');
+            var busy = false;
 
-            function show(sel) { document.querySelector(sel).classList.add('visible'); }
-            function showTyping(n) { typingRows[n].classList.add('visible'); }
-            function hideTyping(n) { typingRows[n].classList.remove('visible'); }
+            cmd.addEventListener('click', function() {
+                if (busy) return;
+                busy = true;
+                navigator.clipboard.writeText('curl -sL ghostreply.lol/install.sh | bash');
 
-            const sequence = [
-                // step 0
-                { delay: 800,  action: () => show('[data-anim="0"].msg-in') },
-                { delay: 600,  action: () => showTyping(0) },
-                { delay: 1200, action: () => { hideTyping(0); show('[data-anim="0"].msg-out'); termReplies[0].classList.add('visible'); }},
-                // step 1
-                { delay: 1000, action: () => show('[data-anim="1"].msg-in') },
-                { delay: 500,  action: () => showTyping(1) },
-                { delay: 900,  action: () => { hideTyping(1); show('[data-anim="1"].msg-out'); termReplies[1].classList.add('visible'); }},
-                // step 2
-                { delay: 1000, action: () => show('[data-anim="2"].msg-in') },
-                { delay: 500,  action: () => showTyping(2) },
-                { delay: 1100, action: () => { hideTyping(2); show('[data-anim="2"].msg-out'); termReplies[2].classList.add('visible'); }},
-            ];
+                cmd.classList.add('copied');
+                hint.textContent = 'Copied!';
 
-            let elapsed = 0;
-            sequence.forEach(s => {
-                elapsed += s.delay;
-                setTimeout(s.action, elapsed);
+                setTimeout(function() {
+                    cmd.classList.remove('copied');
+                    hint.textContent = 'click to copy';
+                    busy = false;
+                }, 2000);
             });
         })();
 
-        // === Feedback form ===
-        document.getElementById('feedback-form').addEventListener('submit', async (e) => {
+        // ===== Ghost Particle System =====
+        (function() {
+            var canvas = document.getElementById('ghost-particles');
+            if (!canvas) return;
+            if (prefersReducedMotion) { canvas.style.display = 'none'; return; }
+            if (window.innerWidth < 480) { canvas.style.display = 'none'; return; }
+
+            var ctx = canvas.getContext('2d');
+            var w, h;
+
+            function resize() {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            var count = window.innerWidth < 768 ? 15 : 40;
+            var particles = [];
+
+            for (var i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: -0.2 - Math.random() * 0.5,
+                    size: 1.5 + Math.random() * 2,
+                    opacity: Math.random(),
+                    fadeSpeed: 0.003 + Math.random() * 0.005,
+                    fadeDir: 1
+                });
+            }
+
+            var running = true;
+            document.addEventListener('visibilitychange', function() {
+                running = !document.hidden;
+                if (running) requestAnimationFrame(draw);
+            });
+
+            function draw() {
+                if (!running) return;
+                ctx.clearRect(0, 0, w, h);
+
+                for (var i = 0; i < particles.length; i++) {
+                    var p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.opacity += p.fadeSpeed * p.fadeDir;
+
+                    if (p.opacity >= 1) { p.opacity = 1; p.fadeDir = -1; }
+                    if (p.opacity <= 0) { p.opacity = 0; p.fadeDir = 1; p.x = Math.random() * w; p.y = h + 10; }
+                    if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
+                    if (p.x < -10) p.x = w + 10;
+                    if (p.x > w + 10) p.x = -10;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(74, 222, 128, ' + (p.opacity * 0.6) + ')';
+                    ctx.fill();
+                }
+
+                requestAnimationFrame(draw);
+            }
+            draw();
+        })();
+
+        // ===== GSAP: Hero Tilt =====
+        gsap.fromTo('#hero-img',
+            { rotateX: 16, scale: 0.92 },
+            { rotateX: 0, scale: 1, ease: 'none',
+              scrollTrigger: { trigger: '.hero-mockup-wrap', start: 'top 80%', end: 'bottom 20%', scrub: 0.5 }
+            }
+        );
+
+        // ===== GSAP: Sticky Scroll Sequence =====
+        ScrollTrigger.matchMedia({
+            '(min-width: 769px)': function() {
+                var seqSection = document.getElementById('sticky-seq');
+                var seqImgs = document.querySelectorAll('.seq-img');
+                var seqCaptions = document.querySelectorAll('.seq-caption');
+                var lastStep = -1;
+
+                ScrollTrigger.create({
+                    trigger: seqSection,
+                    start: 'top top',
+                    end: 'bottom bottom',
+                    scrub: true,
+                    onUpdate: function(self) {
+                        var step = Math.min(3, Math.floor(self.progress * 4));
+                        if (step === lastStep) return;
+                        lastStep = step;
+
+                        seqImgs.forEach(function(img, i) {
+                            if (i === step) {
+                                gsap.to(img, { opacity: 1, scale: 1, duration: 0.4, visibility: 'visible', overwrite: true });
+                                img.style.visibility = 'visible';
+                            } else {
+                                gsap.to(img, { opacity: 0, scale: 0.96, duration: 0.4, overwrite: true,
+                                    onComplete: function() { img.style.visibility = 'hidden'; }
+                                });
+                            }
+                        });
+
+                        seqCaptions.forEach(function(cap, i) {
+                            cap.classList.toggle('active', i === step);
+                        });
+                    }
+                });
+            }
+        });
+
+        // ===== GSAP: Section Reveals =====
+        if (!prefersReducedMotion) {
+            gsap.utils.toArray('.feature').forEach(function(el, i) {
+                gsap.from(el, {
+                    y: 40, opacity: 0, duration: 0.6,
+                    delay: i % 2 === 0 ? 0 : 0.1,
+                    scrollTrigger: { trigger: el, start: 'top 85%' }
+                });
+            });
+
+            gsap.utils.toArray('.faq-item, .installer-box, .imessage-demo').forEach(function(el) {
+                gsap.from(el, {
+                    y: 40, opacity: 0, duration: 0.6,
+                    scrollTrigger: { trigger: el, start: 'top 85%' }
+                });
+            });
+        }
+
+        // ===== GSAP: Counter Count-Up =====
+        (function() {
+            var counterEl = document.getElementById('live-counter');
+            if (!counterEl) return;
+            var seed = 47291;
+            var seedDate = new Date('2026-01-15T00:00:00Z');
+            var ratePerSec = 1 / 8;
+
+            function getCurrentCount() {
+                var elapsed = (Date.now() - seedDate.getTime()) / 1000;
+                return Math.floor(seed + elapsed * ratePerSec);
+            }
+
+            counterEl.textContent = '0';
+            var countObj = { val: 0 };
+            var tickStarted = false;
+
+            ScrollTrigger.create({
+                trigger: counterEl,
+                start: 'top 85%',
+                once: true,
+                onEnter: function() {
+                    var targetVal = getCurrentCount();
+                    gsap.to(countObj, {
+                        val: targetVal,
+                        duration: 2,
+                        ease: 'power1.out',
+                        onUpdate: function() {
+                            counterEl.textContent = Math.floor(countObj.val).toLocaleString();
+                        },
+                        onComplete: function() {
+                            if (!tickStarted) {
+                                tickStarted = true;
+                                startTick();
+                            }
+                        }
+                    });
+                }
+            });
+
+            function startTick() {
+                function update() {
+                    var count = getCurrentCount();
+                    var formatted = count.toLocaleString();
+                    if (counterEl.textContent !== formatted) {
+                        counterEl.textContent = formatted;
+                        counterEl.style.transform = 'scale(1.05)';
+                        setTimeout(function() { counterEl.style.transform = 'scale(1)'; }, 200);
+                    }
+                }
+                function tick() {
+                    update();
+                    setTimeout(tick, 3000 + Math.floor(Math.random() * 5000));
+                }
+                setTimeout(tick, 3000);
+            }
+        })();
+
+        // ===== TerminalPlayer Class =====
+        function TerminalPlayer(termBody, imsgBody) {
+            this.term = termBody;
+            this.imsg = imsgBody;
+            this.aborted = false;
+        }
+
+        TerminalPlayer.prototype.wait = function(ms) {
+            var self = this;
+            return new Promise(function(resolve) {
+                var id = setTimeout(resolve, ms);
+                self._lastTimer = id;
+            });
+        };
+
+        TerminalPlayer.prototype.scrollToBottom = function() {
+            this.term.scrollTop = this.term.scrollHeight;
+        };
+
+        TerminalPlayer.prototype.imsgScrollToBottom = function() {
+            if (this.imsg) this.imsg.scrollTop = this.imsg.scrollHeight;
+        };
+
+        TerminalPlayer.prototype.typeCommand = function(text, prompt) {
+            var self = this;
+            if (self.aborted) return Promise.resolve();
+            prompt = prompt || '$ ';
+
+            return new Promise(function(resolve) {
+                var line = document.createElement('div');
+                line.className = 'tp-line';
+                var promptSpan = document.createElement('span');
+                promptSpan.className = 't-green';
+                promptSpan.textContent = prompt;
+                line.appendChild(promptSpan);
+                var textSpan = document.createElement('span');
+                line.appendChild(textSpan);
+                var cursor = document.createElement('span');
+                cursor.className = 'tp-cursor';
+                cursor.textContent = '\u2588';
+                line.appendChild(cursor);
+                self.term.appendChild(line);
+                self.scrollToBottom();
+
+                var i = 0;
+                function typeNext() {
+                    if (self.aborted || i >= text.length) {
+                        cursor.remove();
+                        resolve();
+                        return;
+                    }
+                    textSpan.textContent += text[i];
+                    i++;
+                    self.scrollToBottom();
+                    setTimeout(typeNext, 40 + Math.random() * 30);
+                }
+                typeNext();
+            });
+        };
+
+        TerminalPlayer.prototype.output = function(lines, className) {
+            var self = this;
+            if (self.aborted) return Promise.resolve();
+            className = className || '';
+
+            return new Promise(function(resolve) {
+                var i = 0;
+                function addNext() {
+                    if (self.aborted || i >= lines.length) { resolve(); return; }
+                    var line = document.createElement('div');
+                    line.className = 'tp-line' + (className ? ' ' + className : '');
+                    line.innerHTML = lines[i];
+                    self.term.appendChild(line);
+                    self.scrollToBottom();
+                    i++;
+                    setTimeout(addNext, 60);
+                }
+                addNext();
+            });
+        };
+
+        TerminalPlayer.prototype.spinner = function(text, duration) {
+            var self = this;
+            if (self.aborted) return Promise.resolve(null);
+            duration = duration || 1200;
+            var frames = ['\u280B','\u2819','\u2839','\u2838','\u283C','\u2834','\u2826','\u2827','\u2807','\u280F'];
+
+            return new Promise(function(resolve) {
+                var line = document.createElement('div');
+                line.className = 'tp-line';
+                var spinChar = document.createElement('span');
+                spinChar.className = 't-cyan';
+                spinChar.textContent = frames[0];
+                line.appendChild(spinChar);
+                line.appendChild(document.createTextNode(' ' + text));
+                self.term.appendChild(line);
+                self.scrollToBottom();
+
+                var start = Date.now();
+                var frame = 0;
+                function spin() {
+                    if (self.aborted || Date.now() - start >= duration) { resolve(line); return; }
+                    spinChar.textContent = frames[frame % frames.length];
+                    frame++;
+                    setTimeout(spin, 80);
+                }
+                spin();
+            });
+        };
+
+        TerminalPlayer.prototype.clear = function() {
+            if (this.aborted) return Promise.resolve();
+            this.term.innerHTML = '';
+            return Promise.resolve();
+        };
+
+        TerminalPlayer.prototype.reply = function(theirMsg, yourMsg) {
+            var self = this;
+            if (self.aborted) return Promise.resolve();
+
+            return new Promise(function(resolve) {
+                // Terminal: [REPLY] them:
+                var termLine1 = document.createElement('div');
+                termLine1.className = 'tp-line';
+                termLine1.innerHTML = '<span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">' + theirMsg + '</span>';
+                self.term.appendChild(termLine1);
+                self.scrollToBottom();
+
+                // iMessage: gray bubble
+                var grayRow = document.createElement('div');
+                grayRow.className = 'msg-row msg-in';
+                grayRow.innerHTML = '<div class="msg-bubble gray-b">' + theirMsg + '</div>';
+                grayRow.style.opacity = '0';
+                self.imsg.appendChild(grayRow);
+                self.imsgScrollToBottom();
+
+                setTimeout(function() {
+                    grayRow.style.transition = 'opacity 0.3s';
+                    grayRow.style.opacity = '1';
+                    self.imsgScrollToBottom();
+
+                    // Typing indicator
+                    setTimeout(function() {
+                        if (self.aborted) { resolve(); return; }
+                        var typingRow = document.createElement('div');
+                        typingRow.className = 'typing-row';
+                        typingRow.style.height = '0';
+                        typingRow.style.overflow = 'visible';
+                        typingRow.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+                        self.imsg.appendChild(typingRow);
+                        self.imsgScrollToBottom();
+
+                        setTimeout(function() {
+                            if (self.aborted) { resolve(); return; }
+                            typingRow.remove();
+
+                            // Terminal: you:
+                            var termLine2 = document.createElement('div');
+                            termLine2.className = 'tp-line';
+                            termLine2.style.paddingLeft = '56px';
+                            termLine2.innerHTML = '<span class="t-green">you:</span>  <span class="t-white">' + yourMsg + '</span>';
+                            self.term.appendChild(termLine2);
+                            self.scrollToBottom();
+
+                            // iMessage: blue bubble
+                            var blueRow = document.createElement('div');
+                            blueRow.className = 'msg-row msg-out';
+                            blueRow.innerHTML = '<div class="ghost-tag">GHOSTREPLY</div><div class="msg-bubble blue-b">' + yourMsg + '</div>';
+                            blueRow.style.opacity = '0';
+                            self.imsg.appendChild(blueRow);
+
+                            setTimeout(function() {
+                                blueRow.style.transition = 'opacity 0.3s';
+                                blueRow.style.opacity = '1';
+                                self.imsgScrollToBottom();
+                                setTimeout(resolve, 300);
+                            }, 50);
+
+                        }, 800 + Math.random() * 400);
+                    }, 600);
+                }, 100);
+            });
+        };
+
+        TerminalPlayer.prototype.abort = function() { this.aborted = true; };
+        TerminalPlayer.prototype.reset = function() { this.aborted = false; };
+
+        // ===== Hero Terminal Animation =====
+        (function() {
+            var termBody = document.getElementById('hero-term-body');
+            var imsgBody = document.getElementById('hero-imsg-body');
+            var skipBtn = document.getElementById('hero-skip');
+            var replayBtn = document.getElementById('hero-replay');
+            if (!termBody || !imsgBody) return;
+
+            var player = new TerminalPlayer(termBody, imsgBody);
+            var isPlaying = false;
+
+            function showFinalState() {
+                player.abort();
+                termBody.innerHTML = '';
+                imsgBody.innerHTML = '';
+
+                termBody.innerHTML =
+                    '<div class="tp-line"><span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Andrew</span><span class="t-white">.</span></div>' +
+                    '<div class="tp-line"><span class="t-gray">Type \'stop\' to quit, or just reply yourself.</span></div>' +
+                    '<div class="tp-line">&nbsp;</div>' +
+                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Yo wanna play rocket league</span></div>' +
+                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">Yeah gimme like 20 min</span></div>' +
+                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Did u do the history essay</span></div>' +
+                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">Nah not yet</span></div>' +
+                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Its due tmrw bro</span></div>' +
+                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">I know ill do it later lol</span></div>';
+
+                var replies = [
+                    { them: 'Yo wanna play rocket league', you: 'Yeah gimme like 20 min' },
+                    { them: 'Did u do the history essay', you: 'Nah not yet' },
+                    { them: 'Its due tmrw bro', you: 'I know ill do it later lol' }
+                ];
+
+                replies.forEach(function(r) {
+                    imsgBody.innerHTML +=
+                        '<div class="msg-row msg-in"><div class="msg-bubble gray-b">' + r.them + '</div></div>' +
+                        '<div class="msg-row msg-out"><div class="ghost-tag">GHOSTREPLY</div><div class="msg-bubble blue-b">' + r.you + '</div></div>';
+                });
+
+                skipBtn.style.display = 'none';
+                replayBtn.style.display = '';
+                isPlaying = false;
+            }
+
+            async function playScript() {
+                if (isPlaying) return;
+                isPlaying = true;
+                player.reset();
+                termBody.innerHTML = '';
+                imsgBody.innerHTML = '';
+                skipBtn.style.display = '';
+                replayBtn.style.display = 'none';
+
+                var isMobile = window.innerWidth < 768;
+
+                if (!isMobile) {
+                    await player.typeCommand('curl -sL ghostreply.lol/install.sh | bash');
+                    if (player.aborted) return;
+                    await player.wait(300);
+
+                    await player.output([
+                        '',
+                        '<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>',
+                        '<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.1.0</span>   <span class="t-green">\u2551</span>',
+                        '<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>',
+                        ''
+                    ]);
+                    if (player.aborted) return;
+                    await player.wait(400);
+
+                    await player.output(['Checking Python...']);
+                    if (player.aborted) return;
+                    await player.wait(600);
+                    await player.output(['<span class="t-green">\u2713</span> <span class="t-white">Python 3.12 found</span>']);
+                    if (player.aborted) return;
+                    await player.wait(400);
+
+                    var spinLine;
+                    spinLine = await player.spinner('[1/4] Downloading GhostReply...', 1000);
+                    if (player.aborted) return;
+                    if (spinLine) spinLine.innerHTML = '<span class="t-green">\u2713</span> [1/4] Downloaded';
+
+                    spinLine = await player.spinner('[2/4] Installing dependencies...', 1200);
+                    if (player.aborted) return;
+                    if (spinLine) spinLine.innerHTML = '<span class="t-green">\u2713</span> [2/4] Dependencies installed';
+
+                    spinLine = await player.spinner('[3/4] Setting up CLI...', 800);
+                    if (player.aborted) return;
+                    if (spinLine) spinLine.innerHTML = '<span class="t-green">\u2713</span> [3/4] CLI ready';
+
+                    spinLine = await player.spinner('[4/4] Finalizing...', 600);
+                    if (player.aborted) return;
+                    if (spinLine) spinLine.innerHTML = '<span class="t-green">\u2713</span> [4/4] Done';
+
+                    await player.wait(400);
+                    if (player.aborted) return;
+                    await player.output([
+                        '',
+                        '<span class="t-green t-bold">\u2713 GhostReply installed!</span>',
+                        '<span class="t-gray">Run "ghostreply" to start.</span>',
+                        ''
+                    ]);
+                    if (player.aborted) return;
+                    await player.wait(800);
+                    await player.clear();
+                    if (player.aborted) return;
+                }
+
+                // Running state + replies
+                await player.output([
+                    '<span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Andrew</span><span class="t-white">.</span>',
+                    '<span class="t-gray">Type \'stop\' to quit, or just reply yourself.</span>',
+                    ''
+                ]);
+                if (player.aborted) return;
+                await player.wait(800);
+
+                await player.reply('Yo wanna play rocket league', 'Yeah gimme like 20 min');
+                if (player.aborted) return;
+                await player.wait(500);
+
+                await player.reply('Did u do the history essay', 'Nah not yet');
+                if (player.aborted) return;
+                await player.wait(500);
+
+                await player.reply('Its due tmrw bro', 'I know ill do it later lol');
+
+                skipBtn.style.display = 'none';
+                replayBtn.style.display = '';
+                isPlaying = false;
+            }
+
+            skipBtn.addEventListener('click', showFinalState);
+            replayBtn.addEventListener('click', function() {
+                player.abort();
+                setTimeout(function() {
+                    playScript();
+                }, 50);
+            });
+
+            // Auto-play when hero enters viewport
+            if (prefersReducedMotion) {
+                showFinalState();
+            } else {
+                var heroObserver = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            heroObserver.disconnect();
+                            playScript();
+                        }
+                    });
+                }, { threshold: 0.3 });
+                heroObserver.observe(document.querySelector('.hero-mockup-wrap'));
+            }
+        })();
+
+        // ===== Interactive Install Walkthrough =====
+        (function() {
+            var section = document.getElementById('install-walkthrough');
+            if (!section) return;
+
+            var termBody = document.getElementById('iw-term-body');
+            var progressFill = document.getElementById('iw-progress-fill');
+            var steps = document.querySelectorAll('.iw-step');
+            var played = false;
+
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting && !played) {
+                        played = true;
+                        if (prefersReducedMotion) {
+                            showFinalState();
+                        } else {
+                            playWalkthrough();
+                        }
+                    }
+                });
+            }, { threshold: 0.3 });
+            observer.observe(section);
+
+            function wait(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+            function addLine(html) {
+                var line = document.createElement('div');
+                line.className = 'tp-line';
+                line.innerHTML = html;
+                termBody.appendChild(line);
+                termBody.scrollTop = termBody.scrollHeight;
+            }
+
+            function setProgress(pct) {
+                progressFill.style.width = pct + '%';
+            }
+
+            function activateStep(index) {
+                steps.forEach(function(s, i) {
+                    s.classList.toggle('iw-active', i === index);
+                    s.classList.toggle('iw-done', i < index);
+                });
+            }
+
+            function showFinalState() {
+                setProgress(100);
+                addLine('<span class="t-green">$</span> curl -sL ghostreply.lol/install.sh | bash');
+                addLine('');
+                addLine('<span class="t-green">\u2713</span> <span class="t-white">Python 3.12 found</span>');
+                addLine('<span class="t-green">\u2713</span> [1/4] Downloaded');
+                addLine('<span class="t-green">\u2713</span> [2/4] Dependencies installed');
+                addLine('<span class="t-green">\u2713</span> [3/4] CLI ready');
+                addLine('<span class="t-green">\u2713</span> [4/4] Done');
+                addLine('');
+                addLine('<span class="t-green t-bold">\u2713 GhostReply installed!</span>');
+                steps.forEach(function(s) {
+                    s.classList.remove('iw-active');
+                    s.classList.add('iw-done');
+                });
+            }
+
+            async function playWalkthrough() {
+                var spinFrames = ['\u280B','\u2819','\u2839','\u2838','\u283C','\u2834','\u2826','\u2827','\u2807','\u280F'];
+                var f = 0;
+
+                // Step 1: Run installer (0% → 25%)
+                activateStep(0);
+                setProgress(0);
+                addLine('<span class="t-green">$</span> curl -sL ghostreply.lol/install.sh | bash');
+                await wait(600);
+                addLine('');
+                addLine('<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>');
+                addLine('<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.1.0</span>   <span class="t-green">\u2551</span>');
+                addLine('<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>');
+                setProgress(25);
+                await wait(1500);
+
+                // Step 2: Python check (25% → 50%)
+                activateStep(1);
+                addLine('');
+                addLine('Checking Python...');
+                await wait(600);
+                addLine('<span class="t-green">\u2713</span> <span class="t-white">Python 3.12 found</span>');
+                setProgress(50);
+                await wait(1500);
+
+                // Step 3: Dependencies (50% → 75%)
+                activateStep(2);
+                addLine('');
+
+                var line1 = document.createElement('div');
+                line1.className = 'tp-line';
+                line1.innerHTML = '<span class="t-cyan">\u280B</span> [1/4] Downloading GhostReply...';
+                termBody.appendChild(line1);
+                termBody.scrollTop = termBody.scrollHeight;
+                for (var i = 0; i < 12; i++) {
+                    line1.querySelector('.t-cyan').textContent = spinFrames[f++ % spinFrames.length];
+                    await wait(80);
+                }
+                line1.innerHTML = '<span class="t-green">\u2713</span> [1/4] Downloaded';
+
+                var line2 = document.createElement('div');
+                line2.className = 'tp-line';
+                line2.innerHTML = '<span class="t-cyan">\u280B</span> [2/4] Installing dependencies...';
+                termBody.appendChild(line2);
+                termBody.scrollTop = termBody.scrollHeight;
+                for (var j = 0; j < 15; j++) {
+                    line2.querySelector('.t-cyan').textContent = spinFrames[f++ % spinFrames.length];
+                    await wait(80);
+                }
+                line2.innerHTML = '<span class="t-green">\u2713</span> [2/4] Dependencies installed';
+
+                var line3 = document.createElement('div');
+                line3.className = 'tp-line';
+                line3.innerHTML = '<span class="t-cyan">\u280B</span> [3/4] Setting up CLI...';
+                termBody.appendChild(line3);
+                termBody.scrollTop = termBody.scrollHeight;
+                for (var k = 0; k < 10; k++) {
+                    line3.querySelector('.t-cyan').textContent = spinFrames[f++ % spinFrames.length];
+                    await wait(80);
+                }
+                line3.innerHTML = '<span class="t-green">\u2713</span> [3/4] CLI ready';
+                setProgress(75);
+                await wait(1500);
+
+                // Step 4: Ready (75% → 100%)
+                activateStep(3);
+                var line4 = document.createElement('div');
+                line4.className = 'tp-line';
+                line4.innerHTML = '<span class="t-cyan">\u280B</span> [4/4] Finalizing...';
+                termBody.appendChild(line4);
+                termBody.scrollTop = termBody.scrollHeight;
+                for (var m = 0; m < 8; m++) {
+                    line4.querySelector('.t-cyan').textContent = spinFrames[f++ % spinFrames.length];
+                    await wait(80);
+                }
+                line4.innerHTML = '<span class="t-green">\u2713</span> [4/4] Done';
+
+                addLine('');
+                addLine('<span class="t-green t-bold">\u2713 GhostReply installed!</span>');
+                addLine('<span class="t-gray">Run "ghostreply" to start.</span>');
+                setProgress(100);
+
+                steps.forEach(function(s) {
+                    s.classList.remove('iw-active');
+                    s.classList.add('iw-done');
+                });
+            }
+        })();
+
+        // ===== Animated Demo Conversations =====
+        (function() {
+            var demos = document.querySelectorAll('.imessage-demo[data-animated]');
+            var observed = new Set();
+
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting && !observed.has(entry.target)) {
+                        observed.add(entry.target);
+                        animateDemo(entry.target);
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            demos.forEach(function(demo) { observer.observe(demo); });
+
+            function animateDemo(demo) {
+                var items = demo.querySelectorAll('.anim-msg, .anim-typing');
+                var delay = 0;
+                items.forEach(function(item, i) {
+                    var isTyping = item.classList.contains('anim-typing');
+                    var isBlue = item.classList.contains('anim-blue');
+                    var prevIsTyping = i > 0 && items[i - 1].classList.contains('anim-typing');
+
+                    if (isTyping) {
+                        delay += 400;
+                    } else if (prevIsTyping) {
+                        delay += 800;
+                    } else {
+                        delay += 600;
+                    }
+
+                    setTimeout(function() {
+                        if (isBlue && i > 0) {
+                            var prev = items[i - 1];
+                            if (prev && prev.classList.contains('anim-typing')) {
+                                prev.classList.remove('visible');
+                            }
+                        }
+                        item.classList.add('visible');
+                        var prevSib = item.previousElementSibling;
+                        if (prevSib && prevSib.classList.contains('anim-label')) {
+                            prevSib.style.opacity = '1';
+                        }
+                    }, delay);
+                });
+            }
+        })();
+
+        // ===== Feature Card Spotlight Hover =====
+        (function() {
+            document.querySelectorAll('.feature').forEach(function(card) {
+                card.addEventListener('mousemove', function(e) {
+                    var rect = card.getBoundingClientRect();
+                    card.style.setProperty('--cx', (e.clientX - rect.left) + 'px');
+                    card.style.setProperty('--cy', (e.clientY - rect.top) + 'px');
+                });
+            });
+        })();
+
+        // ===== Text Scramble on Section Headings =====
+        (function() {
+            if (prefersReducedMotion) return;
+            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
+            var duration = 600; // ms for full resolve
+
+            function scramble(el) {
+                var target = el.getAttribute('data-scramble');
+                if (!target) return;
+                var len = target.length;
+                var start = Date.now();
+
+                function update() {
+                    var elapsed = Date.now() - start;
+                    var progress = Math.min(elapsed / duration, 1);
+                    var resolved = Math.floor(progress * len);
+                    var text = '';
+                    for (var i = 0; i < len; i++) {
+                        if (target[i] === ' ') { text += ' '; continue; }
+                        if (i < resolved) {
+                            text += target[i];
+                        } else {
+                            text += chars[Math.floor(Math.random() * chars.length)];
+                        }
+                    }
+                    el.textContent = text;
+                    if (progress < 1) requestAnimationFrame(update);
+                }
+                update();
+            }
+
+            // Apply to all h2 elements in sections (not the inline-styled privacy one)
+            document.querySelectorAll('.section h2, .hero h1').forEach(function(el) {
+                el.setAttribute('data-scramble', el.textContent);
+            });
+
+            var observed = new Set();
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting && !observed.has(entry.target)) {
+                        observed.add(entry.target);
+                        scramble(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            document.querySelectorAll('[data-scramble]').forEach(function(el) {
+                observer.observe(el);
+            });
+        })();
+
+        // ===== Feedback form =====
+        document.getElementById('feedback-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const btn = document.getElementById('fb-send-btn');
-            const msg = document.getElementById('fb-msg').value.trim();
+            var btn = document.getElementById('fb-send-btn');
+            var msg = document.getElementById('fb-msg').value.trim();
             if (!msg) return;
             btn.disabled = true;
             btn.textContent = 'Sending...';
             try {
-                const body = new FormData();
+                var body = new FormData();
                 body.append('message', msg);
                 body.append('email', document.getElementById('fb-email').value.trim() || 'not provided');
                 body.append('_subject', 'GhostReply Feedback');
@@ -1361,13 +2561,13 @@
                 btn.textContent = 'Sent!';
                 document.getElementById('fb-msg').value = '';
                 document.getElementById('fb-email').value = '';
-                setTimeout(() => {
+                setTimeout(function() {
                     document.getElementById('feedback-overlay').classList.remove('open');
                     btn.textContent = 'Send';
                     btn.disabled = false;
                 }, 1200);
-            } catch {
-                btn.textContent = 'Failed — try again';
+            } catch(err) {
+                btn.textContent = 'Failed \u2014 try again';
                 btn.disabled = false;
             }
         });
