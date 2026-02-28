@@ -93,6 +93,7 @@ CONFIG_DIR = Path.home() / ".ghostreply"
 _TRIAL_BREADCRUMB = Path.home() / "Library" / "Application Support" / ".ghostreply_trial"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 PROFILE_FILE = CONFIG_DIR / "profile.json"
+STATS_FILE = CONFIG_DIR / "stats.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
 CONTACTS_DB_PATHS = []  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
@@ -100,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -111,6 +112,11 @@ custom_tone: str = ""
 conversation_history: dict[str, list[dict]] = {}
 reply_log: list[dict] = []
 _session_start_time: float = 0.0
+paused_contacts: dict[str, float] = {}
+_paused_lock = threading.Lock()
+PAUSE_DURATION = 1800  # 30 min
+_bot_replied_handles: set[str] = set()
+_deferred_messages: dict[str, list[tuple]] = {}  # handle -> [(text, wake_time)]
 
 stop_event = threading.Event()
 _config_lock = threading.Lock()
@@ -425,6 +431,10 @@ def load_config() -> dict:
         # Auto-migrate: re-save with encryption if legacy fields found
         if needs_migration:
             save_config(decrypted)
+        # Migrate old single-contact config to new multi-contact format
+        if "target_contact" in decrypted and "target_mode" not in decrypted:
+            decrypted["target_mode"] = "single"
+            decrypted["target_contacts"] = [{"handle": decrypted["target_contact"], "name": decrypted.get("target_name", "")}]
         return decrypted
     return {}
 
@@ -475,6 +485,61 @@ def save_profile(p: dict):
     with open(tmp, "w") as f:
         json.dump(p, f, indent=2)
     os.rename(tmp, PROFILE_FILE)
+
+
+def load_stats() -> dict:
+    """Load persistent usage stats from disk."""
+    try:
+        if STATS_FILE.exists():
+            with open(STATS_FILE) as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"total_replies": 0, "total_sessions": 0, "per_contact": {},
+            "triage_flags": 0, "weekly": {}}
+
+
+def save_stats(stats: dict):
+    """Save usage stats to disk."""
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = STATS_FILE.with_suffix(".json.tmp")
+        with open(tmp, "w") as f:
+            json.dump(stats, f, indent=2)
+        os.rename(tmp, STATS_FILE)
+    except Exception:
+        pass
+
+
+def update_session_stats():
+    """Update persistent stats with data from current session."""
+    stats = load_stats()
+    stats["total_sessions"] = stats.get("total_sessions", 0) + 1
+    session_replies = len([e for e in reply_log if e.get("triage") == "casual"])
+    stats["total_replies"] = stats.get("total_replies", 0) + session_replies
+    stats["triage_flags"] = stats.get("triage_flags", 0) + len([e for e in reply_log if e.get("triage") in ("urgent", "sensitive")])
+
+    # Per-contact counts
+    per_contact = stats.get("per_contact", {})
+    for entry in reply_log:
+        name = entry.get("contact_name", "?")
+        if name != "?":
+            per_contact[name] = per_contact.get(name, 0) + 1
+    stats["per_contact"] = per_contact
+
+    # Weekly tracking
+    week_key = datetime.datetime.now().strftime("%Y-W%W")
+    weekly = stats.get("weekly", {})
+    weekly[week_key] = weekly.get(week_key, 0) + session_replies
+    # Keep only last 12 weeks
+    if len(weekly) > 12:
+        sorted_keys = sorted(weekly.keys())
+        for old in sorted_keys[:-12]:
+            del weekly[old]
+    stats["weekly"] = weekly
+
+    save_stats(stats)
+    return stats
 
 
 def get_machine_id() -> str:
@@ -1309,7 +1374,17 @@ def build_system_prompt(contact_name: str = "") -> str:
             )
 
     # Contact-specific context
-    target_handle = config.get("target_contact", "")
+    targets = config.get("target_contacts", [])
+    target_handle = ""
+    if targets:
+        for t in targets:
+            if contact_name and t.get("name", "").lower() in contact_name.lower():
+                target_handle = t["handle"]
+                break
+        if not target_handle and len(targets) == 1:
+            target_handle = targets[0]["handle"]
+    if not target_handle:
+        target_handle = config.get("target_contact", "")
     if contact_name:
         parts.append(f"\nYou are currently texting {contact_name}.")
         # If we have specific friend details for this contact, emphasize them
@@ -1777,25 +1852,90 @@ def first_time_setup():
         config["calendar_sync"] = False
     save_config(config)
 
+    # --- Step 6c: Scheduled hours ---
+    print()
+    sched_choice = select_option("Set active hours?", [
+        {"label": "Run now",    "desc": "no schedule",     "color": GREEN},
+        {"label": "Set hours",  "desc": "auto on/off",     "color": BLUE},
+    ])
+    if sched_choice == 1:
+        start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
+        end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
+        # Validate format
+        valid = True
+        for ts in (start_str, end_str):
+            try:
+                h, m = map(int, ts.split(":"))
+                if not (0 <= h <= 23 and 0 <= m <= 59):
+                    valid = False
+            except (ValueError, AttributeError):
+                valid = False
+        if valid:
+            config["schedule_enabled"] = True
+            config["schedule_start"] = start_str
+            config["schedule_end"] = end_str
+            config["schedule_days"] = list(range(7))  # all days by default
+            print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
+        else:
+            print(f"  {YELLOW}Invalid format. Skipping schedule.{RESET}")
+            config["schedule_enabled"] = False
+    else:
+        config["schedule_enabled"] = False
+
     # Save profile now so it's not lost if user quits during contact selection
     save_profile(profile)
     save_config(config)
 
     # --- Step 7: Pick who to auto-reply to ---
     print()
-    print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply text for you?{RESET}")
+    print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply reply to?{RESET}")
     print()
-    selected = pick_contact()
+    target_choice = select_option("Choose targeting mode:", [
+        {"label": "One person",  "desc": "pick a contact",     "color": BLUE},
+        {"label": "Everyone",    "desc": "all 1-on-1 chats",   "color": GREEN},
+        {"label": "Favorites",   "desc": "pick multiple",      "color": SOFT_PINK},
+    ])
 
-    target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
-    config["target_contact"] = selected["handle"]
-    config["target_name"] = target_first
-    print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
+    if target_choice == 0:  # One person
+        selected = pick_contact()
+        target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
+        config["target_mode"] = "single"
+        config["target_contacts"] = [{"handle": selected["handle"], "name": target_first}]
+        config["target_contact"] = selected["handle"]
+        config["target_name"] = target_first
+        print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
+        # Load recent conversation with this contact for context
+        recent_convo = load_recent_conversation(selected["handle"], limit=20)
+        if recent_convo:
+            conversation_history[selected["handle"]] = recent_convo
+    elif target_choice == 1:  # Everyone
+        config["target_mode"] = "all"
+        config["target_contacts"] = []
+        config["target_name"] = "everyone"
+        print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}all incoming messages{RESET}")
+    else:  # Favorites
+        favorites = pick_contacts_multi()
+        if not favorites:
+            print(f"  {YELLOW}No contacts selected. Defaulting to everyone.{RESET}")
+            config["target_mode"] = "all"
+            config["target_contacts"] = []
+            config["target_name"] = "everyone"
+        else:
+            config["target_mode"] = "favorites"
+            config["target_contacts"] = favorites
+            names = ", ".join(f.get("name", f["handle"]) for f in favorites[:3])
+            if len(favorites) > 3:
+                names += f" +{len(favorites)-3} more"
+            config["target_name"] = names
+            print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{names}{RESET}")
+            # Load recent conversations for each favorite
+            for fav in favorites:
+                recent_convo = load_recent_conversation(fav["handle"], limit=20)
+                if recent_convo:
+                    conversation_history[fav["handle"]] = recent_convo
 
-    # Load recent conversation with this contact for context
-    recent_convo = load_recent_conversation(selected["handle"], limit=20)
-    if recent_convo:
-        conversation_history[selected["handle"]] = recent_convo
+    selected_handle = config["target_contacts"][0]["handle"] if config.get("target_contacts") else None
+    target_first = config.get("target_name", "?")
 
     # --- Step 8: Personality customization ---
     _PRESET_TONES = {
@@ -1848,50 +1988,51 @@ def first_time_setup():
             custom_tone = tone
             config["custom_tone"] = tone
 
-    # --- Step 9: Send first message? ---
-    if auto_opener:
-        opener_prompt = _OPENER_PROMPTS.get(mode, "(Start a casual conversation. Send a natural opener.)")
-        print()
-        print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
-        add_to_history(selected["handle"], "user", opener_prompt)
-        opener = get_ai_response(selected["handle"])
-        conversation_history[selected["handle"]] = []
-        if opener:
-            add_to_history(selected["handle"], "assistant", opener)
-            if send_imessage(selected["handle"], opener):
-                print(f"{GREEN}Sent:{RESET} {opener}")
+    # --- Step 9: Send first message? (single-contact mode only) ---
+    if config.get("target_mode") == "single" and selected_handle:
+        if auto_opener:
+            opener_prompt = _OPENER_PROMPTS.get(mode, "(Start a casual conversation. Send a natural opener.)")
+            print()
+            print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
+            add_to_history(selected_handle, "user", opener_prompt)
+            opener = get_ai_response(selected_handle)
+            conversation_history[selected_handle] = []
+            if opener:
+                add_to_history(selected_handle, "assistant", opener)
+                if send_imessage(selected_handle, opener):
+                    print(f"{GREEN}Sent:{RESET} {opener}")
+            else:
+                print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
         else:
-            print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
-    else:
-        print()
-        first_choice = select_option(f"Send the first message to {BLUE}{target_first}{RESET}{BOLD}?", [
-            {"label": "Yes", "color": GREEN},
-            {"label": "No", "color": GRAY},
-        ])
-        if first_choice == 0:
-            msg = input(f"  {DIM}Type your message (or 'ai' for bot opener):{RESET} ").strip()
-            if msg.lower() == "ai":
-                add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
-                opener = get_ai_response(selected["handle"])
-                conversation_history[selected["handle"]] = []
-                if opener:
-                    add_to_history(selected["handle"], "assistant", opener)
-                    print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
-                    send_choice = select_option("Send this?", [
-                        {"label": "Send", "color": GREEN},
-                        {"label": "Skip", "color": GRAY},
-                    ])
-                    if send_choice == 0:
-                        if send_imessage(selected["handle"], opener):
-                            print(f"  {GREEN}✓ Sent{RESET}")
+            print()
+            first_choice = select_option(f"Send the first message to {BLUE}{target_first}{RESET}{BOLD}?", [
+                {"label": "Yes", "color": GREEN},
+                {"label": "No", "color": GRAY},
+            ])
+            if first_choice == 0:
+                msg = input(f"  {DIM}Type your message (or 'ai' for bot opener):{RESET} ").strip()
+                if msg.lower() == "ai":
+                    add_to_history(selected_handle, "user", "(Start a casual conversation. Send a natural opener.)")
+                    opener = get_ai_response(selected_handle)
+                    conversation_history[selected_handle] = []
+                    if opener:
+                        add_to_history(selected_handle, "assistant", opener)
+                        print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                        send_choice = select_option("Send this?", [
+                            {"label": "Send", "color": GREEN},
+                            {"label": "Skip", "color": GRAY},
+                        ])
+                        if send_choice == 0:
+                            if send_imessage(selected_handle, opener):
+                                print(f"  {GREEN}✓ Sent{RESET}")
+                        else:
+                            conversation_history[selected_handle] = []
                     else:
-                        conversation_history[selected["handle"]] = []
-                else:
-                    print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
-            elif msg:
-                if send_imessage(selected["handle"], msg):
-                    add_to_history(selected["handle"], "assistant", msg)
-                    print(f"  {GREEN}✓ Sent{RESET}")
+                        print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
+                elif msg:
+                    if send_imessage(selected_handle, msg):
+                        add_to_history(selected_handle, "assistant", msg)
+                        print(f"  {GREEN}✓ Sent{RESET}")
 
     # Save everything
     save_profile(profile)
@@ -2151,6 +2292,80 @@ def pick_contact() -> dict:
             return matches[int(pick) - 1]
 
 
+def pick_contacts_multi() -> list[dict]:
+    """Multi-select contact picker for favorites mode. Space to toggle, Enter to confirm."""
+    contacts = get_contacts_with_names()
+    if not contacts:
+        print(f"{RED}✗{RESET} No iMessage conversations found.")
+        sys.exit(1)
+    recent = contacts[:10]
+    display = format_contact_list(recent)
+
+    HIDE_CUR = "\033[?25l"
+    SHOW_CUR = "\033[?25h"
+    selected: set[int] = set()
+    cursor = 0
+    total = len(recent)
+
+    def _render():
+        for i, label in enumerate(recent):
+            name = display[i]
+            check = f"{GREEN}[x]{RESET}" if i in selected else f"{DIM}[ ]{RESET}"
+            if i == cursor:
+                sys.stdout.write(f"\033[2K {check} {BLUE}{name}{RESET}\r\n")
+            else:
+                sys.stdout.write(f"\033[2K {check} {DIM}{name}{RESET}\r\n")
+        sys.stdout.flush()
+
+    sys.stdout.write(HIDE_CUR)
+    print(f"\n{BLUE}?{RESET} {BOLD}Pick your favorites:{RESET}  {DIM}↑/↓ move, Space toggle, Enter confirm{RESET}")
+    _render()
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch in ("\r", "\n"):
+                if selected:
+                    break
+                continue
+            if ch == "\x03":
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                sys.stdout.write(SHOW_CUR)
+                sys.stdout.flush()
+                raise KeyboardInterrupt
+            if ch == " ":
+                if cursor in selected:
+                    selected.discard(cursor)
+                else:
+                    selected.add(cursor)
+            elif ch == "\x1b":
+                seq = sys.stdin.read(2)
+                if seq == "[A":
+                    cursor = (cursor - 1) % total
+                elif seq == "[B":
+                    cursor = (cursor + 1) % total
+                else:
+                    continue
+            else:
+                continue
+            sys.stdout.write(f"\r\033[{total}A")
+            _render()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    names = ", ".join(display[i] for i in sorted(selected)[:3])
+    if len(selected) > 3:
+        names += f" +{len(selected)-3}"
+    sys.stdout.write(f"\033[{total + 1}A\r")
+    sys.stdout.write(f"\033[2K{GREEN}✔{RESET} {BOLD}Favorites:{RESET} {BLUE}{names}{RESET}\n")
+    sys.stdout.write(f"\033[J{SHOW_CUR}")
+    sys.stdout.flush()
+    return [recent[i] for i in sorted(selected)]
+
+
 def local_find_contact(query: str, contacts: list[dict]) -> list[dict]:
     """Fast local fuzzy search — no AI needed."""
     q = query.lower().strip()
@@ -2362,6 +2577,39 @@ def is_attachment_only(text: str) -> bool:
     return False
 
 
+def _get_attachment_type(conn, message_rowid: int) -> str:
+    """Query attachment MIME type for a message and return a descriptive string."""
+    try:
+        cur = conn.execute("""
+            SELECT a.mime_type, a.filename
+            FROM attachment a
+            JOIN message_attachment_join maj ON maj.attachment_id = a.ROWID
+            WHERE maj.message_id = ?
+            LIMIT 1
+        """, (message_rowid,))
+        row = cur.fetchone()
+        if not row:
+            return "(They sent an attachment)"
+        mime = (row["mime_type"] or "").lower()
+        fname = (row["filename"] or "").lower()
+        if mime.startswith("image/"):
+            return "(They sent a photo)"
+        elif mime.startswith("video/"):
+            return "(They sent a video)"
+        elif mime.startswith("audio/") or "voice" in fname or ".caf" in fname:
+            return "(They sent a voice message)"
+        elif mime == "text/vcard" or ".vcf" in fname:
+            return "(They sent a contact card)"
+        elif mime.startswith("application/pdf") or ".pdf" in fname:
+            return "(They sent a PDF)"
+        elif mime.startswith("application/") or ".doc" in fname or ".xls" in fname:
+            return "(They sent a file)"
+        else:
+            return "(They sent an attachment)"
+    except Exception:
+        return "(They sent an attachment)"
+
+
 
 def check_user_sent_message(since_rowid: int, target_handle: str) -> int:
     """Check if the user manually sent a message to the target contact.
@@ -2411,9 +2659,9 @@ def check_user_sent_message(since_rowid: int, target_handle: str) -> int:
             # Check if this message matches something the bot sent
             normalized = text.strip().lower()
             with _bot_sent_lock:
-                if normalized in _bot_sent_texts:
-                    # This is a bot-sent message — remove from tracking and skip
-                    _bot_sent_texts.remove(normalized)
+                handle_texts = _bot_sent_texts.get(target_handle, [])
+                if normalized in handle_texts:
+                    handle_texts.remove(normalized)
                     continue
 
             # If we get here, it's a message we didn't send — manual reply
@@ -2467,9 +2715,10 @@ def fetch_new_messages(since_rowid: int) -> list[dict]:
                 results.append({"ROWID": rowid, "text": None, "handle_id": row["handle_id"], "skip": True})
                 continue
 
-            # Attachment with no text — mark it so handler knows
+            # Attachment with no text — describe the attachment type
             if (not text or is_attachment_only(text)) and has_attachment:
-                results.append({"ROWID": rowid, "text": "[attachment]", "handle_id": row["handle_id"], "is_attachment": True})
+                desc = _get_attachment_type(conn, rowid)
+                results.append({"ROWID": rowid, "text": desc, "handle_id": row["handle_id"]})
                 continue
 
             if text:
@@ -2521,8 +2770,21 @@ def get_ai_response(contact: str) -> str:
         return ""
 
 
-def reply_delay(their_text: str):
-    """Wait before replying based on how long their message is."""
+def smart_delay(contact: str, their_text: str):
+    """Smart reply delay based on time of day, message type, and context."""
+    now = datetime.datetime.now()
+    hour = now.hour
+
+    # Night deferral: 2am-7am — don't reply, defer until morning
+    if 2 <= hour < 7:
+        wake_time = now.replace(hour=7, minute=random.randint(0, 15), second=0)
+        if contact not in _deferred_messages:
+            _deferred_messages[contact] = []
+        _deferred_messages[contact].append((their_text, wake_time))
+        print(f"  {GRAY}[TIMING] Night hours — deferring reply until ~7am{RESET}")
+        return
+
+    # Base delay from word count
     words = len(their_text.split())
     if words <= 3:
         delay = random.uniform(1, 1.5)
@@ -2530,11 +2792,53 @@ def reply_delay(their_text: str):
         delay = random.uniform(1.5, 2.5)
     else:
         delay = random.uniform(2.5, 4)
+
+    # Time-of-day multiplier
+    if hour < 8 or hour >= 22:
+        delay *= random.uniform(1.3, 1.8)  # slower early/late
+    elif 9 <= hour <= 17:
+        delay *= random.uniform(1.0, 1.3)  # work hours, slightly slower
+
+    # Question boost — reply faster to questions
+    if "?" in their_text:
+        delay *= 0.7
+
+    # Cap at 15 seconds
+    delay = min(delay, 15.0)
+
     # Sleep in small chunks so stop_event is responsive
     for _ in range(int(delay * 10)):
         if stop_event.is_set():
             return
         time.sleep(0.1)
+
+
+def triage_message(text: str) -> str:
+    """Classify a message as casual, urgent, or sensitive using keyword heuristics."""
+    lower = text.lower().strip()
+    # Urgent keywords — things that need a human, not a bot
+    urgent_patterns = [
+        r'\b(emergency|emergencies)\b', r'\bhospital\b', r'\bcall me now\b',
+        r'\bare you (ok|okay|alright)\b', r'\bhelp me\b', r'\bdied\b',
+        r'\b(accident|ambulance|police|911)\b', r'\bcall me asap\b',
+        r'\b(where are you|are you safe)\b', r'\bcome now\b',
+        r'\bplease call\b', r'\bpick up\b', r'\banswer your phone\b',
+    ]
+    for pat in urgent_patterns:
+        if re.search(pat, lower):
+            return "urgent"
+    # Sensitive keywords — bot should tread carefully
+    sensitive_patterns = [
+        r'\bi love you\b', r'\bwe need to talk\b', r"\bi'm pregnant\b",
+        r'\b(depressed|suicidal|kill myself)\b', r'\bbreak ?up\b',
+        r'\b(divorce|cheating|affair)\b', r'\bpassed away\b',
+        r'\bfuneral\b', r'\b(miscarriage|cancer|diagnosis)\b',
+        r"\bi'm sorry for your loss\b",
+    ]
+    for pat in sensitive_patterns:
+        if re.search(pat, lower):
+            return "sensitive"
+    return "casual"
 
 
 def handle_batch(contact: str, texts: list[str]):
@@ -2558,9 +2862,27 @@ def handle_batch(contact: str, texts: list[str]):
             stop_event.set()
             return
 
-    # Only reply to the configured target contact
-    target = config.get("target_contact")
-    if target and contact != target:
+    if not should_process_contact(contact):
+        return
+    if is_contact_paused(contact):
+        return
+
+    # Smart triage — skip or hold for urgent/sensitive messages
+    triage = triage_message(texts[-1])
+    contact_name = get_contact_display_name(contact)
+    if triage == "urgent":
+        send_notification("Urgent message", f"{contact_name}: {texts[-1][:100]}")
+        print(f"  {YELLOW}⚠{RESET} {GRAY}Urgent message from {contact_name} — skipped auto-reply, sent notification{RESET}")
+        reply_log.append({"contact": contact, "contact_name": contact_name,
+                          "them": texts[-1], "you": "[SKIPPED - URGENT]", "triage": "urgent", "time": time.time()})
+        return
+    if triage == "sensitive":
+        send_notification("Sensitive message", f"{contact_name}: {texts[-1][:100]}")
+        holding = "hey give me a sec, i'll text you back in a bit"
+        send_imessage(contact, holding)
+        print(f"  {YELLOW}⚠{RESET} {GRAY}Sensitive message from {contact_name} — sent holding reply, sent notification{RESET}")
+        reply_log.append({"contact": contact, "contact_name": contact_name,
+                          "them": texts[-1], "you": holding, "triage": "sensitive", "time": time.time()})
         return
 
     # Load conversation history for this contact if we haven't yet
@@ -2586,7 +2908,7 @@ def handle_batch(contact: str, texts: list[str]):
         return
 
     add_to_history(contact, "assistant", reply)
-    reply_delay(texts[-1])  # delay based on their last message
+    smart_delay(contact, texts[-1])  # delay based on message + time of day
 
     # Increment trial counter BEFORE sending (prevents kill-to-bypass exploit)
     is_trial = config.get("trial_started_at") and not config.get("license_key")
@@ -2597,10 +2919,11 @@ def handle_batch(contact: str, texts: list[str]):
     # Track this message BEFORE sending so auto-stop can recognize it
     global _bot_last_send_time, _bot_has_replied
     with _bot_sent_lock:
-        _bot_sent_texts.append(reply.strip().lower())
-        # Keep only last 20 to avoid unbounded growth
-        if len(_bot_sent_texts) > 20:
-            _bot_sent_texts.pop(0)
+        if contact not in _bot_sent_texts:
+            _bot_sent_texts[contact] = []
+        _bot_sent_texts[contact].append(reply.strip().lower())
+        if len(_bot_sent_texts[contact]) > 20:
+            _bot_sent_texts[contact].pop(0)
     if not send_imessage(contact, reply):
         # Send failed — refund the trial reply
         if is_trial:
@@ -2614,13 +2937,15 @@ def handle_batch(contact: str, texts: list[str]):
     _update_bot_last_known_rowid()
     with _bot_sent_lock:
         _bot_has_replied = True
+    _bot_replied_handles.add(contact)
     # Adaptive truncation based on terminal width
     tw = term_width()
     trunc = max(20, tw - 16)  # 16 chars for "[REPLY] them: " or "        you:  "
     display_them = texts[0][:trunc] if len(texts) == 1 else f"{texts[0][:min(30, trunc-20)]}... (+{len(texts)-1} more)"
     display_reply = reply[:trunc]
-    reply_log.append({"them": combined, "you": reply})
-    if len(reply_log) > 20:
+    reply_log.append({"contact": contact, "contact_name": contact_name,
+                       "them": combined, "you": reply, "triage": "casual", "time": time.time()})
+    if len(reply_log) > 50:
         reply_log.pop(0)
     print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
     print(f"        {GREEN}you:{RESET}  {display_reply}")
@@ -2653,16 +2978,68 @@ def handle_batch(contact: str, texts: list[str]):
 # Main Poll Loop
 # ============================================================
 
-def print_exit_summary():
-    """Show session summary on exit."""
+def print_session_digest():
+    """Show enriched session digest on exit, grouped by contact."""
     count = len(reply_log)
     if count == 0:
         return
     elapsed = time.time() - _session_start_time
     mins = int(elapsed // 60)
     time_str = f"{mins} min" if mins > 0 else f"{int(elapsed)}s"
-    print(f"\n{BLUE}●{RESET} {BOLD}Session summary{RESET}")
+
+    print(f"\n{BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+    print(f"{BLUE}●{RESET} {BOLD}Session Digest{RESET}")
     print(f"  {GREEN}{count}{RESET} replies sent in {time_str}")
+
+    # Group by contact
+    by_contact: dict[str, list[dict]] = {}
+    for entry in reply_log:
+        name = entry.get("contact_name", entry.get("contact", "?"))
+        by_contact.setdefault(name, []).append(entry)
+
+    if len(by_contact) > 1 or (len(by_contact) == 1 and count > 2):
+        print()
+        for name, entries in by_contact.items():
+            casual = sum(1 for e in entries if e.get("triage") == "casual")
+            flagged = [e for e in entries if e.get("triage") in ("urgent", "sensitive")]
+            # Try AI summary if groq_client is available, otherwise use simple count
+            summary = ""
+            if groq_client and casual > 0:
+                convo_text = " | ".join(f"them: {e['them'][:50]} → you: {e['you'][:50]}" for e in entries[:5] if e.get("triage") == "casual")
+                if convo_text:
+                    try:
+                        resp = groq_client.chat.completions.create(
+                            model="llama-3.1-8b-instant",
+                            messages=[{"role": "user", "content": f"Summarize this text conversation in 10 words or less. Just the summary, nothing else:\n{convo_text}"}],
+                            max_tokens=25, temperature=0.3,
+                        )
+                        summary = resp.choices[0].message.content.strip() if resp.choices else ""
+                    except Exception:
+                        pass
+            line = f"  {BLUE}{name}{RESET}: {casual} repl{'y' if casual == 1 else 'ies'}"
+            if summary:
+                line += f" — {GRAY}{summary}{RESET}"
+            print(line)
+            for f in flagged:
+                flag_type = f.get("triage", "?").upper()
+                print(f"    {YELLOW}⚠ {flag_type}:{RESET} {GRAY}{f['them'][:60]}{RESET}")
+
+    # Show paused contacts
+    if paused_contacts:
+        print(f"\n  {GRAY}Paused contacts:{RESET}")
+        for handle in list(paused_contacts.keys()):
+            name = get_contact_display_name(handle)
+            print(f"    {GRAY}• {name} (auto-paused){RESET}")
+
+    # Update persistent stats
+    stats = update_session_stats()
+
+    # Time saved estimate (~30 sec per reply)
+    saved_min = max(1, (count * 30) // 60)
+    total_saved = max(1, (stats.get("total_replies", 0) * 30) // 60)
+    print(f"\n  {GREEN}~{saved_min} min saved{RESET} {GRAY}this session{RESET}")
+    print(f"  {GRAY}All time: {stats.get('total_replies', 0)} replies across {stats.get('total_sessions', 0)} sessions (~{total_saved} min saved){RESET}")
+    print(f"{BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
 
 
 def stdin_listener():
@@ -2685,7 +3062,7 @@ def stdin_listener():
             break
         if cmd in ("stop", "quit", "exit", "q"):
             print(f"\n{GRAY}GhostReply stopped.{RESET}")
-            print_exit_summary()
+            print_session_digest()
             stop_event.set()
             break
         elif cmd:
@@ -2700,7 +3077,7 @@ _bot_last_known_rowid = 0
 _bot_has_replied = False  # only auto-stop after bot has sent at least one reply
 
 # Track bot-sent messages so we can distinguish them from manual sends
-_bot_sent_texts: list[str] = []  # texts the bot has sent (for matching)
+_bot_sent_texts: dict[str, list[str]] = {}  # handle -> texts the bot has sent
 _bot_sent_lock = threading.Lock()
 _bot_last_send_time: float = 0  # timestamp of last bot send (grace period)
 
@@ -2714,58 +3091,172 @@ def _update_bot_last_known_rowid():
             _bot_last_known_rowid = rowid
 
 
+def should_process_contact(handle: str) -> bool:
+    """Check if this contact should be processed based on target mode."""
+    mode = config.get("target_mode", "single")
+    if mode == "all":
+        return True
+    if mode == "favorites":
+        targets = config.get("target_contacts", [])
+        return any(t["handle"] == handle for t in targets)
+    # single mode
+    targets = config.get("target_contacts", [])
+    return bool(targets) and targets[0]["handle"] == handle
+
+
+def pause_contact(handle: str, name: str):
+    """Pause auto-reply for a specific contact."""
+    with _paused_lock:
+        paused_contacts[handle] = time.time()
+    pause_mins = PAUSE_DURATION // 60
+    print(f"\n{YELLOW}[PAUSED]{RESET} You texted {BLUE}{name}{RESET} — pausing auto-reply for {pause_mins} min")
+
+
+def is_contact_paused(handle: str) -> bool:
+    """Check if a contact is currently paused."""
+    with _paused_lock:
+        paused_at = paused_contacts.get(handle)
+        if paused_at is None:
+            return False
+        if time.time() - paused_at >= PAUSE_DURATION:
+            del paused_contacts[handle]
+            return False
+        return True
+
+
+def send_notification(title: str, message: str):
+    """Send a macOS notification."""
+    escaped_title = title.replace('"', '\\"')
+    escaped_msg = message.replace('"', '\\"')[:200]
+    try:
+        subprocess.run([
+            "osascript", "-e",
+            f'display notification "{escaped_msg}" with title "{escaped_title}"'
+        ], capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+
+def is_within_schedule() -> bool:
+    """Check if current time is within scheduled active hours.
+    Returns True if no schedule is configured (always active)."""
+    if not config.get("schedule_enabled"):
+        return True
+    now = datetime.datetime.now()
+    day_of_week = now.weekday()  # 0=Mon..6=Sun
+    allowed_days = config.get("schedule_days", list(range(7)))
+    if day_of_week not in allowed_days:
+        return False
+    start_str = config.get("schedule_start", "00:00")
+    end_str = config.get("schedule_end", "23:59")
+    try:
+        sh, sm = map(int, start_str.split(":"))
+        eh, em = map(int, end_str.split(":"))
+    except (ValueError, AttributeError):
+        return True
+    start_min = sh * 60 + sm
+    end_min = eh * 60 + em
+    now_min = now.hour * 60 + now.minute
+    if start_min <= end_min:
+        return start_min <= now_min <= end_min
+    else:  # overnight schedule (e.g. 22:00-06:00)
+        return now_min >= start_min or now_min <= end_min
+
+
 def poll_loop():
     global _bot_last_known_rowid, _bot_has_replied
     with _bot_sent_lock:
         _bot_has_replied = False
     baseline = get_latest_rowid()
-    # Set last known ROWID to NOW — anything before this (including setup messages) is ignored
     with _bot_last_known_rowid_lock:
         _bot_last_known_rowid = baseline
-    target_name = config.get("target_name", "?")
-    target_contact = config.get("target_contact", "")
-    print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{target_name}{RESET}...")
-    print(f"{GRAY}[INFO]{RESET} {GRAY}Auto-stops when you reply manually.{RESET}")
+
+    # Mode-aware listening message
+    target_mode = config.get("target_mode", "single")
+    targets = config.get("target_contacts", [])
+    if target_mode == "single" and targets:
+        print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{targets[0].get('name', '?')}{RESET}...")
+        print(f"{GRAY}[INFO]{RESET} {GRAY}Auto-stops when you reply manually.{RESET}")
+    elif target_mode == "favorites" and targets:
+        names = ", ".join(t.get("name", t["handle"]) for t in targets[:3])
+        if len(targets) > 3:
+            names += f" +{len(targets)-3} more"
+        print(f"{GRAY}[INFO]{RESET} Listening for messages from {BLUE}{names}{RESET}...")
+        print(f"{GRAY}[INFO]{RESET} {GRAY}Auto-pauses contacts you text manually.{RESET}")
+    else:
+        print(f"{GRAY}[INFO]{RESET} Listening for {BLUE}all incoming messages{RESET}...")
+        print(f"{GRAY}[INFO]{RESET} {GRAY}Auto-pauses contacts you text manually.{RESET}")
     print()
 
-    pending: dict[str, list[str]] = {}  # contact -> list of texts waiting
-    pending_since: dict[str, float] = {}  # contact -> timestamp of first pending msg
+    pending: dict[str, list[str]] = {}
+    pending_since: dict[str, float] = {}
+    _was_in_schedule = True
 
     while not stop_event.is_set():
         try:
-            # Check if user manually sent a message to the target contact
-            # Only after bot has sent at least one reply (so user can send the first msg)
+            # Scheduled hours check
+            if not is_within_schedule():
+                if _was_in_schedule:
+                    sched_end = config.get("schedule_start", "?")
+                    print(f"\n{GRAY}[SCHEDULE]{RESET} Outside scheduled hours. Pausing until {sched_end}...")
+                    _was_in_schedule = False
+                for _ in range(int(POLL_INTERVAL * 10)):
+                    if stop_event.is_set():
+                        return
+                    time.sleep(0.1)
+                continue
+            elif not _was_in_schedule:
+                print(f"\n{GREEN}[SCHEDULE]{RESET} Within scheduled hours. Resuming...")
+                _was_in_schedule = True
+
+            # Process deferred messages (night deferral)
+            now_dt = datetime.datetime.now()
+            for handle in list(_deferred_messages.keys()):
+                ready_msgs = [(t, w) for t, w in _deferred_messages[handle] if now_dt >= w]
+                if ready_msgs:
+                    texts = [t for t, w in ready_msgs]
+                    _deferred_messages[handle] = [(t, w) for t, w in _deferred_messages[handle] if now_dt < w]
+                    if not _deferred_messages[handle]:
+                        del _deferred_messages[handle]
+                    handle_batch(handle, texts)
+
+            # Check if user manually sent a message — auto-stop or auto-pause
             with _bot_sent_lock:
                 has_replied = _bot_has_replied
-            if target_contact and has_replied:
+            if has_replied:
                 with _bot_last_known_rowid_lock:
                     current_known = _bot_last_known_rowid
-                manual_rowid = check_user_sent_message(current_known, target_contact)
-                if manual_rowid:
-                    print()
-                    print(f"{GREEN}[AUTO-STOP]{RESET} You replied to {BLUE}{target_name}{RESET} manually — GhostReply stopped.")
-                    print(f"{GRAY}Run {WHITE}ghostreply{GRAY} again to restart.{RESET}")
-                    print_exit_summary()
-                    stop_event.set()
-                    return
+                if target_mode == "single" and targets:
+                    tc = targets[0]["handle"]
+                    manual_rowid = check_user_sent_message(current_known, tc)
+                    if manual_rowid:
+                        print()
+                        print(f"{GREEN}[AUTO-STOP]{RESET} You replied to {BLUE}{targets[0].get('name', '?')}{RESET} manually — GhostReply stopped.")
+                        print(f"{GRAY}Run {WHITE}ghostreply{GRAY} again to restart.{RESET}")
+                        print_session_digest()
+                        stop_event.set()
+                        return
+                else:
+                    # Multi-contact: pause individually
+                    for handle in list(_bot_replied_handles):
+                        manual_rowid = check_user_sent_message(current_known, handle)
+                        if manual_rowid:
+                            name = get_contact_display_name(handle)
+                            pause_contact(handle, name)
 
             incoming = fetch_new_messages(baseline)
             for msg in incoming:
                 baseline = max(baseline, msg["ROWID"])
 
-                # Skip reactions entirely
                 if msg.get("skip"):
                     continue
 
                 contact = msg["handle_id"]
 
-                # Only process target contact
-                if target_contact and contact != target_contact:
+                if not should_process_contact(contact):
                     continue
 
-                # Handle attachment-only messages
-                if msg.get("is_attachment"):
-                    # Don't reply to bare attachments — just ignore
+                if is_contact_paused(contact):
                     continue
 
                 text = msg["text"]
@@ -3104,22 +3595,69 @@ def main():
         # Initialize AI
         init_groq_client()
 
-        # Always re-pick contact
-        print()
-        print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply text for you?{RESET}")
-        print()
-        selected = pick_contact()
+        # Show weekly stats if available
+        stats = load_stats()
+        week_key = datetime.datetime.now().strftime("%Y-W%W")
+        week_replies = stats.get("weekly", {}).get(week_key, 0)
+        if stats.get("total_replies", 0) > 0:
+            week_saved = max(1, (week_replies * 30) // 60) if week_replies > 0 else 0
+            parts = [f"{GRAY}This week: {GREEN}{week_replies}{GRAY} replies"]
+            if week_saved > 0:
+                parts.append(f"~{week_saved} min saved")
+            print(f"  {', '.join(parts)}{RESET}")
 
-        target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
-        config["target_contact"] = selected["handle"]
-        config["target_name"] = target_first
-        save_config(config)
-        print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
+        # Always re-pick contact / targeting mode
+        print()
+        print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply reply to?{RESET}")
+        print()
+        target_choice = select_option("Choose targeting mode:", [
+            {"label": "One person",  "desc": "pick a contact",     "color": BLUE},
+            {"label": "Everyone",    "desc": "all 1-on-1 chats",   "color": GREEN},
+            {"label": "Favorites",   "desc": "pick multiple",      "color": SOFT_PINK},
+        ])
 
-        # Load conversation history
-        recent_convo = load_recent_conversation(selected["handle"], limit=20)
-        if recent_convo:
-            conversation_history[selected["handle"]] = recent_convo
+        if target_choice == 0:  # One person
+            selected = pick_contact()
+            target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
+            config["target_mode"] = "single"
+            config["target_contacts"] = [{"handle": selected["handle"], "name": target_first}]
+            config["target_contact"] = selected["handle"]
+            config["target_name"] = target_first
+            save_config(config)
+            print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
+            # Load conversation history
+            recent_convo = load_recent_conversation(selected["handle"], limit=20)
+            if recent_convo:
+                conversation_history[selected["handle"]] = recent_convo
+        elif target_choice == 1:  # Everyone
+            config["target_mode"] = "all"
+            config["target_contacts"] = []
+            config["target_name"] = "everyone"
+            save_config(config)
+            print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}all incoming messages{RESET}")
+        else:  # Favorites
+            favorites = pick_contacts_multi()
+            if not favorites:
+                print(f"  {YELLOW}No contacts selected. Defaulting to everyone.{RESET}")
+                config["target_mode"] = "all"
+                config["target_contacts"] = []
+                config["target_name"] = "everyone"
+            else:
+                config["target_mode"] = "favorites"
+                config["target_contacts"] = favorites
+                names = ", ".join(f.get("name", f["handle"]) for f in favorites[:3])
+                if len(favorites) > 3:
+                    names += f" +{len(favorites)-3} more"
+                config["target_name"] = names
+                print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{names}{RESET}")
+                for fav in favorites:
+                    recent_convo = load_recent_conversation(fav["handle"], limit=20)
+                    if recent_convo:
+                        conversation_history[fav["handle"]] = recent_convo
+            save_config(config)
+
+        selected_handle = config["target_contacts"][0]["handle"] if config.get("target_contacts") else None
+        target_first = config.get("target_name", "?")
 
         # Customize?
         _PRESET_TONES = {
@@ -3186,50 +3724,82 @@ def main():
                 warm_calendar_cache()  # warm cache in background
             save_config(config)
 
-        # Send first message?
-        if auto_opener:
-            opener_prompt = _OPENER_PROMPTS.get(mode, "(Start a casual conversation. Send a natural opener.)")
-            print()
-            print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
-            add_to_history(selected["handle"], "user", opener_prompt)
-            opener = get_ai_response(selected["handle"])
-            conversation_history[selected["handle"]] = []
-            if opener:
-                add_to_history(selected["handle"], "assistant", opener)
-                if send_imessage(selected["handle"], opener):
-                    print(f"{GREEN}Sent:{RESET} {opener}")
+        # Schedule toggle
+        sched_status = "on" if config.get("schedule_enabled") else "off"
+        sched_choice = select_option(f"Scheduled hours is {sched_status}. Change?", [
+            {"label": "Keep " + sched_status, "color": GREEN},
+            {"label": "Turn " + ("off" if config.get("schedule_enabled") else "on"), "color": BLUE},
+        ])
+        if sched_choice == 1:
+            if config.get("schedule_enabled"):
+                config["schedule_enabled"] = False
+                save_config(config)
             else:
-                print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
-        else:
-            print()
-            first_choice = select_option(f"Send the first message to {BLUE}{target_first}{RESET}{BOLD}?", [
-                {"label": "Yes", "color": GREEN},
-                {"label": "No", "color": GRAY},
-            ])
-            if first_choice == 0:
-                msg = input(f"  {DIM}Type your message (or 'ai' for bot opener):{RESET} ").strip()
-                if msg.lower() == "ai":
-                    add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
-                    opener = get_ai_response(selected["handle"])
-                    conversation_history[selected["handle"]] = []
-                    if opener:
-                        add_to_history(selected["handle"], "assistant", opener)
-                        print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
-                        send_choice = select_option("Send this?", [
-                            {"label": "Send", "color": GREEN},
-                            {"label": "Skip", "color": GRAY},
-                        ])
-                        if send_choice == 0:
-                            if send_imessage(selected["handle"], opener):
-                                print(f"  {GREEN}✓ Sent{RESET}")
+                start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
+                end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
+                valid = True
+                for ts in (start_str, end_str):
+                    try:
+                        h, m = map(int, ts.split(":"))
+                        if not (0 <= h <= 23 and 0 <= m <= 59):
+                            valid = False
+                    except (ValueError, AttributeError):
+                        valid = False
+                if valid:
+                    config["schedule_enabled"] = True
+                    config["schedule_start"] = start_str
+                    config["schedule_end"] = end_str
+                    config["schedule_days"] = list(range(7))
+                    print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
+                else:
+                    print(f"  {YELLOW}Invalid format. Schedule unchanged.{RESET}")
+                save_config(config)
+
+        # Send first message? (single-contact mode only)
+        if config.get("target_mode") == "single" and selected_handle:
+            if auto_opener:
+                opener_prompt = _OPENER_PROMPTS.get(mode, "(Start a casual conversation. Send a natural opener.)")
+                print()
+                print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
+                add_to_history(selected_handle, "user", opener_prompt)
+                opener = get_ai_response(selected_handle)
+                conversation_history[selected_handle] = []
+                if opener:
+                    add_to_history(selected_handle, "assistant", opener)
+                    if send_imessage(selected_handle, opener):
+                        print(f"{GREEN}Sent:{RESET} {opener}")
+                else:
+                    print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
+            else:
+                print()
+                first_choice = select_option(f"Send the first message to {BLUE}{target_first}{RESET}{BOLD}?", [
+                    {"label": "Yes", "color": GREEN},
+                    {"label": "No", "color": GRAY},
+                ])
+                if first_choice == 0:
+                    msg = input(f"  {DIM}Type your message (or 'ai' for bot opener):{RESET} ").strip()
+                    if msg.lower() == "ai":
+                        add_to_history(selected_handle, "user", "(Start a casual conversation. Send a natural opener.)")
+                        opener = get_ai_response(selected_handle)
+                        conversation_history[selected_handle] = []
+                        if opener:
+                            add_to_history(selected_handle, "assistant", opener)
+                            print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                            send_choice = select_option("Send this?", [
+                                {"label": "Send", "color": GREEN},
+                                {"label": "Skip", "color": GRAY},
+                            ])
+                            if send_choice == 0:
+                                if send_imessage(selected_handle, opener):
+                                    print(f"  {GREEN}✓ Sent{RESET}")
+                            else:
+                                conversation_history[selected_handle] = []
                         else:
-                            conversation_history[selected["handle"]] = []
-                    else:
-                        print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
-                elif msg:
-                    if send_imessage(selected["handle"], msg):
-                        add_to_history(selected["handle"], "assistant", msg)
-                        print(f"  {GREEN}✓ Sent{RESET}")
+                            print(f"  {YELLOW}AI couldn't generate an opener. Skipping.{RESET}")
+                    elif msg:
+                        if send_imessage(selected_handle, msg):
+                            add_to_history(selected_handle, "assistant", msg)
+                            print(f"  {GREEN}✓ Sent{RESET}")
 
     # Load saved custom tone
     if config.get("custom_tone") and not custom_tone:
@@ -3240,11 +3810,18 @@ def main():
         init_groq_client()
 
     target_name = config.get("target_name", "?")
+    target_mode = config.get("target_mode", "single")
     print()
-    print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-    print()
-    print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
-    print(f"  {GRAY}Or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
+    if target_mode == "single":
+        print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
+        print()
+        print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
+        print(f"  {GRAY}Or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
+    else:
+        print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
+        print()
+        print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
+        print(f"  {GRAY}Text someone yourself and that contact auto-pauses for 30 min.{RESET}")
     print()
 
     # Wait for any setup-sent messages to land in chat.db
@@ -3262,7 +3839,7 @@ def main():
     except KeyboardInterrupt:
         stop_event.set()
         print(f"\n{GRAY}GhostReply stopped.{RESET}")
-        print_exit_summary()
+        print_session_digest()
 
 
 def uninstall():
@@ -3340,5 +3917,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         stop_event.set()
         print(f"\n{GRAY}GhostReply stopped.{RESET}")
-        print_exit_summary()
+        print_session_digest()
         sys.exit(0)
