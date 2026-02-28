@@ -100,7 +100,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -153,6 +153,14 @@ SOPHISTICATED_TONE = (
     "no abbreviations, no lowercase-only texts. Keep replies short and direct, "
     "like professional texting. One to two sentences max unless the topic "
     "genuinely needs more. You sound put-together and competent."
+)
+
+BUSY_TONE = (
+    "You are busy right now. Keep ALL replies extremely brief — 1 sentence max. "
+    "Acknowledge their message, let them know you're unavailable, and say when "
+    "you'll be free (check your schedule). Examples: 'In a meeting til 3, I'll "
+    "text you after', 'Driving rn ttyl', 'Hey can't talk rn, free after lunch'. "
+    "If it's genuinely urgent, give a brief helpful answer. Otherwise, defer."
 )
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
@@ -1279,13 +1287,20 @@ def build_system_prompt(contact_name: str = "") -> str:
     if other:
         parts.append(f"\nOther facts about you: {'; '.join(other)}")
 
-    # Calendar awareness (always active)
-    if config.get("calendar_sync", False):
+    # Current time (always useful for scheduling context)
+    parts.append(f"\nCurrent time: {datetime.datetime.now().strftime('%A, %B %-d, %Y at %-I:%M %p')}")
+
+    # Calendar awareness
+    is_busy = (custom_tone == BUSY_TONE)
+    show_calendar = config.get("calendar_sync", False) or is_busy
+    if show_calendar:
         events = get_calendar_events()
         if events:
             parts.append(
-                f"\nYOUR SCHEDULE (from your calendar — use this to answer about plans/availability):\n{events}"
-                "\n- Reference these naturally if someone asks about your plans or availability."
+                f"\nYOUR SCHEDULE (from your calendar):\n{events}"
+                "\n- When someone asks about plans/availability, check your schedule and be SPECIFIC."
+                "\n- Say exactly when you're free: 'I'm free after 4' not just 'I'm busy'."
+                "\n- If you have a conflict, suggest an alternative time."
                 "\n- Don't volunteer schedule info unprompted."
             )
         else:
@@ -1294,6 +1309,7 @@ def build_system_prompt(contact_name: str = "") -> str:
             )
 
     # Contact-specific context
+    target_handle = config.get("target_contact", "")
     if contact_name:
         parts.append(f"\nYou are currently texting {contact_name}.")
         # If we have specific friend details for this contact, emphasize them
@@ -1303,6 +1319,13 @@ def build_system_prompt(contact_name: str = "") -> str:
                     f"IMPORTANT — what you know about {contact_name}: {f.get('details', '')}"
                 )
                 break
+        # Per-contact memory (learned from past conversations)
+        notes = get_contact_notes(target_handle)
+        if notes:
+            parts.append(
+                f"\nTHINGS YOU REMEMBER ABOUT {contact_name.upper()}:\n" +
+                "\n".join(f"- {n}" for n in notes)
+            )
 
     # Safe mode — keep everything appropriate (per-contact or legacy global)
     safe_contacts = config.get("safe_contacts", [])
@@ -1336,6 +1359,119 @@ def build_system_prompt(contact_name: str = "") -> str:
     )
 
     return "\n".join(parts)
+
+
+# ============================================================
+# Contact Memory — learn facts about contacts over time
+# ============================================================
+
+def get_contact_notes(handle: str) -> list[str]:
+    """Get stored notes for a contact."""
+    return profile.get("contact_notes", {}).get(handle, [])
+
+
+def save_contact_note(handle: str, notes: list[str]):
+    """Save/merge notes for a contact. Max 20 per contact."""
+    if "contact_notes" not in profile:
+        profile["contact_notes"] = {}
+    existing = profile["contact_notes"].get(handle, [])
+    merged = existing + [n for n in notes if n not in existing]
+    profile["contact_notes"][handle] = merged[-20:]
+    save_profile(profile)
+
+
+def extract_contact_notes(handle: str, messages: list[dict]):
+    """Background: ask AI to extract noteworthy facts from recent messages."""
+    contact_name = get_contact_display_name(handle)
+    existing = get_contact_notes(handle)
+    existing_str = "\n".join(f"- {n}" for n in existing) if existing else "(none yet)"
+
+    prompt = (
+        f"Extract any NEW facts about {contact_name} from this conversation. "
+        f"Already known:\n{existing_str}\n\n"
+        "Return ONLY a JSON array of short new facts (e.g. [\"has a cat named Luna\", \"going to Hawaii next week\"]). "
+        "Return [] if nothing new or noteworthy. Only include facts about THEM, not you."
+    )
+
+    history_str = "\n".join(
+        f"{'Them' if m['role']=='user' else 'You'}: {m['content']}"
+        for m in messages[-10:]
+    )
+
+    try:
+        result = ai_call([
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": history_str}
+        ], max_tokens=150)
+        notes = json.loads(result)
+        if isinstance(notes, list) and notes:
+            save_contact_note(handle, notes)
+    except Exception:
+        pass
+
+
+# ============================================================
+# Text-to-Calendar — auto-create events from confirmed plans
+# ============================================================
+
+def maybe_create_calendar_event(contact: str, messages: list[dict]):
+    """Background: check if recent messages contain a plannable event, create it."""
+    contact_name = get_contact_display_name(contact)
+    recent = "\n".join(
+        f"{'Them' if m['role']=='user' else 'You'}: {m['content']}"
+        for m in messages[-6:]
+    )
+
+    prompt = (
+        "Does this conversation contain a confirmed plan/event to add to a calendar? "
+        "Only if BOTH people agreed to something specific with a date/time. "
+        f"Today is {datetime.datetime.now().strftime('%A, %B %-d, %Y')}. "
+        "If yes, return JSON: {\"title\": \"...\", \"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM\", \"duration_min\": 60, \"location\": \"...or null\"} "
+        "If no confirmed plan, return null."
+    )
+
+    try:
+        result = ai_call([
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": recent}
+        ], max_tokens=100)
+        data = json.loads(result)
+        if data and data.get("title") and data.get("date") and data.get("time"):
+            _create_calendar_event(data, contact_name)
+    except Exception:
+        pass
+
+
+def _create_calendar_event(data: dict, who: str):
+    """Create a calendar event via AppleScript."""
+    title = data["title"]
+    date_str = data["date"]
+    time_str = data["time"]
+    duration = data.get("duration_min", 60)
+    location = data.get("location", "")
+
+    dt = datetime.datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+    end_dt = dt + datetime.timedelta(minutes=duration)
+
+    apple_date = dt.strftime("%B %-d, %Y at %-I:%M:%S %p")
+    apple_end = end_dt.strftime("%B %-d, %Y at %-I:%M:%S %p")
+
+    props = f'summary:"{title}", start date:date "{apple_date}", end date:date "{apple_end}"'
+    if location:
+        props += f', location:"{location}"'
+
+    script = f'''
+    tell application "Calendar"
+        tell calendar 1
+            make new event with properties {{{props}}}
+        end tell
+    end tell
+    '''
+    try:
+        subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=10)
+        print(f"  {GREEN}+{RESET} {GRAY}Added to calendar: {title} ({dt.strftime('%-m/%-d %-I:%M%p')}){RESET}")
+    except Exception:
+        pass
 
 
 # ============================================================
@@ -1668,6 +1804,7 @@ def first_time_setup():
         4: RIZZ_TONE,
         5: DRUNK_TONE,
         6: SOPHISTICATED_TONE,
+        7: BUSY_TONE,
     }
     _AUTO_OPENER_MODES = {2, 3, 4}  # Ragebait, Breakup, Rizz
     _OPENER_PROMPTS = {
@@ -1690,8 +1827,15 @@ def first_time_setup():
             {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
         ])
         mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
-    elif mode == 3:  # Sophisticated
-        mode = 6
+    elif mode == 3:  # Professional → submenu
+        pro = select_option("Choose a style:", [
+            {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
+            {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
+        ])
+        mode = 6 if pro == 0 else 7
+        if mode == 7:
+            config["calendar_sync"] = True
+            warm_calendar_cache()
 
     auto_opener = False
     if mode in _PRESET_TONES:
@@ -2363,9 +2507,11 @@ def get_ai_response(contact: str) -> str:
             "EXAGGERATE this personality trait. Go over the top with it."
         )
 
+    is_busy = (custom_tone == BUSY_TONE)
+    tokens = 40 if is_busy else 80
     messages = [{"role": "system", "content": prompt}] + history
     try:
-        reply = ai_call(messages, max_tokens=80)
+        reply = ai_call(messages, max_tokens=tokens)
         reply = " ".join(reply.split())  # Force single line
         return reply
     except Exception as e:
@@ -2485,6 +2631,20 @@ def handle_batch(contact: str, texts: list[str]):
             return
         print(f"        {DIM}({replies_left} trial replies left){RESET}")
 
+    # Background: extract contact notes from conversation
+    threading.Thread(
+        target=extract_contact_notes,
+        args=(contact, list(conversation_history.get(contact, []))),
+        daemon=True,
+    ).start()
+
+    # Background: auto-create calendar events from confirmed plans
+    if config.get("calendar_sync", False):
+        threading.Thread(
+            target=maybe_create_calendar_event,
+            args=(contact, list(conversation_history.get(contact, []))),
+            daemon=True,
+        ).start()
 
 
 # ============================================================
@@ -2966,6 +3126,7 @@ def main():
             4: RIZZ_TONE,
             5: DRUNK_TONE,
             6: SOPHISTICATED_TONE,
+            7: BUSY_TONE,
         }
         _AUTO_OPENER_MODES = {2, 3, 4}  # Ragebait, Breakup, Rizz
         _OPENER_PROMPTS = {
@@ -2988,8 +3149,15 @@ def main():
                 {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
             ])
             mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
-        elif mode == 3:  # Sophisticated
-            mode = 6
+        elif mode == 3:  # Professional → submenu
+            pro = select_option("Choose a style:", [
+                {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
+                {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
+            ])
+            mode = 6 if pro == 0 else 7
+            if mode == 7:
+                config["calendar_sync"] = True
+                warm_calendar_cache()
 
         auto_opener = False
         if mode in _PRESET_TONES:
