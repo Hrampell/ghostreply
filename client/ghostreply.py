@@ -147,12 +147,11 @@ DRUNK_TONE = (
 )
 
 SOPHISTICATED_TONE = (
-    "You are articulate, well-spoken, and thoughtful. Use proper grammar and "
-    "punctuation. Be eloquent without being pretentious. Give thoughtful, "
-    "considered responses. You can be witty and clever but always polished. "
-    "Think before you speak. No slang, no abbreviations, no lowercase-only texts. "
-    "You sound educated and put-together — like someone who reads books and "
-    "has interesting opinions."
+    "You are articulate and well-spoken. Use proper grammar and punctuation. "
+    "Be clear and concise — say what you mean without rambling. No slang, "
+    "no abbreviations, no lowercase-only texts. Keep replies short and direct, "
+    "like professional texting. One to two sentences max unless the topic "
+    "genuinely needs more. You sound put-together and competent."
 )
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
