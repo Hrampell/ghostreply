@@ -97,7 +97,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -550,10 +550,7 @@ def _verify_friend_key(key: str) -> bool:
 
 
 def check_for_updates():
-    """Check GitHub for a newer version and prompt user before updating."""
-    # Refuse to auto-update if SSL verification is disabled (MITM risk)
-    if _SSL_CTX.verify_mode == ssl.CERT_NONE:
-        return
+    """Check GitHub for a newer version and auto-update if available."""
     update_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py"
     hash_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py.sha256"
     try:
@@ -579,37 +576,41 @@ def check_for_updates():
         if remote_parts <= local_parts:
             return  # up to date or newer locally
 
-        # Verify integrity via sha256 hash file (if available)
+        # Verify integrity via sha256 hash (REQUIRED — this is the real
+        # security gate, independent of SSL verification)
         actual_hash = hashlib.sha256(remote_code.encode("utf-8")).hexdigest()
         try:
             hash_req = urllib.request.Request(hash_url, headers={"User-Agent": "GhostReply/1.0"})
             hash_resp = urllib.request.urlopen(hash_req, timeout=10, context=_SSL_CTX)
             expected_hash = hash_resp.read().decode("utf-8").strip().split()[0]
             if actual_hash != expected_hash:
-                print(f"{YELLOW}!{RESET} {GRAY}Update integrity check failed, skipping update.{RESET}")
+                print(f"{YELLOW}!{RESET} {GRAY}Update integrity check failed, skipping.{RESET}")
                 return
         except Exception:
-            # Can't verify integrity — skip update for safety
+            print(f"{GRAY}Could not verify update integrity, skipping.{RESET}")
             return
 
         print(f"{GRAY}Updating: {VERSION} → {remote_version}...{RESET}", end=" ", flush=True)
 
-        # Write to temp file first, then rename (atomic on same filesystem)
+        # Determine the correct install path — update whichever file is
+        # actually running (could be ~/.ghostreply/ or a dev checkout)
+        script_path = Path(__file__).resolve()
         install_path = CONFIG_DIR / "ghostreply.py"
-        tmp_path = install_path.with_suffix(".tmp")
+        target = script_path if script_path.is_file() else install_path
+        tmp_path = target.with_suffix(".tmp")
         with open(tmp_path, "w") as f:
             f.write(remote_code)
-        os.rename(tmp_path, install_path)
+        os.rename(tmp_path, target)
 
         print(f"{GREEN}done!{RESET}")
         print(f"{GRAY}Restarting...{RESET}")
         print()
 
         # Restart with the new version
-        os.execv(sys.executable, [sys.executable, str(install_path)] + sys.argv[1:])
+        os.execv(sys.executable, [sys.executable, str(target)] + sys.argv[1:])
 
     except Exception:
-        pass  # silently fail — don't block startup for update issues
+        print(f"{GRAY}Update check skipped (no internet or firewall).{RESET}")
 
 
 def verify_groq_key(api_key: str) -> bool:
