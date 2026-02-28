@@ -274,14 +274,63 @@ def term_width() -> int:
         return 80
 
 
+_ANSI_RE = re.compile(r'\033\[[0-9;]*m')
+
+def _visible_len(text: str) -> int:
+    """Length of text with ANSI escape codes stripped."""
+    return len(_ANSI_RE.sub('', text))
+
 def wrap(text: str, indent: int = 0) -> str:
-    """Wrap text to fit terminal width with optional indent."""
+    """Wrap text to fit terminal width with optional indent. ANSI-aware."""
     w = term_width() - indent - 2  # 2 char margin
     if w < 30:
         w = 30
+    # Strip ANSI for wrapping, then re-apply
+    plain = _ANSI_RE.sub('', text)
+    if len(plain) <= w:
+        return " " * indent + text
+    # Find ANSI code positions in original text
     prefix = " " * indent
-    lines = textwrap.fill(text, width=w).split("\n")
-    return "\n".join(prefix + line for line in lines)
+    wrapped = textwrap.fill(plain, width=w).split("\n")
+    # Re-inject ANSI codes by mapping plain char positions back to original
+    result_lines = []
+    plain_pos = 0
+    orig_pos = 0
+    for line_idx, line in enumerate(wrapped):
+        out = []
+        line_chars = 0
+        while line_chars < len(line) and orig_pos < len(text):
+            if text[orig_pos] == '\033':
+                # Consume entire ANSI sequence
+                end = text.find('m', orig_pos)
+                if end != -1:
+                    out.append(text[orig_pos:end+1])
+                    orig_pos = end + 1
+                else:
+                    out.append(text[orig_pos])
+                    orig_pos += 1
+            else:
+                out.append(text[orig_pos])
+                orig_pos += 1
+                line_chars += 1
+                plain_pos += 1
+        # Grab any trailing ANSI codes (e.g. RESET at end)
+        while orig_pos < len(text) and text[orig_pos] == '\033':
+            end = text.find('m', orig_pos)
+            if end != -1:
+                out.append(text[orig_pos:end+1])
+                orig_pos = end + 1
+            else:
+                break
+        result_lines.append(prefix + ''.join(out))
+    # If there are remaining ANSI codes, append to last line
+    if orig_pos < len(text):
+        remaining = text[orig_pos:]
+        if result_lines:
+            result_lines[-1] += remaining
+        else:
+            result_lines.append(prefix + remaining)
+    return "\n".join(result_lines)
 
 
 # ============================================================
@@ -591,7 +640,7 @@ def verify_groq_key(api_key: str) -> bool:
             pass
         if e.code == 403:
             print(f"\n  {YELLOW}Groq rejected the key (403).{RESET}")
-            print(f"  {GRAY}This can happen if the key just got created. Wait 30 seconds and try again.{RESET}")
+            print(wrap(f"  {GRAY}This can happen if the key just got created. Wait 30 seconds and try again.{RESET}", 2))
         else:
             print(f"\n  {YELLOW}API error: {e.code} {e.reason}{RESET}")
         return False
@@ -1292,7 +1341,8 @@ def first_time_setup():
             print(f"{GRAY}Buy a license at https://ghostreply.lol to keep using it.{RESET}")
             # Optional email for follow-up
             print()
-            email = input(f"{GRAY}Enter your email to get notified before your trial ends (optional, press Enter to skip):{RESET} ").strip()
+            print(f"{GRAY}Enter your email to get notified before your trial ends{RESET}")
+            email = input(f"{GRAY}(optional, press Enter to skip):{RESET} ").strip()
             if email and "@" in email:
                 config["email"] = email
                 print(f"  {GREEN}✓{RESET} {GRAY}We'll remind you before it expires.{RESET}")
@@ -1399,7 +1449,7 @@ def first_time_setup():
             safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
             config["safe_contacts"] = safe_contacts
             if safe_contacts:
-                print(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}")
+                print(wrap(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}", 2))
             else:
                 config["safe_contacts"] = []
         else:
@@ -1661,7 +1711,13 @@ def select_option(prompt: str, options: list[dict]) -> int:
 
     # Initial draw + hide cursor
     sys.stdout.write(HIDE_CUR)
-    print(f"\n{BLUE}?{RESET} {BOLD}{prompt}{RESET}  {DIM}↑/↓ to move, Enter to select{RESET}")
+    hint = f"  {DIM}↑/↓ to move, Enter to select{RESET}"
+    prompt_line = f"\n{BLUE}?{RESET} {BOLD}{prompt}{RESET}"
+    if _visible_len(prompt_line) + _visible_len(hint) > term_width():
+        print(prompt_line)
+        print(f"  {hint.lstrip()}")
+    else:
+        print(f"{prompt_line}{hint}")
     for i, opt in enumerate(options):
         if i == selected:
             print(f" {opt['color']}❯ {opt['label']}{RESET}")
@@ -1902,7 +1958,7 @@ def send_imessage(contact: str, text: str) -> bool:
         if result.returncode != 0:
             err = result.stderr.strip()
             if "not allowed" in err.lower() or "permission" in err.lower():
-                print(f"{RED}✗{RESET} Messages permission denied. Open System Settings > Privacy > Automation and allow Terminal to control Messages.")
+                print(wrap(f"{RED}✗{RESET} Messages permission denied. Open System Settings > Privacy > Automation and allow Terminal to control Messages."))
             else:
                 print(f"{RED}✗{RESET} Failed to send: {err}")
             return False
@@ -2140,7 +2196,8 @@ def handle_batch(contact: str, texts: list[str]):
     if config.get("trial_started_at") and not config.get("license_key"):
         replies_used = config.get("trial_replies_used", 0)
         if replies_used >= 10:
-            print(f"{RED}Trial limit reached (10/10 replies). Buy a license at {BLUE}https://ghostreply.lol{RESET}")
+            print(f"{RED}Trial limit reached (10/10 replies).{RESET}")
+            print(f"  {GRAY}Buy a license at{RESET} {BLUE}https://ghostreply.lol{RESET}")
             stop_event.set()
             return
 
@@ -2200,24 +2257,24 @@ def handle_batch(contact: str, texts: list[str]):
     _update_bot_last_known_rowid()
     with _bot_sent_lock:
         _bot_has_replied = True
-    display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
+    # Adaptive truncation based on terminal width
+    tw = term_width()
+    trunc = max(20, tw - 16)  # 16 chars for "[REPLY] them: " or "        you:  "
+    display_them = texts[0][:trunc] if len(texts) == 1 else f"{texts[0][:min(30, trunc-20)]}... (+{len(texts)-1} more)"
+    display_reply = reply[:trunc]
     reply_log.append({"them": combined, "you": reply})
     if len(reply_log) > 20:
         reply_log.pop(0)
+    print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
+    print(f"        {GREEN}you:{RESET}  {display_reply}")
     if is_trial:
         replies_left = max(0, 10 - config["trial_replies_used"])
         if replies_left <= 0:
-            print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
-            print(f"        {GREEN}you:{RESET}  {reply[:60]}")
             print(f"{YELLOW}!{RESET} {RED}Trial limit reached (10/10 replies used).{RESET}")
             print(f"  {GRAY}Buy a license at{RESET} {BLUE}https://ghostreply.lol{RESET}")
             stop_event.set()
             return
-        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
-        print(f"        {GREEN}you:{RESET}  {reply[:60]}  {DIM}({replies_left} trial replies left){RESET}")
-    else:
-        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
-        print(f"        {GREEN}you:{RESET}  {reply[:60]}")
+        print(f"        {DIM}({replies_left} trial replies left){RESET}")
 
 
 
@@ -2421,7 +2478,8 @@ def setup_permissions():
         print()
         print(f"  {WHITE}1.{RESET} {GRAY}I'll open System Settings for you{RESET}")
         print(f"  {WHITE}2.{RESET} {GRAY}Find {WHITE}Terminal{GRAY} in the list and turn it on{RESET}")
-        print(f"  {WHITE}3.{RESET} {GRAY}It'll ask you to quit Terminal — do it, then reopen and type {GREEN}ghostreply{RESET}{GRAY} + Enter{RESET}")
+        print(f"  {WHITE}3.{RESET} {GRAY}It'll ask you to quit Terminal — do it,{RESET}")
+        print(f"     {GRAY}then reopen and type {GREEN}ghostreply{RESET}{GRAY} + Enter{RESET}")
         print()
 
         try:
@@ -2548,7 +2606,8 @@ def main():
                     print(f"{RED}✗{RESET} License validation failed: {result['message']}")
                     sys.exit(1)
             except Exception:
-                print(f"{RED}✗{RESET} Offline too long — please connect to the internet to verify your license.")
+                print(f"{RED}✗{RESET} Offline too long — please connect to")
+                print(f"  {GRAY}the internet to verify your license.{RESET}")
                 sys.exit(1)
 
     # Permissions setup (first run only)
