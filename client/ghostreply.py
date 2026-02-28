@@ -2063,7 +2063,9 @@ def select_option(prompt: str, options: list[dict]) -> int:
 
     # Initial draw + hide cursor
     sys.stdout.write(HIDE_CUR)
-    hint = f"  {DIM}↑/↓ to move, Enter to select{RESET}"
+    has_submenu = any(">>" in opt.get("label", "") for opt in options)
+    sub_hint = ", >> = submenu" if has_submenu else ""
+    hint = f"  {DIM}↑/↓ to move, Enter to select{sub_hint}{RESET}"
     prompt_line = f"\n{BLUE}?{RESET} {BOLD}{prompt}{RESET}"
     if _visible_len(prompt_line) + _visible_len(hint) > term_width():
         print(prompt_line)
