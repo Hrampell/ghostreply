@@ -36,30 +36,44 @@ body {
     margin-top: 20px;
 }
 .terminal {
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 16px;
-    padding: 28px 32px;
-    font-family: 'SF Mono', 'Menlo', monospace;
-    font-size: 15px;
-    line-height: 2;
-    width: 600px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    background: #1c1c1e;
+    border-radius: 12px;
+    overflow: hidden;
+    width: 620px;
+    box-shadow: 0 40px 80px rgba(0,0,0,.55), 0 0 0 0.5px rgba(255,255,255,.08);
 }
-.dots { display: flex; gap: 8px; margin-bottom: 18px; }
-.dot { width: 14px; height: 14px; border-radius: 50%; }
-.dot.r { background: #ff5f57; }
-.dot.y { background: #febc2e; }
-.dot.g { background: #28c840; }
+.titlebar {
+    height: 40px;
+    background: linear-gradient(180deg, #3a3a3c 0%, #2c2c2e 100%);
+    display: flex; align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+}
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot-red { background: #ff5f57; }
+.dot-yellow { background: #febc2e; }
+.dot-green { background: #28c840; }
+.titlebar-text {
+    flex: 1; text-align: center;
+    font-size: 13px; color: #999;
+    margin-right: 52px;
+}
+.content {
+    padding: 24px 28px;
+    font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: #fff;
+}
 
 /* Match actual GhostReply terminal colors */
-.green { color: #5fff87; }        /* GREEN \033[92m */
-.cyan { color: #5fffff; }         /* BLUE \033[96m */
-.gray { color: #8a8a8a; }         /* GRAY \033[90m */
-.white { color: #fff; }           /* WHITE \033[97m */
-.bold-green { color: #5fff87; font-weight: 700; } /* GREEN+BOLD */
-.light-gray { color: #bcbcbc; }   /* LIGHT_GRAY \033[38;5;250m */
-.box { color: #8a8a8a; }          /* box is GRAY */
+.green { color: #5fff87; }
+.cyan { color: #5fffff; }
+.gray { color: #8a8a8a; }
+.white { color: #fff; }
+.bold-green { color: #5fff87; font-weight: 700; }
+.light-gray { color: #bcbcbc; }
+.box { color: #8a8a8a; }
 
 .right-side { display: flex; flex-direction: column; gap: 20px; }
 .imessage {
@@ -105,6 +119,7 @@ body {
     letter-spacing: 0.5px;
 }
 .spacer { clear: both; height: 4px; }
+.spacer-lg { clear: both; height: 8px; }
 
 .bottom-text {
     position: absolute; bottom: 44px; left: 0; right: 0;
@@ -127,24 +142,38 @@ body {
 
 <div class="container">
     <div class="terminal">
-        <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
-        <span class="box">╔══════════════════════════════════════╗</span><br>
-        <span class="box">║</span><span class="white" style="font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GhostReply v1.0.6</span><span class="box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;║</span><br>
-        <span class="box">║</span><span class="green">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMessage Auto-Reply Bot</span><span class="box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;║</span><br>
-        <span class="box">╚══════════════════════════════════════╝</span><br>
-        <br>
-        <span class="gray">Checking license...</span> <span class="green">OK</span><br>
-        <span class="green">Free trial</span> <span class="gray">—</span> <span class="cyan">22.4 hours left</span><br>
-        <br>
-        <span class="bold-green">GhostReply is running!</span> <span class="white">Replying to</span> <span class="cyan">Andrew</span><span class="white">.</span><br>
-        <span class="gray">Type '</span><span class="white">stop</span><span class="gray">' to quit, or just reply to Andrew yourself.</span><br>
-        <br>
-        <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Yo wanna play rocket league</span><br>
-        <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">Yeah gimme like 20 min</span><br>
-        <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Did u do the history essay</span><br>
-        <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">Nah not yet</span><br>
-        <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Its due tmrw bro</span><br>
-        <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">I know ill do it later lol</span><br>
+        <div class="titlebar">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-yellow"></div>
+            <div class="dot dot-green"></div>
+            <div class="titlebar-text">Terminal &mdash; ghostreply</div>
+        </div>
+        <div class="content">
+            <span class="box">╔══════════════════════════════════════╗</span><br>
+            <span class="box">║</span><span class="white" style="font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GhostReply v1.0.9</span><span class="box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;║</span><br>
+            <span class="box">║</span><span class="green">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iMessage Auto-Reply Bot</span><span class="box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;║</span><br>
+            <span class="box">╚══════════════════════════════════════╝</span><br>
+            <br>
+            <span class="gray">Checking license...</span> <span class="green">OK</span><br>
+            <span class="green">Free trial</span> <span class="gray">&mdash;</span> <span class="cyan">7 replies left</span><br>
+            <br>
+            <span class="bold-green">GhostReply is running!</span> <span class="white">Replying to</span> <span class="cyan">Andrew</span><span class="white">.</span><br>
+            <span class="gray">Type '</span><span class="white">stop</span><span class="gray">' to quit, or just reply to Andrew yourself.</span><br>
+            <br>
+            <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Yo wanna play rocket league</span><br>
+            <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">Yeah gimme like 20 min</span><br>
+            <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Did u do the history essay</span><br>
+            <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">Nah not yet</span><br>
+            <span class="gray">[REPLY]</span> <span class="light-gray">them:</span> <span class="white">Its due tmrw bro</span><br>
+            <span class="gray">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="green">you:</span>&nbsp;&nbsp;<span class="white">I know ill do it later lol</span><br>
+            <br>
+            <span class="green">[AUTO-STOP]</span> You replied to <span class="cyan">Andrew</span> manually &mdash; GhostReply stopped.<br>
+            <br>
+            <span class="bold-green">●</span> <span class="white">Session summary</span><br>
+            <span class="gray">&nbsp;&nbsp;3 replies sent in 4 min</span><br>
+            <br>
+            <span class="gray">Run </span><span class="white">ghostreply</span><span class="gray"> again to restart.</span><br>
+        </div>
     </div>
 
     <div class="right-side">

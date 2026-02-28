@@ -54,17 +54,26 @@ body {
     color: #fff;
 }
 
-/* Match actual GhostReply terminal colors */
+/* Terminal colors */
 .green { color: #5fff87; }
 .cyan { color: #5fffff; }
 .gray { color: #8a8a8a; }
 .white { color: #fff; }
 .bold { color: #fff; font-weight: 700; }
 .input-text { color: #5fffff; }
+.yellow { color: #ffd60a; }
+
+/* Chat bubbles in terminal */
+.chat-bot {
+    color: #5fffff;
+}
+.chat-user {
+    color: #fff;
+}
 
 /* Arrow selector styles */
 .selector {
-    margin: 4px 0;
+    margin: 2px 0;
     padding-left: 24px;
 }
 .selector-option {
@@ -79,8 +88,8 @@ body {
 <body>
 
 <div class="heading">
-    <h2>Zero-config setup. Under 2 minutes.</h2>
-    <p>Enter a key, get a free AI key, and you're running.</p>
+    <h2>Customize the personality.</h2>
+    <p>Tell it how to text &mdash; or just let it match your style.</p>
 </div>
 
 <div class="terminal">
@@ -91,21 +100,23 @@ body {
         <div class="titlebar-text">Terminal &mdash; ghostreply</div>
     </div>
     <div class="content">
-        <span class="green" style="font-weight:700;">●</span> <span class="bold">Scanning Your Messages</span><br>
-        <span class="gray">&nbsp;&nbsp;Reading your iMessage history to learn how you text...</span><br>
+        <span class="green" style="font-weight:700;">●</span> <span class="bold">Custom Personality</span><br>
         <br>
-        <span class="gray">&nbsp;&nbsp;[1/3] Pulling your sent messages...</span> <span class="green">347 texts found.</span><br>
-        <span class="gray">&nbsp;&nbsp;[2/3] Reading conversations for context...</span> <span class="green">12 contacts scanned.</span><br>
-        <span class="gray">&nbsp;&nbsp;[3/3] Analyzing your texting style...</span> <span class="green">done.</span><br>
+        <span class="chat-bot">Bot:</span> <span class="gray">how do you want me to text? chill? funny? sarcastic?</span><br>
+        <span class="green">You:</span> <span class="white">be kinda sarcastic and make fun of them</span><br>
         <br>
-        <span class="green">&nbsp;&nbsp;✓</span> <span class="white">Profile built from your messages.</span><br>
-        <span class="green">&nbsp;&nbsp;✓</span> <span class="white">Detected you swear in your texts &mdash; GhostReply will match that.</span><br>
+        <span class="chat-bot">Bot:</span> <span class="gray">got it. anything else?</span><br>
+        <span class="green">You:</span> <span class="white">keep it short and casual, dont use emojis</span><br>
         <br>
-        <span class="cyan">?</span> <span class="bold">Any contacts to keep it clean with?</span><br>
+        <span class="cyan">&nbsp;&nbsp;Personality:</span> <span class="white">sarcastic, roast them, keep it casual, no emojis</span><br>
+        <br>
+        <span class="cyan">?</span> <span class="bold">Is that everything?</span><br>
         <div class="selector">
-            <span class="arrow">❯</span> <span class="selector-active">Yes</span><br>
-            <span>&nbsp;&nbsp;</span><span class="selector-option">No</span><br>
+            <span class="arrow">❯</span> <span class="selector-active">Done</span><br>
+            <span>&nbsp;&nbsp;</span><span class="selector-option">Add more</span><br>
         </div>
+        <br>
+        <span class="green">&nbsp;&nbsp;✔</span> <span class="white">Setup complete!</span> <span class="gray">Everything was learned from your messages.</span><br>
     </div>
 </div>
 

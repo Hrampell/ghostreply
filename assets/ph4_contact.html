@@ -54,7 +54,7 @@ body {
     color: #fff;
 }
 
-/* Match actual GhostReply terminal colors */
+/* Terminal colors */
 .green { color: #5fff87; }
 .cyan { color: #5fffff; }
 .gray { color: #8a8a8a; }
@@ -64,7 +64,7 @@ body {
 
 /* Arrow selector styles */
 .selector {
-    margin: 4px 0;
+    margin: 2px 0;
     padding-left: 24px;
 }
 .selector-option {
@@ -79,8 +79,8 @@ body {
 <body>
 
 <div class="heading">
-    <h2>Zero-config setup. Under 2 minutes.</h2>
-    <p>Enter a key, get a free AI key, and you're running.</p>
+    <h2>Pick a contact. Pick a mode.</h2>
+    <p>Choose who to reply to and how the bot should talk.</p>
 </div>
 
 <div class="terminal">
@@ -91,20 +91,22 @@ body {
         <div class="titlebar-text">Terminal &mdash; ghostreply</div>
     </div>
     <div class="content">
-        <span class="green" style="font-weight:700;">●</span> <span class="bold">Scanning Your Messages</span><br>
-        <span class="gray">&nbsp;&nbsp;Reading your iMessage history to learn how you text...</span><br>
+        <span class="green" style="font-weight:700;">●</span> <span class="bold">Who should GhostReply text for you?</span><br>
         <br>
-        <span class="gray">&nbsp;&nbsp;[1/3] Pulling your sent messages...</span> <span class="green">347 texts found.</span><br>
-        <span class="gray">&nbsp;&nbsp;[2/3] Reading conversations for context...</span> <span class="green">12 contacts scanned.</span><br>
-        <span class="gray">&nbsp;&nbsp;[3/3] Analyzing your texting style...</span> <span class="green">done.</span><br>
+        <span class="gray">&nbsp;&nbsp;1.</span> <span class="white">Andrew</span><br>
+        <span class="gray">&nbsp;&nbsp;2.</span> <span class="white">Mom</span><br>
+        <span class="gray">&nbsp;&nbsp;3.</span> <span class="white">Kieran</span><br>
+        <span class="gray">&nbsp;&nbsp;4.</span> <span class="white">Jake</span><br>
+        <span class="gray">&nbsp;&nbsp;5.</span> <span class="white">Sophie</span><br>
         <br>
-        <span class="green">&nbsp;&nbsp;✓</span> <span class="white">Profile built from your messages.</span><br>
-        <span class="green">&nbsp;&nbsp;✓</span> <span class="white">Detected you swear in your texts &mdash; GhostReply will match that.</span><br>
+        <span class="cyan">?</span> <span class="white">Pick a contact (type # or name, hit Enter):</span> <span class="input-text">1</span><br>
+        <span class="green">&nbsp;&nbsp;✓</span> <span class="white">Auto-replying to</span> <span class="cyan">Andrew</span><br>
         <br>
-        <span class="cyan">?</span> <span class="bold">Any contacts to keep it clean with?</span><br>
+        <span class="cyan">?</span> <span class="bold">Choose a reply mode:</span><br>
         <div class="selector">
-            <span class="arrow">❯</span> <span class="selector-active">Yes</span><br>
-            <span>&nbsp;&nbsp;</span><span class="selector-option">No</span><br>
+            <span class="arrow">❯</span> <span class="selector-active">Normal</span> <span class="gray">&nbsp;texts like you</span><br>
+            <span>&nbsp;&nbsp;</span><span class="selector-option">Custom</span> <span class="gray">&nbsp;set a persona</span><br>
+            <span>&nbsp;&nbsp;</span><span class="selector-option">Ragebait</span> <span class="gray">&nbsp;troll mode</span><br>
         </div>
     </div>
 </div>

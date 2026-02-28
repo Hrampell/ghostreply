@@ -78,26 +78,35 @@ body {
 .white { color: #f5f5f7; }
 .bold { font-weight: 700; }
 .light-gray { color: #c7c7cc; }
-.silver { color: #d1d1d6; }
+.cyan { color: #5fffff; }
 
 .box { color: #8e8e93; }
-.box-inner { color: #fff; }
-
-.prompt { color: #fff; }
-.user-input { color: #fff; }
 
 .spacer { height: 8px; }
 .spacer-sm { height: 4px; }
+
+/* Arrow selector styles */
+.selector {
+    margin: 2px 0;
+    padding-left: 24px;
+}
+.selector-option {
+    color: #8e8e93;
+}
+.selector-active {
+    color: #5fffff;
+}
+.arrow { color: #5fffff; }
 </style>
 </head>
 <body>
-<div class="badge"><span>☠ <em>Ragebait Mode</em> — let it troll your friends for you</span></div>
+<div class="badge"><span>☠ <em>Ragebait Mode</em> &mdash; let it troll your friends for you</span></div>
 <div class="terminal">
     <div class="titlebar">
         <div class="dot dot-red"></div>
         <div class="dot dot-yellow"></div>
         <div class="dot dot-green"></div>
-        <div class="titlebar-text">Terminal — ghostreply</div>
+        <div class="titlebar-text">Terminal &mdash; ghostreply</div>
     </div>
     <div class="content">
         <!-- Header box -->
@@ -113,31 +122,22 @@ body {
 
         <div class="spacer-sm"></div>
 
-        <!-- Ragebait -->
-        <span class="white">Want to customize how the bot talks?</span> <span class="gray">(y = custom personality, n = your natural texting style):</span> <span class="user-input">ragebait</span><br>
-        <span>  </span><span class="red">☠ Ragebait activated.</span><br>
+        <!-- Arrow selector for reply mode -->
+        <span class="cyan">  ?</span> <span class="white bold">Choose a reply mode:</span><br>
+        <div class="selector">
+            <span>&nbsp;&nbsp;</span><span class="selector-option">Normal &nbsp;texts like you</span><br>
+            <span>&nbsp;&nbsp;</span><span class="selector-option">Custom &nbsp;set a persona</span><br>
+            <span class="arrow">❯</span> <span class="selector-active">Ragebait &nbsp;troll mode</span><br>
+        </div>
 
         <div class="spacer-sm"></div>
 
+        <span>  </span><span class="red">☠ Ragebait activated.</span><br>
         <span class="gray">  Generating opener...</span> <span class="green">Sent:</span> wtf do u want<br>
 
         <div class="spacer-sm"></div>
 
-        <span class="green">Setup complete!</span> <span class="gray">Everything was learned from your messages.</span><br>
-
-        <div class="spacer"></div>
-
         <span class="green bold">GhostReply is running!</span> Replying to <span class="blue">Jimothy</span>.<br>
-
-        <div class="spacer-sm"></div>
-
-        <span class="gray">  To stop: type </span><span class="white">stop</span><span class="gray"> and hit Enter, or press </span><span class="white">Ctrl+C</span><br>
-        <span class="gray">  Or just reply to Jimothy yourself — it'll stop automatically.</span><br>
-
-        <div class="spacer"></div>
-
-        <span class="gray">[INFO]</span> Listening for messages from <span class="blue">Jimothy</span>...<br>
-        <span class="gray">[INFO]</span> <span class="gray">Auto-stops when you reply manually.</span><br>
 
         <div class="spacer"></div>
 
@@ -157,13 +157,17 @@ body {
 
         <div class="spacer"></div>
 
-        <span class="green">[AUTO-STOP]</span> You replied to <span class="blue">Jimothy</span> manually — GhostReply stopped.<br>
-        <span class="gray">Run </span><span class="white">ghostreply</span><span class="gray"> again to restart.</span><br>
+        <span class="green">[AUTO-STOP]</span> You replied to <span class="blue">Jimothy</span> manually &mdash; GhostReply stopped.<br>
+
+        <div class="spacer-sm"></div>
+
+        <span class="green bold">●</span> <span class="white">Session summary</span><br>
+        <span class="gray">&nbsp;&nbsp;3 replies sent in 2 min &nbsp;☠ ragebait mode</span><br>
 
         <div class="spacer"></div>
-        <span class="gray">> </span><span class="white" style="border-right: 2px solid #fff; padding-right: 1px;">█</span>
+        <span class="gray">Run </span><span class="white">ghostreply</span><span class="gray"> again to restart.</span><br>
     </div>
 </div>
-<div class="bottom-text">Type "ragebait" during setup to activate</div>
+<div class="bottom-text">Type "ragebait" or select it from the arrow menu during setup</div>
 </body>
 </html>
