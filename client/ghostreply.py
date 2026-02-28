@@ -84,6 +84,8 @@ RESET = "\033[0m"
 LIGHT_GRAY = "\033[38;5;250m"  # #bcbcbc — reply log "them"
 SILVER = "\033[38;5;188m"      # #d7d7d7 — bot personality chat text
 WHEAT = "\033[38;5;223m"       # #ffd787 — personality summary text
+SOFT_PINK = "\033[38;5;218m"   # #ffafd7 — breakup mode
+HOT_PINK = "\033[38;5;204m"    # #ff5f87 — rizz mode
 
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".ghostreply"
@@ -97,7 +99,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -1533,8 +1535,8 @@ def first_time_setup():
         {"label": "Normal",        "desc": "texts like you",             "color": GREEN},
         {"label": "Custom",        "desc": "set a persona",              "color": BLUE},
         {"label": "Ragebait",      "desc": "troll mode",                 "color": RED},
-        {"label": "Breakup",       "desc": "end things gradually",       "color": YELLOW},
-        {"label": "Rizz",          "desc": "flirty smooth-talker",       "color": BLUE},
+        {"label": "Breakup",       "desc": "end things gradually",       "color": SOFT_PINK},
+        {"label": "Rizz",          "desc": "flirty smooth-talker",       "color": HOT_PINK},
         {"label": "Drunk",         "desc": "texts like you're hammered", "color": YELLOW},
         {"label": "Sophisticated", "desc": "polished & articulate",      "color": WHITE},
     ])
@@ -2817,8 +2819,8 @@ def main():
             {"label": "Normal",        "desc": "texts like you",             "color": GREEN},
             {"label": "Custom",        "desc": "set a persona",              "color": BLUE},
             {"label": "Ragebait",      "desc": "troll mode",                 "color": RED},
-            {"label": "Breakup",       "desc": "end things gradually",       "color": YELLOW},
-            {"label": "Rizz",          "desc": "flirty smooth-talker",       "color": BLUE},
+            {"label": "Breakup",       "desc": "end things gradually",       "color": SOFT_PINK},
+            {"label": "Rizz",          "desc": "flirty smooth-talker",       "color": HOT_PINK},
             {"label": "Drunk",         "desc": "texts like you're hammered", "color": YELLOW},
             {"label": "Sophisticated", "desc": "polished & articulate",      "color": WHITE},
         ])
