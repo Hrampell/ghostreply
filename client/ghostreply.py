@@ -97,7 +97,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.2.2"
+VERSION = "1.3.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -120,6 +120,39 @@ RAGEBAIT_TONE = (
     "Be relentless — every reply should irritate them more. "
     "Never apologize, never back down, double down on everything."
 )
+
+BREAKUP_TONE = (
+    "You are breaking up with this person. Start casual, then gradually bring up "
+    "that things aren't working out. Be honest but not cruel. Don't rush it — "
+    "ease into it over a few messages. If they get upset, stay calm and firm. "
+    "Don't be mean, but don't back down either. You've made up your mind."
+)
+
+RIZZ_TONE = (
+    "You are flirting with this person. Be smooth, confident, and charming. "
+    "Drop subtle compliments, be playful, tease them a little. Use wit over "
+    "cheesy pickup lines. Be magnetic — make them want to keep texting. "
+    "Don't be desperate or try too hard. Confidence is key. "
+    "Read the vibe and match their energy but always stay smooth."
+)
+
+DRUNK_TONE = (
+    "You are texting while drunk. Make typos, use random capitalization, "
+    "go on tangents, overshare, be overly emotional and sentimental. "
+    "Misspell some words, forget what you were saying mid-sentence. "
+    "Be chaotic but lovable. Sometimes send messages that don't fully make sense. "
+    "Occasionally repeat yourself."
+)
+
+SOPHISTICATED_TONE = (
+    "You are articulate, well-spoken, and thoughtful. Use proper grammar and "
+    "punctuation. Be eloquent without being pretentious. Give thoughtful, "
+    "considered responses. You can be witty and clever but always polished. "
+    "Think before you speak. No slang, no abbreviations, no lowercase-only texts. "
+    "You sound educated and put-together — like someone who reads books and "
+    "has interesting opinions."
+)
+
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_MODEL_FALLBACK = "llama-3.1-8b-instant"
 
@@ -1482,16 +1515,35 @@ def first_time_setup():
         conversation_history[selected["handle"]] = recent_convo
 
     # --- Step 8: Personality customization ---
-    is_ragebait = False
+    _PRESET_TONES = {
+        2: RAGEBAIT_TONE,
+        3: BREAKUP_TONE,
+        4: RIZZ_TONE,
+        5: DRUNK_TONE,
+        6: SOPHISTICATED_TONE,
+    }
+    _AUTO_OPENER_MODES = {2, 3, 4}  # Ragebait, Breakup, Rizz
+    _OPENER_PROMPTS = {
+        2: "(Start a casual conversation. Send a natural opener.)",
+        3: "(Start a normal casual conversation — don't mention the breakup yet, ease into it naturally over time.)",
+        4: "(Start a flirty conversation. Send a smooth, confident opener — not a cheesy pickup line.)",
+    }
+
     mode = select_option("Choose a reply mode:", [
-        {"label": "Normal", "desc": "texts like you", "color": GREEN},
-        {"label": "Custom", "desc": "set a persona", "color": BLUE},
-        {"label": "Ragebait", "desc": "troll mode", "color": RED},
+        {"label": "Normal",        "desc": "texts like you",             "color": GREEN},
+        {"label": "Custom",        "desc": "set a persona",              "color": BLUE},
+        {"label": "Ragebait",      "desc": "troll mode",                 "color": RED},
+        {"label": "Breakup",       "desc": "end things gradually",       "color": YELLOW},
+        {"label": "Rizz",          "desc": "flirty smooth-talker",       "color": BLUE},
+        {"label": "Drunk",         "desc": "texts like you're hammered", "color": YELLOW},
+        {"label": "Sophisticated", "desc": "polished & articulate",      "color": WHITE},
     ])
-    if mode == 2:
-        is_ragebait = True
-        custom_tone = RAGEBAIT_TONE
-        config["custom_tone"] = RAGEBAIT_TONE
+
+    auto_opener = False
+    if mode in _PRESET_TONES:
+        custom_tone = _PRESET_TONES[mode]
+        config["custom_tone"] = custom_tone
+        auto_opener = mode in _AUTO_OPENER_MODES
     elif mode == 1:
         tone = run_personality_chat(target_first)
         if tone:
@@ -1499,13 +1551,12 @@ def first_time_setup():
             config["custom_tone"] = tone
 
     # --- Step 9: Send first message? ---
-    if is_ragebait:
-        # Ragebait auto-sends AI opener immediately
+    if auto_opener:
+        opener_prompt = _OPENER_PROMPTS.get(mode, "(Start a casual conversation. Send a natural opener.)")
         print()
         print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
-        add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+        add_to_history(selected["handle"], "user", opener_prompt)
         opener = get_ai_response(selected["handle"])
-        # Clear the fake prompt from history, keep only the opener if it works
         conversation_history[selected["handle"]] = []
         if opener:
             add_to_history(selected["handle"], "assistant", opener)
@@ -2562,6 +2613,9 @@ def main():
 
     _ensure_dark_terminal()
 
+    # Auto-update from GitHub (before banner so the restart doesn't show it twice)
+    check_for_updates()
+
     w = min(term_width() - 4, 40)
     inner = w - 2  # inside the box
     print()
@@ -2574,9 +2628,6 @@ def main():
     print(f"  {GRAY}║{RESET}{' ' * pad2}{GREEN}{line2}{RESET}{' ' * (inner - pad2 - len(line2))}{GRAY}║{RESET}")
     print(f"  {GRAY}╚{'═' * inner}╝{RESET}")
     print()
-
-    # Auto-update from GitHub
-    check_for_updates()
 
     # Code integrity self-check
     _check_integrity()
@@ -2748,16 +2799,35 @@ def main():
             conversation_history[selected["handle"]] = recent_convo
 
         # Customize?
-        is_ragebait = False
+        _PRESET_TONES = {
+            2: RAGEBAIT_TONE,
+            3: BREAKUP_TONE,
+            4: RIZZ_TONE,
+            5: DRUNK_TONE,
+            6: SOPHISTICATED_TONE,
+        }
+        _AUTO_OPENER_MODES = {2, 3, 4}  # Ragebait, Breakup, Rizz
+        _OPENER_PROMPTS = {
+            2: "(Start a casual conversation. Send a natural opener.)",
+            3: "(Start a normal casual conversation — don't mention the breakup yet, ease into it naturally over time.)",
+            4: "(Start a flirty conversation. Send a smooth, confident opener — not a cheesy pickup line.)",
+        }
+
         mode = select_option("Choose a reply mode:", [
-            {"label": "Normal", "desc": "texts like you", "color": GREEN},
-            {"label": "Custom", "desc": "set a persona", "color": BLUE},
-            {"label": "Ragebait", "desc": "troll mode", "color": RED},
+            {"label": "Normal",        "desc": "texts like you",             "color": GREEN},
+            {"label": "Custom",        "desc": "set a persona",              "color": BLUE},
+            {"label": "Ragebait",      "desc": "troll mode",                 "color": RED},
+            {"label": "Breakup",       "desc": "end things gradually",       "color": YELLOW},
+            {"label": "Rizz",          "desc": "flirty smooth-talker",       "color": BLUE},
+            {"label": "Drunk",         "desc": "texts like you're hammered", "color": YELLOW},
+            {"label": "Sophisticated", "desc": "polished & articulate",      "color": WHITE},
         ])
-        if mode == 2:
-            is_ragebait = True
-            custom_tone = RAGEBAIT_TONE
-            config["custom_tone"] = RAGEBAIT_TONE
+
+        auto_opener = False
+        if mode in _PRESET_TONES:
+            custom_tone = _PRESET_TONES[mode]
+            config["custom_tone"] = custom_tone
+            auto_opener = mode in _AUTO_OPENER_MODES
             save_config(config)
         elif mode == 1:
             tone = run_personality_chat(target_first)
@@ -2767,10 +2837,11 @@ def main():
                 save_config(config)
 
         # Send first message?
-        if is_ragebait:
+        if auto_opener:
+            opener_prompt = _OPENER_PROMPTS.get(mode, "(Start a casual conversation. Send a natural opener.)")
             print()
             print(f"  {GRAY}Generating opener...{RESET}", end=" ", flush=True)
-            add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
+            add_to_history(selected["handle"], "user", opener_prompt)
             opener = get_ai_response(selected["handle"])
             conversation_history[selected["handle"]] = []
             if opener:
