@@ -1538,7 +1538,7 @@ def first_time_setup():
     mode = select_option("Choose a reply mode:", [
         {"label": "Normal",        "color": GREEN},
         {"label": "Custom",        "color": BLUE},
-        {"label": "Prank",         "color": RED},
+        {"label": "Pranks",        "color": RED},
         {"label": "Sophisticated", "color": WHITE},
     ])
     if mode == 2:  # Prank → submenu
@@ -2829,7 +2829,7 @@ def main():
         mode = select_option("Choose a reply mode:", [
             {"label": "Normal",        "color": GREEN},
             {"label": "Custom",        "color": BLUE},
-            {"label": "Prank",         "color": RED},
+            {"label": "Pranks",        "color": RED},
             {"label": "Sophisticated", "color": WHITE},
         ])
         if mode == 2:  # Prank → submenu
