@@ -12,6 +12,7 @@ Setup is fully automatic — zero questions:
 from __future__ import annotations
 
 import base64
+import difflib
 import hashlib
 import hmac
 import inspect
@@ -24,9 +25,11 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import termios
 import textwrap
 import threading
 import time
+import tty
 import ssl
 import urllib.parse
 import urllib.request
@@ -52,7 +55,14 @@ def _ssl_context() -> ssl.SSLContext:
                 return ssl.create_default_context(cafile=certpath)
         except Exception:
             pass
-    # Last resort: skip verification (better than crashing)
+    # Last resort: skip verification with a visible warning
+    import warnings
+    warnings.warn(
+        "GhostReply: Could not find SSL certificates. "
+        "Run 'pip install certifi' or install certs for your Python. "
+        "Connections will proceed without verification.",
+        stacklevel=2,
+    )
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
@@ -69,8 +79,8 @@ RED = "\033[91m"
 GRAY = "\033[90m"
 WHITE = "\033[97m"
 BOLD = "\033[1m"
+DIM = "\033[2m"
 RESET = "\033[0m"
-SANDY = "\033[38;5;215m"       # #ffaf5f — bot personality chat label
 LIGHT_GRAY = "\033[38;5;250m"  # #bcbcbc — reply log "them"
 SILVER = "\033[38;5;188m"      # #d7d7d7 — bot personality chat text
 WHEAT = "\033[38;5;223m"       # #ffd787 — personality summary text
@@ -97,8 +107,10 @@ groq_client = None
 custom_tone: str = ""
 conversation_history: dict[str, list[dict]] = {}
 reply_log: list[dict] = []
+_session_start_time: float = 0.0
 
 stop_event = threading.Event()
+_config_lock = threading.Lock()
 
 POLL_INTERVAL = 2
 MAX_HISTORY = 10
@@ -114,7 +126,7 @@ GROQ_MODEL_FALLBACK = "llama-3.1-8b-instant"
 # --- Encrypted config fields ---
 _SENSITIVE_FIELDS = {
     "license_key", "license_validated", "trial_started_at", "instance_id",
-    "trial_boot_offset", "trial_wall_start", "trial_last_seen",
+    "trial_replies_used", "groq_api_key",
     "last_server_check", "session_token",
 }
 _ENC_PREFIX = "_enc_"
@@ -169,7 +181,7 @@ def _check_integrity():
             func_hash = hashlib.sha256(normalized.encode()).hexdigest()
             expected = _INTEGRITY_HASHES.get(func.__name__)
             if expected and func_hash != expected:
-                print(f"{RED}[ERROR]{RESET} Integrity check failed — source has been modified.")
+                print(f"{RED}✗{RESET} Integrity check failed — source has been modified.")
                 print(f"{GRAY}Re-download GhostReply: curl -sL https://ghostreply.lol/install.sh | bash{RESET}")
                 sys.exit(1)
     except Exception:
@@ -235,13 +247,13 @@ def _revalidation_loop():
                 consecutive_offline_seconds = 0
             elif "offline" not in result.get("message", "").lower():
                 # License actually invalid (not just offline)
-                print(f"\n{RED}[LICENSE]{RESET} License is no longer valid: {result['message']}")
+                print(f"\n{RED}✗{RESET} License is no longer valid: {result['message']}")
                 stop_event.set()
                 return
         except Exception:
             consecutive_offline_seconds += 7200  # 2 hours
             if consecutive_offline_seconds >= 172800:  # 48 hours
-                print(f"\n{RED}[LICENSE]{RESET} Offline too long — please reconnect to verify your license.")
+                print(f"\n{RED}✗{RESET} Offline too long — please reconnect to verify your license.")
                 stop_event.set()
                 return
 
@@ -326,27 +338,28 @@ def load_config() -> dict:
 
 
 def save_config(cfg: dict):
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    mid = get_machine_id()
-    to_write = {}
-    for k, v in cfg.items():
-        if k in _SENSITIVE_FIELDS:
-            # Serialize value for encryption
-            if v is True:
-                plain = "__TRUE__"
-            elif v is False:
-                plain = "__FALSE__"
-            elif isinstance(v, str):
-                plain = v
+    with _config_lock:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        mid = get_machine_id()
+        to_write = {}
+        for k, v in cfg.items():
+            if k in _SENSITIVE_FIELDS:
+                # Serialize value for encryption
+                if v is True:
+                    plain = "__TRUE__"
+                elif v is False:
+                    plain = "__FALSE__"
+                elif isinstance(v, str):
+                    plain = v
+                else:
+                    plain = json.dumps(v)
+                to_write[f"{_ENC_PREFIX}{k}"] = _encrypt_value(plain, mid)
             else:
-                plain = json.dumps(v)
-            to_write[f"{_ENC_PREFIX}{k}"] = _encrypt_value(plain, mid)
-        else:
-            to_write[k] = v
-    tmp = CONFIG_FILE.with_suffix(".json.tmp")
-    with open(tmp, "w") as f:
-        json.dump(to_write, f, indent=2)
-    os.rename(tmp, CONFIG_FILE)
+                to_write[k] = v
+        tmp = CONFIG_FILE.with_suffix(".json.tmp")
+        with open(tmp, "w") as f:
+            json.dump(to_write, f, indent=2)
+        os.rename(tmp, CONFIG_FILE)
 
 
 def load_profile() -> dict:
@@ -489,6 +502,9 @@ def _verify_friend_key(key: str) -> bool:
 
 def check_for_updates():
     """Check GitHub for a newer version and prompt user before updating."""
+    # Refuse to auto-update if SSL verification is disabled (MITM risk)
+    if _SSL_CTX.verify_mode == ssl.CERT_NONE:
+        return
     update_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py"
     hash_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py.sha256"
     try:
@@ -521,10 +537,11 @@ def check_for_updates():
             hash_resp = urllib.request.urlopen(hash_req, timeout=10, context=_SSL_CTX)
             expected_hash = hash_resp.read().decode("utf-8").strip().split()[0]
             if actual_hash != expected_hash:
-                print(f"{YELLOW}[WARN]{RESET} {GRAY}Update integrity check failed, skipping update.{RESET}")
+                print(f"{YELLOW}!{RESET} {GRAY}Update integrity check failed, skipping update.{RESET}")
                 return
         except Exception:
-            pass  # no hash file yet — allow update (early versions)
+            # Can't verify integrity — skip update for safety
+            return
 
         print(f"{GRAY}Updating: {VERSION} → {remote_version}...{RESET}", end=" ", flush=True)
 
@@ -603,7 +620,7 @@ def get_clipboard() -> str:
 
 def setup_groq_key() -> str:
     print()
-    print(f"{BOLD}=== AI Setup ==={RESET}")
+    print(f"\n{BLUE}●{RESET} {BOLD}AI Setup{RESET}")
     print(wrap(f"GhostReply needs a free AI key from Groq {GREEN}(no credit card, takes 30 seconds){RESET}."))
     print()
     print(f"  {WHITE}1.{RESET} {GRAY}Sign up with Google (one click){RESET}")
@@ -642,12 +659,12 @@ def setup_groq_key() -> str:
         if not key.startswith("gsk_"):
             print(f"  {GRAY}That doesn't look right (should start with 'gsk_'). Try again.{RESET}")
             continue
-        print(f"  {GRAY}Verifying...{RESET}", end=" ", flush=True)
+        print(f"  {DIM}Verifying...{RESET}", end=" ", flush=True)
         if verify_groq_key(key):
             print(f"{GREEN}OK{RESET}")
             return key
         else:
-            print(f"{RED}FAILED{RESET}")
+            print(f"{RED}✗{RESET} Failed")
             print(f"  {GRAY}Key didn't work. Make sure you copied the full key.{RESET}")
 
 
@@ -1140,11 +1157,14 @@ def run_personality_chat(contact_name: str) -> str:
 
     # Start the conversation
     ai_msg = ai_call(chat_history, max_tokens=150)
+    if not ai_msg:
+        print(f"  {YELLOW}!{RESET} {GRAY}AI didn't respond. Try again.{RESET}")
+        return ""
     chat_history.append({"role": "assistant", "content": ai_msg})
-    print(f"  {SANDY}Bot:{RESET} {SILVER}{wrap(ai_msg, 7).lstrip()}{RESET}")
+    print(f"  {BLUE}Bot:{RESET} {SILVER}{wrap(ai_msg, 7).lstrip()}{RESET}")
 
     while True:
-        user_input = input(f"  {WHITE}You:{RESET} ").strip()
+        user_input = input(f"  {GREEN}You:{RESET} ").strip()
         if not user_input:
             continue
 
@@ -1170,17 +1190,21 @@ def run_personality_chat(contact_name: str) -> str:
             parts_split = summary_ai.split("READY")
             if len(parts_split) > 1:
                 summary_tone = parts_split[1].strip()
+        if summary_tone and len(summary_tone) < 10:
+            summary_tone = ""  # Too short to be useful
 
         # Show summary, truncated with ...
         if summary_tone:
             display = summary_tone[:50] + "..." if len(summary_tone) > 50 else summary_tone
             print()
-            print(f"  {SANDY}Personality:{RESET} {WHEAT}{display}{RESET}")
+            print(f"  {BLUE}Personality:{RESET} {WHEAT}{display}{RESET}")
 
         # Ask if that's everything
-        print()
-        done_check = input(f"  {GRAY}Is that everything? (y = done, n = add more):{RESET} ").strip().lower()
-        if done_check in ("y", "yes", ""):
+        done_choice = select_option("Is that everything?", [
+            {"label": "Done", "color": GREEN},
+            {"label": "Add more", "color": BLUE},
+        ])
+        if done_choice == 0:
             if summary_tone:
                 return summary_tone
             # Generate if we didn't get one
@@ -1202,7 +1226,7 @@ def run_personality_chat(contact_name: str) -> str:
                     return parts_split[1].strip()
                 break
 
-            print(f"  {SANDY}Bot:{RESET} {SILVER}{wrap(ai_msg, 7).lstrip()}{RESET}")
+            print(f"  {BLUE}Bot:{RESET} {SILVER}{wrap(ai_msg, 7).lstrip()}{RESET}")
 
     # Parse the tone from the final output
     tone = ""
@@ -1234,7 +1258,7 @@ def first_time_setup():
     global config, profile, custom_tone
 
     print()
-    print(f"{BOLD}=== GhostReply Setup ==={RESET}")
+    print(f"\n{BLUE}●{RESET} {BOLD}GhostReply Setup{RESET}")
     print()
 
     # --- Step 1: License key or free trial ---
@@ -1245,43 +1269,26 @@ def first_time_setup():
     while True:
         if trial_offered:
             # After a failed license attempt or returning user, don't offer trial
-            key = input(f"Enter your license key ('q' to quit): ").strip()
+            key = input(f"{BLUE}?{RESET} {BOLD}Enter your license key{RESET} {DIM}('q' to quit):{RESET} ").strip()
         else:
-            key = input(f"Enter your license key (or '{GREEN}trial{RESET}' for 24hr free trial, 'q' to quit): ").strip()
+            key = input(f"{BLUE}?{RESET} {BOLD}Enter your license key{RESET} {DIM}(or '{GREEN}trial{RESET}{DIM}' for free trial, 'q' to quit):{RESET} ").strip()
         if not key:
             continue
         if key.lower() in ("q", "quit", "exit"):
             print(f"{GRAY}Goodbye!{RESET}")
             sys.exit(0)
         if key.lower() == "trial" and not trial_offered:
-            now = time.time()
-            config["trial_started_at"] = now
-            config["trial_wall_start"] = now
-            config["trial_boot_offset"] = time.monotonic()
-            config["trial_last_seen"] = now
+            config["trial_started_at"] = time.time()
+            config["trial_replies_used"] = 0
             config["license_validated"] = True
-            # Try to anchor to server time
-            try:
-                req = urllib.request.Request(
-                    "https://api.lemonsqueezy.com",
-                    method="HEAD",
-                )
-                resp = urllib.request.urlopen(req, timeout=5, context=_SSL_CTX)
-                server_date = resp.headers.get("Date", "")
-                if server_date:
-                    from email.utils import parsedate_to_datetime
-                    server_ts = parsedate_to_datetime(server_date).timestamp()
-                    config["trial_started_at"] = server_ts
-            except Exception:
-                pass  # use local time as fallback
             save_config(config)  # save immediately so trial is never lost
             # Drop breadcrumb so trial can't be reused after uninstall
             try:
                 _TRIAL_BREADCRUMB.parent.mkdir(parents=True, exist_ok=True)
-                _TRIAL_BREADCRUMB.write_text(str(now))
+                _TRIAL_BREADCRUMB.write_text("trial")
             except Exception:
                 pass
-            print(f"{GREEN}Free trial activated! You have 24 hours.{RESET}")
+            print(f"{GREEN}Free trial activated! You get 10 free replies.{RESET}")
             print(f"{GRAY}Buy a license at https://ghostreply.lol to keep using it.{RESET}")
             # Optional email for follow-up
             print()
@@ -1300,7 +1307,7 @@ def first_time_setup():
             save_config(config)
             break
         machine_id = get_machine_id()
-        print("Activating...", end=" ", flush=True)
+        print(f"{DIM}Activating...{RESET}", end=" ", flush=True)
         result = activate_license(key, machine_id)
         if result["status"] == "valid":
             print(f"{GREEN}OK{RESET}")
@@ -1312,7 +1319,7 @@ def first_time_setup():
             break
         else:
             trial_offered = True  # Once they've tried a real key, no more trial option
-            print(f"{RED}FAILED{RESET}")
+            print(f"{RED}✗{RESET} Failed")
             print(f"  {result['message']}")
 
     # --- Step 2: Groq API key ---
@@ -1331,12 +1338,12 @@ def first_time_setup():
 
     # --- Step 4: Scan messages + conversations (fully automatic) ---
     print()
-    print(f"{BOLD}=== Scanning Your Messages ==={RESET}")
+    print(f"\n{BLUE}●{RESET} {BOLD}Scanning Your Messages{RESET}")
     print(f"{GRAY}Reading your iMessage history to learn how you text...{RESET}")
     print()
 
     # 4a: Scan sent messages for style
-    print(f"  {GRAY}[1/3] Pulling your sent messages...{RESET}", end=" ", flush=True)
+    print(f"  {DIM}[1/3] Pulling your sent messages...{RESET}", end=" ", flush=True)
     my_texts = scan_my_messages(500)
     if my_texts:
         print(f"{GREEN}{len(my_texts)} texts found.{RESET}")
@@ -1344,19 +1351,19 @@ def first_time_setup():
         print(f"{YELLOW}none found.{RESET}")
 
     # 4b: Scan conversations with top contacts
-    print(f"  {GRAY}[2/3] Reading your conversations...{RESET}", end=" ", flush=True)
+    print(f"  {DIM}[2/3] Reading your conversations...{RESET}", end=" ", flush=True)
     contacts = get_contacts_with_names()
     convos = scan_conversations_with_contacts(contacts, msgs_per_contact=40)
     print(f"{GREEN}{len(convos)} conversations loaded.{RESET}")
 
     # 4c: Analyze texting style
     if my_texts:
-        print(f"  {GRAY}[3/3] Analyzing your texting style...{RESET}", end=" ", flush=True)
+        print(f"  {DIM}[3/3] Analyzing your texting style...{RESET}", end=" ", flush=True)
         style = analyze_texting_style(my_texts)
         profile["texting_style"] = style
         print(f"{GREEN}done!{RESET}")
     else:
-        print(f"  {GRAY}[3/3] No texts to analyze, using default style.{RESET}")
+        print(f"  {DIM}[3/3] No texts to analyze, using default style.{RESET}")
 
     # --- Step 5: Build life profile from conversations ---
     if convos:
@@ -1376,14 +1383,17 @@ def first_time_setup():
     _SWEAR_WORDS = {"fuck", "shit", "damn", "ass", "bitch", "hell", "dick", "piss", "crap", "bastard", "wtf", "stfu", "lmao", "lmfao"}
     swears_detected = False
     if my_texts:
-        sample = " ".join(my_texts).lower()
-        swears_detected = any(w in sample.split() or w in sample for w in _SWEAR_WORDS)
+        sample_words = set(" ".join(my_texts).lower().split())
+        swears_detected = bool(sample_words & _SWEAR_WORDS)
     if swears_detected:
         config["swearing"] = "on"
         print(f"\n  {GREEN}✓{RESET} {GRAY}Detected you swear in your texts — GhostReply will match that.{RESET}")
         print()
-        safe_input = input(f"{WHITE}Are there contacts GhostReply should never say anything inappropriate to? (y/n, hit enter):{RESET} ").strip().lower()
-        if safe_input in ("y", "yes"):
+        safe_choice = select_option("Any contacts to keep it clean with?", [
+            {"label": "Yes", "color": GREEN},
+            {"label": "No", "color": GRAY},
+        ])
+        if safe_choice == 0:
             print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
             names_input = input(f"  {WHITE}> {RESET}").strip()
             safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
@@ -1406,48 +1416,9 @@ def first_time_setup():
 
     # --- Step 7: Pick who to auto-reply to ---
     print()
-    print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
+    print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply text for you?{RESET}")
     print()
-    contacts = get_contacts_with_names()
-    if not contacts:
-        print(f"{RED}[ERROR]{RESET} No iMessage conversations found.")
-        print(f"{GRAY}Send or receive at least one iMessage first, then run ghostreply again.{RESET}")
-        sys.exit(1)
-    recent = contacts[:5]
-    display_names = format_contact_list(recent)
-    for i, label in enumerate(display_names):
-        print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
-    print()
-
-    while True:
-        choice = input(f"{WHITE}Type a number and hit Enter (or search by name):{RESET} ").strip()
-        if not choice:
-            continue
-
-        if choice.isdigit() and 1 <= int(choice) <= len(recent):
-            selected = recent[int(choice) - 1]
-            break
-
-        # AI search
-        print(f"  {GRAY}Searching...{RESET}")
-        matches = ai_find_contact(choice, contacts)
-        if not matches:
-            print(f"  {GRAY}No matches found. Try again.{RESET}")
-            continue
-
-        if len(matches) == 1:
-            selected = matches[0]
-            break
-
-        print()
-        match_names = format_contact_list(matches)
-        for i, label in enumerate(match_names):
-            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
-        print()
-        pick = input(f"{WHITE}Type a number and hit Enter:{RESET} ").strip()
-        if pick.isdigit() and 1 <= int(pick) <= len(matches):
-            selected = matches[int(pick) - 1]
-            break
+    selected = pick_contact()
 
     target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
     config["target_contact"] = selected["handle"]
@@ -1461,20 +1432,20 @@ def first_time_setup():
 
     # --- Step 8: Personality customization ---
     is_ragebait = False
-    print()
-    customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y = custom personality, n = your natural texting style):{RESET} ").strip().lower()
-    if customize == "ragebait":
+    mode = select_option("Choose a reply mode:", [
+        {"label": "Normal", "desc": "texts like you", "color": GREEN},
+        {"label": "Custom", "desc": "set a persona", "color": BLUE},
+        {"label": "Ragebait", "desc": "troll mode", "color": RED},
+    ])
+    if mode == 2:
         is_ragebait = True
         custom_tone = RAGEBAIT_TONE
         config["custom_tone"] = RAGEBAIT_TONE
-        print(f"  {RED}☠ Ragebait activated.{RESET}")
-    elif customize in ("y", "yes"):
+    elif mode == 1:
         tone = run_personality_chat(target_first)
         if tone:
             custom_tone = tone
             config["custom_tone"] = tone
-    else:
-        print(f"  {GREEN}✓{RESET} {GRAY}Using your natural texting style (learned from your messages).{RESET}")
 
     # --- Step 9: Send first message? ---
     if is_ragebait:
@@ -1493,9 +1464,12 @@ def first_time_setup():
             print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
     else:
         print()
-        first = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-        if first in ("y", "yes"):
-            msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
+        first_choice = select_option(f"Send the first message to {BLUE}{target_first}{RESET}{BOLD}?", [
+            {"label": "Yes", "color": GREEN},
+            {"label": "No", "color": GRAY},
+        ])
+        if first_choice == 0:
+            msg = input(f"  {DIM}Type your message (or 'ai' for bot opener):{RESET} ").strip()
             if msg.lower() == "ai":
                 add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
                 opener = get_ai_response(selected["handle"])
@@ -1503,8 +1477,11 @@ def first_time_setup():
                 if opener:
                     add_to_history(selected["handle"], "assistant", opener)
                     print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
-                    confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-                    if confirm in ("y", "yes", ""):
+                    send_choice = select_option("Send this?", [
+                        {"label": "Send", "color": GREEN},
+                        {"label": "Skip", "color": GRAY},
+                    ])
+                    if send_choice == 0:
                         if send_imessage(selected["handle"], opener):
                             print(f"  {GREEN}✓ Sent{RESET}")
                     else:
@@ -1521,7 +1498,7 @@ def first_time_setup():
     save_config(config)
 
     print()
-    print(f"{GREEN}Setup complete!{RESET} {GRAY}Everything was learned from your messages.{RESET}")
+    print(f"\n{GREEN}✔{RESET} {BOLD}Setup complete!{RESET} {DIM}Everything was learned from your messages.{RESET}")
     print()
 
 
@@ -1664,6 +1641,105 @@ def format_contact_list(contacts: list[dict]) -> list[str]:
     return result
 
 
+def select_option(prompt: str, options: list[dict]) -> int:
+    """Arrow-key selector. Returns the index of the chosen option.
+
+    Each option dict has keys: label, color.
+    """
+    HIDE_CUR = "\033[?25l"
+    SHOW_CUR = "\033[?25h"
+    selected = 0
+    total = len(options)
+
+    def _render():
+        for i, opt in enumerate(options):
+            if i == selected:
+                sys.stdout.write(f"\033[2K {opt['color']}❯ {opt['label']}{RESET}\r\n")
+            else:
+                sys.stdout.write(f"\033[2K {DIM}  {opt['label']}{RESET}\r\n")
+        sys.stdout.flush()
+
+    # Initial draw + hide cursor
+    sys.stdout.write(HIDE_CUR)
+    print(f"\n{BLUE}?{RESET} {BOLD}{prompt}{RESET}  {DIM}↑/↓ to move, Enter to select{RESET}")
+    for i, opt in enumerate(options):
+        if i == selected:
+            print(f" {opt['color']}❯ {opt['label']}{RESET}")
+        else:
+            print(f" {DIM}  {opt['label']}{RESET}")
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        while True:
+            ch = sys.stdin.read(1)
+            if ch in ("\r", "\n"):
+                break
+            if ch == "\x03":  # Ctrl-C
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                sys.stdout.write(SHOW_CUR)
+                sys.stdout.flush()
+                raise KeyboardInterrupt
+            if ch == "\x1b":
+                seq = sys.stdin.read(2)
+                if seq == "[A":  # Up
+                    selected = (selected - 1) % total
+                elif seq == "[B":  # Down
+                    selected = (selected + 1) % total
+                else:
+                    continue
+            else:
+                continue
+            sys.stdout.write(f"\r\033[{total}A")
+            _render()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    # Collapse to single line: ✔ prompt  answer
+    chosen = options[selected]
+    sys.stdout.write(f"\033[{total + 1}A\r")
+    sys.stdout.write(f"\033[2K{GREEN}✔{RESET} {BOLD}{prompt}{RESET} {chosen['color']}{chosen['label']}{RESET}\n")
+    sys.stdout.write(f"\033[J{SHOW_CUR}")
+    sys.stdout.flush()
+    return selected
+
+
+def pick_contact() -> dict:
+    """Interactive contact picker. Returns the selected contact dict."""
+    contacts = get_contacts_with_names()
+    if not contacts:
+        print(f"{RED}✗{RESET} No iMessage conversations found.")
+        print(f"{GRAY}Send or receive at least one iMessage first, then run ghostreply again.{RESET}")
+        sys.exit(1)
+    recent = contacts[:5]
+    display_names = format_contact_list(recent)
+    for i, label in enumerate(display_names):
+        print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
+    print()
+    while True:
+        choice = input(f"{BLUE}?{RESET} {BOLD}Pick a contact{RESET} {DIM}(type # or name, hit Enter):{RESET} ").strip()
+        if not choice:
+            continue
+        if choice.isdigit() and 1 <= int(choice) <= len(recent):
+            return recent[int(choice) - 1]
+        print(f"  {GRAY}Searching...{RESET}")
+        matches = ai_find_contact(choice, contacts)
+        if not matches:
+            print(f"  {GRAY}No matches found. Try again.{RESET}")
+            continue
+        if len(matches) == 1:
+            return matches[0]
+        print()
+        match_names = format_contact_list(matches)
+        for i, label in enumerate(match_names):
+            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
+        print()
+        pick = input(f"{BLUE}?{RESET} {BOLD}Which one?{RESET} {DIM}(type #, hit Enter):{RESET} ").strip()
+        if pick.isdigit() and 1 <= int(pick) <= len(matches):
+            return matches[int(pick) - 1]
+
+
 def local_find_contact(query: str, contacts: list[dict]) -> list[dict]:
     """Fast local fuzzy search — no AI needed."""
     q = query.lower().strip()
@@ -1679,6 +1755,22 @@ def local_find_contact(query: str, contacts: list[dict]) -> list[dict]:
         elif q in name or q in handle:
             contains.append(c)
     results = exact + starts + contains
+    if not results:
+        # Fuzzy fallback — catch typos like "Andrw" → "Andrew"
+        scored = []
+        for c in contacts:
+            name = (c["name"] or "").lower()
+            handle = c["handle"].lower()
+            first = name.split()[0] if name else ""
+            best = max(
+                difflib.SequenceMatcher(None, q, name).ratio(),
+                difflib.SequenceMatcher(None, q, first).ratio(),
+                difflib.SequenceMatcher(None, q, handle).ratio(),
+            )
+            if best >= 0.6:
+                scored.append((best, c))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        results = [c for _, c in scored[:3]]
     return results[:3]
 
 
@@ -1721,17 +1813,23 @@ def init_groq_client():
     try:
         from openai import OpenAI
     except ImportError:
-        print(f"{RED}[ERROR]{RESET} Missing dependency. Run: {GREEN}pip3 install openai{RESET}")
+        print(f"{RED}✗{RESET} Missing dependency. Run: {GREEN}pip3 install openai{RESET}")
         sys.exit(1)
     api_key = config.get("groq_api_key")
     if not api_key:
-        print(f"{RED}[ERROR]{RESET} No Groq API key found. Run {GREEN}ghostreply{RESET} again to set up.")
+        print(f"{RED}✗{RESET} No Groq API key found. Run {GREEN}ghostreply{RESET} again to set up.")
         sys.exit(1)
+    http_client = None
     try:
         import httpx
-        http_client = httpx.Client(verify=_SSL_CTX)
+        # Try certifi path first (most reliable with httpx), then fall back to SSLContext
+        try:
+            import certifi
+            http_client = httpx.Client(verify=certifi.where())
+        except ImportError:
+            http_client = httpx.Client(verify=_SSL_CTX)
     except Exception:
-        http_client = None
+        pass
     kwargs = {
         "api_key": api_key,
         "base_url": "https://api.groq.com/openai/v1",
@@ -1804,13 +1902,13 @@ def send_imessage(contact: str, text: str) -> bool:
         if result.returncode != 0:
             err = result.stderr.strip()
             if "not allowed" in err.lower() or "permission" in err.lower():
-                print(f"{RED}[ERROR]{RESET} Messages permission denied. Open System Settings > Privacy > Automation and allow Terminal to control Messages.")
+                print(f"{RED}✗{RESET} Messages permission denied. Open System Settings > Privacy > Automation and allow Terminal to control Messages.")
             else:
-                print(f"{RED}[ERROR]{RESET} Failed to send: {err}")
+                print(f"{RED}✗{RESET} Failed to send: {err}")
             return False
         return True
     except Exception as e:
-        print(f"{RED}[ERROR]{RESET} Failed to send to {contact}: {e}")
+        print(f"{RED}✗{RESET} Failed to send to {contact}: {e}")
         return False
 
 
@@ -1868,8 +1966,9 @@ def check_user_sent_message(since_rowid: int, target_handle: str) -> int:
 
     # Grace period: don't check for 2 seconds after bot sends
     # (AppleScript -> Messages.app -> chat.db write can be delayed)
-    if time.time() - _bot_last_send_time < 2.0:
-        return 0
+    with _bot_sent_lock:
+        if time.time() - _bot_last_send_time < 2.0:
+            return 0
 
     conn = get_db_connection()
     try:
@@ -1894,14 +1993,17 @@ def check_user_sent_message(since_rowid: int, target_handle: str) -> int:
 
             max_rowid = max(max_rowid, rowid)
 
+            # Skip messages with no text (attachments, photos, etc.)
+            if not text:
+                continue
+
             # Check if this message matches something the bot sent
-            if text:
-                normalized = text.strip().lower()
-                with _bot_sent_lock:
-                    if normalized in _bot_sent_texts:
-                        # This is a bot-sent message — remove from tracking and skip
-                        _bot_sent_texts.remove(normalized)
-                        continue
+            normalized = text.strip().lower()
+            with _bot_sent_lock:
+                if normalized in _bot_sent_texts:
+                    # This is a bot-sent message — remove from tracking and skip
+                    _bot_sent_texts.remove(normalized)
+                    continue
 
             # If we get here, it's a message we didn't send — manual reply
             found_manual = True
@@ -2002,7 +2104,7 @@ def get_ai_response(contact: str) -> str:
         reply = " ".join(reply.split())  # Force single line
         return reply
     except Exception as e:
-        print(f"{RED}[ERROR]{RESET} AI error for {contact}: {e}")
+        print(f"{RED}✗{RESET} AI error for {contact}: {e}")
         return ""
 
 
@@ -2034,6 +2136,14 @@ def handle_batch(contact: str, texts: list[str]):
         # Token expired (new day) — regenerate
         _session_token = _generate_session_token(license_key, machine_id)
 
+    # Enforce trial reply limit at runtime
+    if config.get("trial_started_at") and not config.get("license_key"):
+        replies_used = config.get("trial_replies_used", 0)
+        if replies_used >= 10:
+            print(f"{RED}Trial limit reached (10/10 replies). Buy a license at {BLUE}https://ghostreply.lol{RESET}")
+            stop_event.set()
+            return
+
     # Only reply to the configured target contact
     target = config.get("target_contact")
     if target and contact != target:
@@ -2050,13 +2160,26 @@ def handle_batch(contact: str, texts: list[str]):
     for text in texts:
         add_to_history(contact, "user", text)
 
-    reply = get_ai_response(contact)
+    reply = ""
+    for attempt in range(3):
+        reply = get_ai_response(contact)
+        if reply:
+            break
+        if attempt < 2:
+            time.sleep(1)
     if not reply:
-        print(f"{YELLOW}[WARN]{RESET} {GRAY}AI returned empty reply, skipping{RESET}")
+        print(f"{YELLOW}!{RESET} {GRAY}AI failed after 3 attempts for {contact}, skipping{RESET}")
         return
 
     add_to_history(contact, "assistant", reply)
     reply_delay(texts[-1])  # delay based on their last message
+
+    # Increment trial counter BEFORE sending (prevents kill-to-bypass exploit)
+    is_trial = config.get("trial_started_at") and not config.get("license_key")
+    if is_trial:
+        config["trial_replies_used"] = config.get("trial_replies_used", 0) + 1
+        save_config(config)
+
     # Track this message BEFORE sending so auto-stop can recognize it
     global _bot_last_send_time, _bot_has_replied
     with _bot_sent_lock:
@@ -2065,24 +2188,54 @@ def handle_batch(contact: str, texts: list[str]):
         if len(_bot_sent_texts) > 20:
             _bot_sent_texts.pop(0)
     if not send_imessage(contact, reply):
+        # Send failed — refund the trial reply
+        if is_trial:
+            config["trial_replies_used"] = max(0, config.get("trial_replies_used", 1) - 1)
+            save_config(config)
         return
-    _bot_last_send_time = time.time()
+    with _bot_sent_lock:
+        _bot_last_send_time = time.time()
     # Wait for message to land in chat.db before updating ROWID
     time.sleep(0.5)
     _update_bot_last_known_rowid()
-    _bot_has_replied = True
+    with _bot_sent_lock:
+        _bot_has_replied = True
     display_them = texts[0][:60] if len(texts) == 1 else f"{texts[0][:30]}... (+{len(texts)-1} more)"
     reply_log.append({"them": combined, "you": reply})
     if len(reply_log) > 20:
         reply_log.pop(0)
-    print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
-    print(f"        {GREEN}you:{RESET}  {reply[:60]}")
+    if is_trial:
+        replies_left = max(0, 10 - config["trial_replies_used"])
+        if replies_left <= 0:
+            print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
+            print(f"        {GREEN}you:{RESET}  {reply[:60]}")
+            print(f"{YELLOW}!{RESET} {RED}Trial limit reached (10/10 replies used).{RESET}")
+            print(f"  {GRAY}Buy a license at{RESET} {BLUE}https://ghostreply.lol{RESET}")
+            stop_event.set()
+            return
+        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
+        print(f"        {GREEN}you:{RESET}  {reply[:60]}  {DIM}({replies_left} trial replies left){RESET}")
+    else:
+        print(f"{GRAY}[REPLY]{RESET} {LIGHT_GRAY}them:{RESET} {display_them}")
+        print(f"        {GREEN}you:{RESET}  {reply[:60]}")
 
 
 
 # ============================================================
 # Main Poll Loop
 # ============================================================
+
+def print_exit_summary():
+    """Show session summary on exit."""
+    count = len(reply_log)
+    if count == 0:
+        return
+    elapsed = time.time() - _session_start_time
+    mins = int(elapsed // 60)
+    time_str = f"{mins} min" if mins > 0 else f"{int(elapsed)}s"
+    print(f"\n{BLUE}●{RESET} {BOLD}Session summary{RESET}")
+    print(f"  {GREEN}{count}{RESET} replies sent in {time_str}")
+
 
 def stdin_listener():
     """Listen for typed commands while the bot is running."""
@@ -2104,6 +2257,7 @@ def stdin_listener():
             break
         if cmd in ("stop", "quit", "exit", "q"):
             print(f"\n{GRAY}GhostReply stopped.{RESET}")
+            print_exit_summary()
             stop_event.set()
             break
         elif cmd:
@@ -2134,7 +2288,8 @@ def _update_bot_last_known_rowid():
 
 def poll_loop():
     global _bot_last_known_rowid, _bot_has_replied
-    _bot_has_replied = False
+    with _bot_sent_lock:
+        _bot_has_replied = False
     baseline = get_latest_rowid()
     # Set last known ROWID to NOW — anything before this (including setup messages) is ignored
     with _bot_last_known_rowid_lock:
@@ -2152,7 +2307,9 @@ def poll_loop():
         try:
             # Check if user manually sent a message to the target contact
             # Only after bot has sent at least one reply (so user can send the first msg)
-            if target_contact and _bot_has_replied:
+            with _bot_sent_lock:
+                has_replied = _bot_has_replied
+            if target_contact and has_replied:
                 with _bot_last_known_rowid_lock:
                     current_known = _bot_last_known_rowid
                 manual_rowid = check_user_sent_message(current_known, target_contact)
@@ -2160,6 +2317,7 @@ def poll_loop():
                     print()
                     print(f"{GREEN}[AUTO-STOP]{RESET} You replied to {BLUE}{target_name}{RESET} manually — GhostReply stopped.")
                     print(f"{GRAY}Run {WHITE}ghostreply{GRAY} again to restart.{RESET}")
+                    print_exit_summary()
                     stop_event.set()
                     return
 
@@ -2201,7 +2359,7 @@ def poll_loop():
                 handle_batch(contact, texts)
 
         except Exception as e:
-            print(f"{RED}[ERROR]{RESET} Poll error: {e}")
+            print(f"{RED}✗{RESET} Poll error: {e}")
 
         # Sleep in small intervals so stop_event is responsive
         for _ in range(int(POLL_INTERVAL * 10)):
@@ -2365,7 +2523,7 @@ def main():
     _check_integrity()
 
     if not DB_PATH.exists():
-        print(f"{RED}[ERROR]{RESET} iMessage database not found at {DB_PATH}")
+        print(f"{RED}✗{RESET} iMessage database not found at {DB_PATH}")
         print("Make sure you're running this on a Mac with iMessage set up.")
         sys.exit(1)
 
@@ -2387,10 +2545,10 @@ def main():
                     config["last_server_check"] = time.time()
                     save_config(config)
                 else:
-                    print(f"{RED}[LICENSE]{RESET} License validation failed: {result['message']}")
+                    print(f"{RED}✗{RESET} License validation failed: {result['message']}")
                     sys.exit(1)
             except Exception:
-                print(f"{RED}[LICENSE]{RESET} Offline too long — please connect to the internet to verify your license.")
+                print(f"{RED}✗{RESET} Offline too long — please connect to the internet to verify your license.")
                 sys.exit(1)
 
     # Permissions setup (first run only)
@@ -2441,36 +2599,13 @@ def main():
 
         # Validate license or trial
         if config.get("trial_started_at"):
-            now = time.time()
-            trial_start = config["trial_started_at"]
-            wall_elapsed = now - trial_start
-
-            # Anti-clock-manipulation: check trial_last_seen
-            last_seen = config.get("trial_last_seen", 0)
-            if last_seen and now < last_seen - 60:
-                # Clock was set back — expire trial immediately
-                wall_elapsed = 999999
-
-            # Anti-clock-manipulation: monotonic cross-check
-            boot_offset = config.get("trial_boot_offset")
-            wall_start = config.get("trial_wall_start")
-            if boot_offset is not None and wall_start is not None:
-                mono_elapsed = time.monotonic() - boot_offset
-                # Use the larger of wall clock or monotonic elapsed
-                # (monotonic only valid within same boot session)
-                if mono_elapsed > 0:
-                    wall_elapsed = max(wall_elapsed, mono_elapsed)
-
-            # Update last_seen for next run
-            config["trial_last_seen"] = now
-            save_config(config)
-
-            hours_left = max(0, 24 - wall_elapsed / 3600)
-            if hours_left <= 0:
-                print(f"{RED}Free trial expired!{RESET}")
+            replies_used = config.get("trial_replies_used", 0)
+            replies_left = max(0, 10 - replies_used)
+            if replies_left <= 0:
+                print(f"{RED}Free trial expired! (10/10 replies used){RESET}")
                 print(f"{GRAY}Buy a license at{RESET} {BLUE}https://ghostreply.lol{RESET}")
                 print()
-                key = input(f"Enter your license key ('q' to quit): ").strip()
+                key = input(f"{BLUE}?{RESET} {BOLD}Enter your license key{RESET} {DIM}('q' to quit):{RESET} ").strip()
                 if not key or key.lower() in ("q", "quit", "exit"):
                     print(f"{GRAY}Goodbye!{RESET}")
                     sys.exit(0)
@@ -2489,13 +2624,11 @@ def main():
                     config["machine_id"] = machine_id
                     config["instance_id"] = result.get("instance_id", "")
                 config.pop("trial_started_at", None)
-                config.pop("trial_wall_start", None)
-                config.pop("trial_boot_offset", None)
-                config.pop("trial_last_seen", None)
+                config.pop("trial_replies_used", None)
                 save_config(config)
                 print(f"{GREEN}License activated!{RESET}")
             else:
-                print(f"{GREEN}Free trial{RESET} — {BLUE}{hours_left:.1f} hours left{RESET}")
+                print(f"{GREEN}Free trial{RESET} — {BLUE}{replies_left} replies left{RESET}")
         elif _is_dev:
             print(f"{GREEN}Dev machine — license bypassed.{RESET}")
             config["license_validated"] = True
@@ -2517,11 +2650,11 @@ def main():
                     save_config(config)
                     sys.exit(1)
             else:
-                print(f"{GRAY}Checking license...{RESET}", end=" ", flush=True)
+                print(f"{DIM}Checking license...{RESET}", end=" ", flush=True)
                 instance_id = config.get("instance_id", "")
                 result = validate_license(license_key, instance_id)
                 if result["status"] != "valid":
-                    print(f"{RED}FAILED{RESET}")
+                    print(f"{RED}✗{RESET} Failed")
                     print(f"  {result['message']}")
                     print(f"  Buy a license at {BLUE}https://ghostreply.lol{RESET}")
                     config.pop("license_key", None)
@@ -2539,43 +2672,9 @@ def main():
 
         # Always re-pick contact
         print()
-        print(f"{BOLD}=== Who should GhostReply text for you? ==={RESET}")
+        print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply text for you?{RESET}")
         print()
-        contacts = get_contacts_with_names()
-        if not contacts:
-            print(f"{RED}[ERROR]{RESET} No iMessage conversations found.")
-            print(f"{GRAY}Send or receive at least one iMessage first, then run ghostreply again.{RESET}")
-            sys.exit(1)
-        recent = contacts[:5]
-        display_names = format_contact_list(recent)
-        for i, label in enumerate(display_names):
-            print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
-        print()
-
-        while True:
-            choice = input(f"{WHITE}Type a number and hit Enter (or search by name):{RESET} ").strip()
-            if not choice:
-                continue
-            if choice.isdigit() and 1 <= int(choice) <= len(recent):
-                selected = recent[int(choice) - 1]
-                break
-            print(f"  {GRAY}Searching...{RESET}")
-            matches = ai_find_contact(choice, contacts)
-            if not matches:
-                print(f"  {GRAY}No matches found. Try again.{RESET}")
-                continue
-            if len(matches) == 1:
-                selected = matches[0]
-                break
-            print()
-            match_names = format_contact_list(matches)
-            for i, label in enumerate(match_names):
-                print(f"  {WHITE}{i+1}.{RESET} {BLUE}{label}{RESET}")
-            print()
-            pick = input(f"{WHITE}Type a number and hit Enter:{RESET} ").strip()
-            if pick.isdigit() and 1 <= int(pick) <= len(matches):
-                selected = matches[int(pick) - 1]
-                break
+        selected = pick_contact()
 
         target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
         config["target_contact"] = selected["handle"]
@@ -2590,22 +2689,22 @@ def main():
 
         # Customize?
         is_ragebait = False
-        print()
-        customize = input(f"{WHITE}Want to customize how the bot talks?{RESET} {GRAY}(y = custom personality, n = your natural texting style):{RESET} ").strip().lower()
-        if customize == "ragebait":
+        mode = select_option("Choose a reply mode:", [
+            {"label": "Normal", "desc": "texts like you", "color": GREEN},
+            {"label": "Custom", "desc": "set a persona", "color": BLUE},
+            {"label": "Ragebait", "desc": "troll mode", "color": RED},
+        ])
+        if mode == 2:
             is_ragebait = True
             custom_tone = RAGEBAIT_TONE
             config["custom_tone"] = RAGEBAIT_TONE
             save_config(config)
-            print(f"  {RED}☠ Ragebait activated.{RESET}")
-        elif customize in ("y", "yes"):
+        elif mode == 1:
             tone = run_personality_chat(target_first)
             if tone:
                 custom_tone = tone
                 config["custom_tone"] = tone
                 save_config(config)
-        else:
-            print(f"  {GREEN}✓{RESET} {GRAY}Using your natural texting style.{RESET}")
 
         # Send first message?
         if is_ragebait:
@@ -2622,9 +2721,12 @@ def main():
                 print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
         else:
             print()
-            first_msg = input(f"{WHITE}Send the first message to {BLUE}{target_first}{WHITE}?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-            if first_msg in ("y", "yes"):
-                msg = input(f"  {WHITE}Type your message (or 'ai' to let the bot start):{RESET} ").strip()
+            first_choice = select_option(f"Send the first message to {BLUE}{target_first}{RESET}{BOLD}?", [
+                {"label": "Yes", "color": GREEN},
+                {"label": "No", "color": GRAY},
+            ])
+            if first_choice == 0:
+                msg = input(f"  {DIM}Type your message (or 'ai' for bot opener):{RESET} ").strip()
                 if msg.lower() == "ai":
                     add_to_history(selected["handle"], "user", "(Start a casual conversation. Send a natural opener.)")
                     opener = get_ai_response(selected["handle"])
@@ -2632,8 +2734,11 @@ def main():
                     if opener:
                         add_to_history(selected["handle"], "assistant", opener)
                         print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
-                        confirm = input(f"  {WHITE}Send this?{RESET} {GRAY}(y/n):{RESET} ").strip().lower()
-                        if confirm in ("y", "yes", ""):
+                        send_choice = select_option("Send this?", [
+                            {"label": "Send", "color": GREEN},
+                            {"label": "Skip", "color": GRAY},
+                        ])
+                        if send_choice == 0:
                             if send_imessage(selected["handle"], opener):
                                 print(f"  {GREEN}✓ Sent{RESET}")
                         else:
@@ -2655,34 +2760,44 @@ def main():
 
     target_name = config.get("target_name", "?")
     print()
-    print(f"{GREEN}{BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
+    print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
     print()
     print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
     print(f"  {GRAY}Or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
     print()
 
+    # Wait for any setup-sent messages to land in chat.db
+    # so poll_loop's baseline ROWID captures them (avoids false auto-stop)
+    time.sleep(0.5)
+
     # Start stdin listener in background thread
     listener = threading.Thread(target=stdin_listener, daemon=True)
     listener.start()
 
+    global _session_start_time
+    _session_start_time = time.time()
     try:
         poll_loop()
     except KeyboardInterrupt:
         stop_event.set()
         print(f"\n{GRAY}GhostReply stopped.{RESET}")
+        print_exit_summary()
 
 
 def uninstall():
     """Remove GhostReply completely."""
     print()
-    print(f"{BOLD}=== Uninstall GhostReply ==={RESET}")
+    print(f"\n{BLUE}●{RESET} {BOLD}Uninstall GhostReply{RESET}")
     print()
     print(f"  This will remove:")
     print(f"  {GRAY}• ~/.ghostreply/ (config, profile, bot script){RESET}")
     print(f"  {GRAY}• 'ghostreply' alias from your shell config{RESET}")
     print()
-    confirm = input(f"  {WHITE}Are you sure? (y/n):{RESET} ").strip().lower()
-    if confirm not in ("y", "yes"):
+    confirm_choice = select_option("Are you sure?", [
+        {"label": "Yes, uninstall", "color": RED},
+        {"label": "Cancel", "color": GRAY},
+    ])
+    if confirm_choice != 0:
         print(f"  {GRAY}Cancelled.{RESET}")
         return
 
@@ -2744,4 +2859,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         stop_event.set()
         print(f"\n{GRAY}GhostReply stopped.{RESET}")
+        print_exit_summary()
         sys.exit(0)
