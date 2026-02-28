@@ -12,6 +12,7 @@ Setup is fully automatic — zero questions:
 from __future__ import annotations
 
 import base64
+import datetime
 import difflib
 import hashlib
 import hmac
@@ -93,13 +94,13 @@ _TRIAL_BREADCRUMB = Path.home() / "Library" / "Application Support" / ".ghostrep
 CONFIG_FILE = CONFIG_DIR / "config.json"
 PROFILE_FILE = CONFIG_DIR / "profile.json"
 DB_PATH = Path.home() / "Library" / "Messages" / "chat.db"
-CONTACTS_DB_PATH = None  # discovered at runtime
+CONTACTS_DB_PATHS = []  # discovered at runtime
 LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 # Friend key verification
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.3.3"
+VERSION = "1.4.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -1069,6 +1070,112 @@ def get_contact_display_name(handle: str) -> str:
 
 
 # ============================================================
+# Calendar Integration (reads Calendar.sqlitedb directly — instant)
+# ============================================================
+
+_calendar_cache = {"data": None, "expires": 0}
+_CALENDAR_DB = Path.home() / "Library" / "Group Containers" / "group.com.apple.calendar" / "Calendar.sqlitedb"
+_APPLE_EPOCH = datetime.datetime(2001, 1, 1)
+
+
+def get_calendar_events() -> str:
+    """Fetch today's and tomorrow's calendar events from the Calendar database."""
+    now = time.time()
+    if _calendar_cache["data"] is not None and now < _calendar_cache["expires"]:
+        return _calendar_cache["data"]
+
+    if not _CALENDAR_DB.exists():
+        # Fallback to AppleScript if DB not found (older macOS)
+        return _get_calendar_events_applescript()
+
+    try:
+        now_utc = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        now_apple = (now_utc - _APPLE_EPOCH).total_seconds()
+        end_apple = now_apple + 2 * 86400
+        local_offset = datetime.datetime.now().astimezone().utcoffset().total_seconds()
+
+        conn = sqlite3.connect(str(_CALENDAR_DB), timeout=5)
+        cur = conn.execute("""
+            SELECT ci.summary, ci.start_date, ci.all_day,
+                   l.title, l.address
+            FROM CalendarItem ci
+            LEFT JOIN Location l ON l.ROWID = ci.location_id
+            WHERE ci.start_date >= ? AND ci.start_date < ?
+              AND ci.summary IS NOT NULL
+            ORDER BY ci.start_date
+        """, (now_apple, end_apple))
+
+        lines = []
+        for row in cur.fetchall():
+            summary, start_ts, all_day, loc_title, loc_addr = row
+            dt_utc = _APPLE_EPOCH + datetime.timedelta(seconds=start_ts)
+            dt_local = dt_utc + datetime.timedelta(seconds=local_offset)
+            date_str = dt_local.strftime("%A, %B %-d, %Y")
+            time_str = dt_local.strftime("%-I:%M:%S %p")
+            line = f"{date_str} | {time_str} | {summary}"
+            loc = loc_title or ""
+            if loc_addr and loc_addr != loc:
+                loc = (loc + "\n" + loc_addr) if loc else loc_addr
+            if loc:
+                line += f" @ {loc}"
+            lines.append(line)
+        conn.close()
+
+        events = "\n".join(lines)
+        _calendar_cache["data"] = events
+        _calendar_cache["expires"] = now + 300  # 5-minute cache
+        return events
+    except Exception:
+        # Fallback to AppleScript on any DB error
+        return _get_calendar_events_applescript()
+
+
+def _get_calendar_events_applescript() -> str:
+    """Fallback: fetch events via AppleScript (slow but works on older macOS)."""
+    script = '''
+    tell application "Calendar"
+        set now to current date
+        set tomorrow to now + (1 * days)
+        set endTomorrow to now + (2 * days)
+        set output to ""
+        repeat with cal in calendars
+            repeat with ev in (every event of cal whose start date \u2265 now and start date < endTomorrow)
+                set evStart to start date of ev
+                set evEnd to end date of ev
+                set evTitle to summary of ev
+                set evLoc to location of ev
+                set timeStr to time string of evStart
+                set dateStr to date string of evStart
+                set line_ to dateStr & " | " & timeStr & " | " & evTitle
+                if evLoc is not missing value and evLoc is not "" then
+                    set line_ to line_ & " @ " & evLoc
+                end if
+                set output to output & line_ & linefeed
+            end repeat
+        end repeat
+        return output
+    end tell
+    '''
+    now = time.time()
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True, text=True, timeout=30
+        )
+        events = result.stdout.strip()
+        _calendar_cache["data"] = events
+        _calendar_cache["expires"] = now + 300
+        return events
+    except Exception:
+        return ""
+
+
+def warm_calendar_cache():
+    """Pre-fetch calendar events in a background thread so replies aren't blocked."""
+    threading.Thread(target=get_calendar_events, daemon=True).start()
+
+
+# ============================================================
 # Build the System Prompt — Personalized
 # ============================================================
 
@@ -1171,6 +1278,20 @@ def build_system_prompt(contact_name: str = "") -> str:
     other = life.get("other_facts", [])
     if other:
         parts.append(f"\nOther facts about you: {'; '.join(other)}")
+
+    # Calendar awareness (always active)
+    if config.get("calendar_sync", False):
+        events = get_calendar_events()
+        if events:
+            parts.append(
+                f"\nYOUR SCHEDULE (from your calendar — use this to answer about plans/availability):\n{events}"
+                "\n- Reference these naturally if someone asks about your plans or availability."
+                "\n- Don't volunteer schedule info unprompted."
+            )
+        else:
+            parts.append(
+                "\nYour calendar is empty for today and tomorrow — you're free."
+            )
 
     # Contact-specific context
     if contact_name:
@@ -1499,6 +1620,27 @@ def first_time_setup():
     config.pop("safe_mode", None)
     save_config(config)
 
+    # --- Step 6b: Calendar sync ---
+    print()
+    cal_choice = select_option("Sync your calendar so the bot knows your schedule?", [
+        {"label": "Yes", "desc": "reads Apple Calendar",  "color": GREEN},
+        {"label": "No",  "desc": "skip for now",          "color": GRAY},
+    ])
+    if cal_choice == 0:
+        # Test calendar access (reads Calendar DB directly — no permission prompt needed)
+        print(f"  {DIM}Testing calendar access...{RESET}", end=" ", flush=True)
+        events = get_calendar_events()
+        config["calendar_sync"] = True
+        print(f"{GREEN}✓{RESET}")
+        if events:
+            count = len(events.strip().split("\n"))
+            print(f"  {GRAY}Found {count} upcoming event{'s' if count != 1 else ''}.{RESET}")
+        else:
+            print(f"  {GRAY}No upcoming events found (calendar is empty or access was denied).{RESET}")
+    else:
+        config["calendar_sync"] = False
+    save_config(config)
+
     # Save profile now so it's not lost if user quits during contact selection
     save_profile(profile)
     save_config(config)
@@ -1657,23 +1799,24 @@ def get_db_connection(retries: int = 3):
 
 
 def discover_contacts_db():
-    global CONTACTS_DB_PATH
+    global CONTACTS_DB_PATHS
+    CONTACTS_DB_PATHS = []
     ab_dir = Path.home() / "Library" / "Application Support" / "AddressBook" / "Sources"
     if ab_dir.exists():
         for source_dir in ab_dir.iterdir():
             db_file = source_dir / "AddressBook-v22.abcddb"
             if db_file.exists():
-                CONTACTS_DB_PATH = db_file
-                return
-    CONTACTS_DB_PATH = None
+                CONTACTS_DB_PATHS.append(db_file)
 
 
 def get_contacts_with_names() -> list[dict]:
     name_map = {}
-    if CONTACTS_DB_PATH and CONTACTS_DB_PATH.exists():
+    for db_path in CONTACTS_DB_PATHS:
+        if not db_path.exists():
+            continue
         conn = None
         try:
-            conn = sqlite3.connect(str(CONTACTS_DB_PATH), timeout=5)
+            conn = sqlite3.connect(str(db_path), timeout=5)
             cur = conn.execute("""
                 SELECT r.ZFIRSTNAME, r.ZLASTNAME, p.ZFULLNUMBER, e.ZADDRESS
                 FROM ZABCDRECORD r
@@ -1889,11 +2032,11 @@ def local_find_contact(query: str, contacts: list[dict]) -> list[dict]:
                 difflib.SequenceMatcher(None, q, first).ratio(),
                 difflib.SequenceMatcher(None, q, handle).ratio(),
             )
-            if best >= 0.6:
+            if best >= 0.5:
                 scored.append((best, c))
         scored.sort(key=lambda x: x[0], reverse=True)
-        results = [c for _, c in scored[:3]]
-    return results[:3]
+        results = [c for _, c in scored[:5]]
+    return results[:5]
 
 
 def ai_find_contact(query: str, contacts: list[dict]) -> list[dict]:
@@ -2682,6 +2825,10 @@ def main():
     # Discover contacts DB
     discover_contacts_db()
 
+    # Warm calendar cache in background so first reply isn't blocked
+    if config.get("calendar_sync", False):
+        warm_calendar_cache()
+
     # Dev machine bypass — skip license entirely
     _is_dev = get_machine_id() in _DEV_MACHINES
 
@@ -2856,6 +3003,18 @@ def main():
                 custom_tone = tone
                 config["custom_tone"] = tone
                 save_config(config)
+
+        # Calendar toggle
+        cal_status = "on" if config.get("calendar_sync") else "off"
+        cal_choice = select_option(f"Calendar sync is {cal_status}. Change?", [
+            {"label": "Keep " + cal_status, "color": GREEN},
+            {"label": "Turn " + ("off" if config.get("calendar_sync") else "on"), "color": BLUE},
+        ])
+        if cal_choice == 1:
+            config["calendar_sync"] = not config.get("calendar_sync", False)
+            if config["calendar_sync"]:
+                warm_calendar_cache()  # warm cache in background
+            save_config(config)
 
         # Send first message?
         if auto_opener:
