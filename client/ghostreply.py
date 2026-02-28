@@ -99,7 +99,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.3.2"
+VERSION = "1.3.3"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -584,14 +584,21 @@ def _verify_friend_key(key: str) -> bool:
     return hmac.compare_digest(sig, expected)
 
 
+def _github_api_fetch(path: str) -> bytes:
+    """Fetch a file from the GitHub API (no CDN cache, always fresh)."""
+    api_url = f"https://api.github.com/repos/Hrampell/ghostreply/contents/{path}"
+    req = urllib.request.Request(api_url, headers={
+        "User-Agent": "GhostReply/1.0",
+        "Accept": "application/vnd.github.v3.raw",
+    })
+    resp = urllib.request.urlopen(req, timeout=15, context=_SSL_CTX)
+    return resp.read()
+
+
 def check_for_updates():
     """Check GitHub for a newer version and auto-update if available."""
-    update_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py"
-    hash_url = "https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py.sha256"
     try:
-        req = urllib.request.Request(update_url, headers={"User-Agent": "GhostReply/1.0"})
-        resp = urllib.request.urlopen(req, timeout=10, context=_SSL_CTX)
-        remote_code = resp.read().decode("utf-8")
+        remote_code = _github_api_fetch("client/ghostreply.py").decode("utf-8")
 
         # Extract version from remote file
         remote_version = None
@@ -611,13 +618,10 @@ def check_for_updates():
         if remote_parts <= local_parts:
             return  # up to date or newer locally
 
-        # Verify integrity via sha256 hash (REQUIRED — this is the real
-        # security gate, independent of SSL verification)
+        # Verify integrity via sha256 hash
         actual_hash = hashlib.sha256(remote_code.encode("utf-8")).hexdigest()
         try:
-            hash_req = urllib.request.Request(hash_url, headers={"User-Agent": "GhostReply/1.0"})
-            hash_resp = urllib.request.urlopen(hash_req, timeout=10, context=_SSL_CTX)
-            expected_hash = hash_resp.read().decode("utf-8").strip().split()[0]
+            expected_hash = _github_api_fetch("client/ghostreply.py.sha256").decode("utf-8").strip().split()[0]
             if actual_hash != expected_hash:
                 print(f"{YELLOW}!{RESET} {GRAY}Update integrity check failed, skipping.{RESET}")
                 return
