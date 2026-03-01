@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GhostReply — iMessage Auto-Reply Bot.
+"""GhostReply — Smart iMessage Assistant.
 
 AI powered by Groq (free, BYOK). Terminal-only control: run it = on, close it = off.
 
@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -1650,8 +1650,7 @@ def run_personality_chat(contact_name: str) -> str:
             "Ask short, casual questions to figure out the vibe: tone, personality, topics to bring up, "
             "things to avoid, whether to be funny/serious/flirty/chill/etc. "
             "Keep your questions super short (1-2 sentences max). Be casual like you're texting. "
-            "If they mention obsessing over something or a specific topic, the bot will "
-            "EXAGGERATE it hard — mention it constantly and go over the top. Let them know that. "
+            "If they mention a specific focus or topic, the bot will weave it into replies naturally. "
             "When told to wrap up, say EXACTLY on its own line:\n"
             "READY\n"
             "Then on the next line give a summary of the personality instructions as a single paragraph "
@@ -1671,12 +1670,6 @@ def run_personality_chat(contact_name: str) -> str:
         user_input = input(f"  {GREEN}You:{RESET} ").strip()
         if not user_input:
             continue
-
-        # Secret command
-        if user_input.lower() == "ragebait":
-            print()
-            print(f"  {RED}☠ Ragebait activated.{RESET}")
-            return RAGEBAIT_TONE
 
         chat_history.append({"role": "user", "content": user_input})
 
@@ -2073,29 +2066,27 @@ def first_time_setup():
         mode_options = [
             {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
             {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-            {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+            {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
         ]
         mode = select_option("Choose a reply mode:", mode_options)
-        if mode == 2:
-            mode = 3  # map to Professional submenu handling below
     else:
         mode_options = [
             {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
             {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-            {"label": "Pranks >>",       "desc": "mess with them",        "color": RED},
-            {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+            {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
+            {"label": "Fun >>",          "desc": "creative reply modes",  "color": YELLOW},
         ]
         mode = select_option("Choose a reply mode:", mode_options)
 
-    if mode == 2 and persona != "professional":  # Pranks → submenu
-        prank = select_option("Choose a prank:", [
-            {"label": "Ragebait", "desc": "troll mode",                 "color": RED},
+    if mode == 3 and persona != "professional":  # Fun → submenu
+        prank = select_option("Choose a mode:", [
+            {"label": "Ragebait", "desc": "antagonistic replies",       "color": RED},
             {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
             {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
             {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
         ])
         mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
-    elif mode == 3:  # Professional → submenu
+    elif mode == 2:  # Productivity → submenu
         pro = select_option("Choose a style:", [
             {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
             {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
@@ -2127,8 +2118,17 @@ def first_time_setup():
             conversation_history[selected_handle] = []
             if opener:
                 add_to_history(selected_handle, "assistant", opener)
-                if send_imessage(selected_handle, opener):
-                    print(f"{GREEN}Sent:{RESET} {opener}")
+                print(f"{GREEN}done{RESET}")
+                print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                send_choice = select_option("Send this?", [
+                    {"label": "Send", "color": GREEN},
+                    {"label": "Skip", "color": GRAY},
+                ])
+                if send_choice == 0:
+                    if send_imessage(selected_handle, opener):
+                        print(f"  {GREEN}✓ Sent{RESET}")
+                else:
+                    conversation_history[selected_handle] = []
             else:
                 print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
         else:
@@ -2880,11 +2880,18 @@ def get_ai_response(contact: str) -> str:
     # Build personalized system prompt
     prompt = build_system_prompt(contact_name)
 
+    _FUN_TONES = {RAGEBAIT_TONE, BREAKUP_TONE, RIZZ_TONE, DRUNK_TONE}
     if custom_tone:
-        prompt += (
-            f"\n\nCUSTOM PERSONALITY (follow this closely): {custom_tone}\n"
-            "EXAGGERATE this personality trait. Go over the top with it."
-        )
+        if custom_tone in _FUN_TONES:
+            prompt += (
+                f"\n\nCUSTOM PERSONALITY (follow this closely): {custom_tone}\n"
+                "EXAGGERATE this personality trait. Go over the top with it."
+            )
+        else:
+            prompt += (
+                f"\n\nCUSTOM PERSONALITY (follow this closely): {custom_tone}\n"
+                "Follow this personality naturally. Don't overdo it — be authentic."
+            )
 
     is_busy = (custom_tone == BUSY_TONE)
     tokens = 40 if is_busy else 80
@@ -3597,7 +3604,7 @@ def main():
     print()
     print(f"  {GRAY}╔{'═' * inner}╗{RESET}")
     line1 = f"GhostReply v{VERSION}"
-    line2 = "iMessage Auto-Reply Bot"
+    line2 = "Smart iMessage Assistant"
     pad1 = (inner - len(line1)) // 2
     pad2 = (inner - len(line2)) // 2
     print(f"  {GRAY}║{RESET}{' ' * pad1}{BOLD}{WHITE}{line1}{RESET}{' ' * (inner - pad1 - len(line1))}{GRAY}║{RESET}")
@@ -3846,28 +3853,26 @@ def main():
             _mode_opts = [
                 {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
                 {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-                {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+                {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
             ]
             mode = select_option("Choose a reply mode:", _mode_opts)
-            if mode == 2:
-                mode = 3  # map to Professional submenu
         else:
             mode = select_option("Choose a reply mode:", [
                 {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
                 {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-                {"label": "Pranks >>",       "desc": "mess with them",        "color": RED},
-                {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+                {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
+                {"label": "Fun >>",          "desc": "creative reply modes",  "color": YELLOW},
             ])
 
-        if mode == 2 and _persona != "professional":  # Pranks → submenu
-            prank = select_option("Choose a prank:", [
-                {"label": "Ragebait", "desc": "troll mode",                 "color": RED},
+        if mode == 3 and _persona != "professional":  # Fun → submenu
+            prank = select_option("Choose a mode:", [
+                {"label": "Ragebait", "desc": "antagonistic replies",       "color": RED},
                 {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
                 {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
                 {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
             ])
             mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
-        elif mode == 3:  # Professional → submenu
+        elif mode == 2:  # Productivity → submenu
             pro = select_option("Choose a style:", [
                 {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
                 {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
@@ -3953,8 +3958,17 @@ def main():
                 conversation_history[selected_handle] = []
                 if opener:
                     add_to_history(selected_handle, "assistant", opener)
-                    if send_imessage(selected_handle, opener):
-                        print(f"{GREEN}Sent:{RESET} {opener}")
+                    print(f"{GREEN}done{RESET}")
+                    print(f"  {GRAY}AI opener:{RESET} {GREEN}{opener}{RESET}")
+                    send_choice = select_option("Send this?", [
+                        {"label": "Send", "color": GREEN},
+                        {"label": "Skip", "color": GRAY},
+                    ])
+                    if send_choice == 0:
+                        if send_imessage(selected_handle, opener):
+                            print(f"  {GREEN}✓ Sent{RESET}")
+                    else:
+                        conversation_history[selected_handle] = []
                 else:
                     print(f"{YELLOW}AI couldn't generate an opener.{RESET}")
             else:
@@ -3999,13 +4013,35 @@ def main():
     target_name = config.get("target_name", "?")
     target_mode = config.get("target_mode", "single")
     print()
+    # Mode label for display
+    _mode_labels = {
+        RAGEBAIT_TONE: "Fun: Ragebait",
+        BREAKUP_TONE: "Fun: Breakup",
+        RIZZ_TONE: "Fun: Rizz",
+        DRUNK_TONE: "Fun: Drunk",
+        SOPHISTICATED_TONE: "Productivity: Formal",
+        BUSY_TONE: "Productivity: Busy",
+    }
+    mode_label = _mode_labels.get(custom_tone, "Custom" if custom_tone else "Autopilot")
+    sched = config.get("schedule_mode", "always")
+    sched_parts = []
+    if sched == "hours":
+        sched_parts.append(f"Schedule: {config.get('schedule_start', '?')}–{config.get('schedule_end', '?')}")
+    elif sched == "meetings":
+        sched_parts.append("Schedule: Meetings")
+    if config.get("calendar_sync"):
+        sched_parts.append("Calendar: on")
+    info_str = f" | ".join([mode_label] + sched_parts) if sched_parts else mode_label
+
     if target_mode == "single":
         print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
+        print(f"  {GRAY}{info_str}{RESET}")
         print()
         print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
         print(f"  {GRAY}Or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
     else:
         print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
+        print(f"  {GRAY}{info_str}{RESET}")
         print()
         print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
         print(f"  {GRAY}Text someone yourself and that contact auto-pauses for 30 min.{RESET}")
@@ -4084,7 +4120,7 @@ if __name__ == "__main__":
             print(f"GhostReply v{VERSION}")
             sys.exit(0)
         if arg in ("--help", "-h", "help"):
-            print(f"GhostReply v{VERSION} — iMessage Auto-Reply Bot")
+            print(f"GhostReply v{VERSION} — Smart iMessage Assistant")
             print()
             print("Usage:")
             print("  ghostreply              Start GhostReply (setup or run)")

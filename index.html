@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GhostReply — iMessage Auto-Reply Bot</title>
+    <title>GhostReply — Smart iMessage Assistant</title>
 
     <!-- SEO -->
-    <meta name="description" content="AI that texts back for you on iMessage. Learns your exact texting style from your real messages and replies as you. $4.99 one-time, 10 free replies.">
+    <meta name="description" content="Smart iMessage auto-replies that learn your texting style. Handles small talk, triages urgent messages, and syncs with your calendar. $4.99 one-time, 10 free replies.">
     <meta name="keywords" content="iMessage, auto reply, AI texting bot, Mac, ghostreply">
     <meta name="author" content="Harrison Rampell">
 
     <!-- Open Graph -->
-    <meta property="og:title" content="GhostReply — AI that texts back for you on iMessage">
-    <meta property="og:description" content="It reads your messages, learns how you talk, and replies like you. $4.99 one-time.">
+    <meta property="og:title" content="GhostReply — Smart iMessage Assistant">
+    <meta property="og:description" content="Smart auto-replies that learn your style, triage important messages, and sync with your calendar. $4.99 one-time.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://ghostreply.lol/">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="GhostReply — AI that texts back for you on iMessage">
-    <meta name="twitter:description" content="It reads your messages, learns how you talk, and replies like you. $4.99 one-time.">
+    <meta name="twitter:title" content="GhostReply — Smart iMessage Assistant">
+    <meta name="twitter:description" content="Smart auto-replies that learn your style, triage important messages, and sync with your calendar. $4.99 one-time.">
 
     <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👻</text></svg>">
@@ -1333,7 +1333,7 @@
 
     <div class="page-content">
     <div class="top-bar">
-        <span>Harrison Rampell &middot; v1.7.0</span>
+        <span>Harrison Rampell &middot; v1.8.0</span>
         <a href="#" onclick="event.preventDefault();document.getElementById('feedback-overlay').classList.add('open')" style="margin-left:12px;">Feedback</a>
     </div>
 
@@ -1344,7 +1344,7 @@
             <div class="glow-orb glow-orb-hero"></div>
             <div class="logo">👻</div>
             <h1>GhostReply</h1>
-            <p class="subtitle">AI that texts back for you on iMessage. It reads your messages, learns how you talk, and replies like you.</p>
+            <p class="subtitle">Smart auto-replies for iMessage. It learns your texting style, handles small talk, triages important messages, and knows your schedule.</p>
 
             <div class="price-tag">
                 <span class="price">$4.99</span>
@@ -1368,7 +1368,7 @@
                         </div>
                         <!-- iMessage side -->
                         <div class="hero-imsg">
-                            <div class="imsg-header"><strong>Andrew</strong><span>iMessage</span></div>
+                            <div class="imsg-header"><strong>Sarah</strong><span>iMessage</span></div>
                             <div class="imsg-body" id="hero-imsg-body"></div>
                         </div>
                     </div>
@@ -1404,7 +1404,7 @@
                 </div>
                 <div class="seq-caption" data-step="1">
                     <h3>Pick a contact, pick a mode</h3>
-                    <p>Choose who to reply to from your recent contacts. Then pick Normal, Custom, or Ragebait mode with arrow keys.</p>
+                    <p>Choose who to reply to — one person, favorites, or everyone. Then pick Autopilot, Custom, Productivity, or Fun mode.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot active" data-dot="1"></div>
@@ -1414,7 +1414,7 @@
                 </div>
                 <div class="seq-caption" data-step="2">
                     <h3>Customize the personality</h3>
-                    <p>Tell the bot how to text — sarcastic, chill, chaotic — or just let it match your natural style from your messages.</p>
+                    <p>Tell it how to text — professional, casual, friendly — or just let it match your natural style from your messages.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
@@ -1441,50 +1441,46 @@
         <!-- Example conversations -->
         <div class="section" style="padding-top:20px;">
             <h2>See It In Action</h2>
-            <p style="text-align:center; color:#888; margin-bottom:8px;">Real examples of GhostReply texting for you.</p>
+            <p style="text-align:center; color:#888; margin-bottom:8px;">Real examples of GhostReply handling your messages.</p>
 
             <div class="demos-row" style="display:flex; gap:16px; overflow-x:auto; padding-bottom:8px;">
 
             <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
-                <div class="demo-header"><strong>Andrew</strong>iMessage</div>
-                <div class="anim-msg anim-gray">Yo wanna play rocket league</div>
+                <div class="demo-header"><strong>Sarah</strong>iMessage</div>
+                <div class="anim-msg anim-gray">Hey are you free to hop on a call?</div>
                 <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
                 <div class="anim-label">GhostReply:</div>
-                <div class="anim-msg anim-blue">Yeah gimme like 20 min</div>
+                <div class="anim-msg anim-blue">In a meeting til 3, can I call you after?</div>
                 <div style="clear:both"></div>
-                <div class="anim-msg anim-gray">Bet. Also did u do the history essay</div>
+                <div class="anim-msg anim-gray">Yeah that works, no rush</div>
                 <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-msg anim-blue">Nah not yet</div>
-                <div style="clear:both"></div>
-                <div class="anim-msg anim-gray">Its due tmrw bro</div>
-                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-msg anim-blue">I know ill do it later</div>
+                <div class="anim-msg anim-blue">Sounds good</div>
                 <div style="clear:both"></div>
             </div>
 
             <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
-                <div class="demo-header"><strong>Kieran</strong>iMessage</div>
-                <div class="anim-msg anim-gray">Bro are you using that AI bot thing again</div>
+                <div class="demo-header"><strong>Andrew</strong>iMessage</div>
+                <div class="anim-msg anim-gray">Yo you coming tonight?</div>
                 <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
                 <div class="anim-label">GhostReply:</div>
-                <div class="anim-msg anim-blue">Bro what lmao</div>
+                <div class="anim-msg anim-blue">Yeah probably around 8</div>
                 <div style="clear:both"></div>
-                <div class="anim-msg anim-gray">You're replying way too fast</div>
+                <div class="anim-msg anim-gray">Bet see you there</div>
                 <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-msg anim-blue">Im literally on my phone rn</div>
+                <div class="anim-msg anim-blue">For sure</div>
                 <div style="clear:both"></div>
             </div>
 
             <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
                 <div class="demo-header"><strong>Mom</strong>iMessage</div>
-                <div class="anim-msg anim-gray">When are you coming home for dinner?</div>
+                <div class="anim-msg anim-gray">Can you pick up milk on your way home?</div>
                 <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
                 <div class="anim-label">GhostReply:</div>
-                <div class="anim-msg anim-blue">Like 6</div>
+                <div class="anim-msg anim-blue">Yeah I'll grab some</div>
                 <div style="clear:both"></div>
-                <div class="anim-msg anim-gray">Ok I'm making pasta</div>
+                <div class="anim-msg anim-gray">Actually grandma is in the hospital call me asap</div>
                 <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-msg anim-blue">Sounds good</div>
+                <div class="anim-msg anim-blue" style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#000; font-weight:600;">&#9888; Flagged — needs your attention</div>
                 <div style="clear:both"></div>
             </div>
 
@@ -1572,6 +1568,14 @@
             <h2>Features</h2>
             <div class="features">
                 <div class="feature">
+                    <h3>Smart Triage</h3>
+                    <p>Knows the difference between "lol" and "call me now." Casual texts get auto-replied. Urgent or sensitive messages get flagged to you instead.</p>
+                </div>
+                <div class="feature">
+                    <h3>Meeting Mode</h3>
+                    <p>Syncs with your Mac calendar. Auto-activates during meetings, sends quick "in a meeting" replies to small talk, and alerts you for anything important.</p>
+                </div>
+                <div class="feature">
                     <h3>Learns Your Style</h3>
                     <p>Scans your real texts to match how you actually type. Your abbreviations, your slang, your vibe.</p>
                 </div>
@@ -1580,24 +1584,20 @@
                     <p>Reads your conversations to learn your friends, interests, and what you talk about. Replies with context.</p>
                 </div>
                 <div class="feature">
-                    <h3>Free AI</h3>
-                    <p>Uses Groq — free, no credit card. Takes 30 seconds to set up.</p>
+                    <h3>Smart Setup</h3>
+                    <p>Detects if you're a student, professional, or casual user from your texts. Auto-configures language, modes, and schedule — zero extra questions.</p>
                 </div>
                 <div class="feature">
-                    <h3>Runs in Terminal</h3>
-                    <p>No app to download — runs right in your Mac's Terminal. Type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">ghostreply</code> to start, close the window to stop.</p>
-                </div>
-                <div class="feature">
-                    <h3>Customize the Personality</h3>
-                    <p>Tell the bot to be sarcastic, flirty, angry, or obsessed with something. It asks you questions to nail the vibe.</p>
+                    <h3>Scheduled Hours</h3>
+                    <p>Set active hours so the bot only runs when you want. Or use meeting mode to auto-activate during calendar events.</p>
                 </div>
                 <div class="feature">
                     <h3>Natural Timing</h3>
                     <p>Replies faster to questions, slower late at night, and defers messages that come in at 3am. Feels human, not robotic.</p>
                 </div>
                 <div class="feature">
-                    <h3>Denies Being AI</h3>
-                    <p>If someone asks "are you a bot?" it denies it, just like you would.</p>
+                    <h3>Customize the Personality</h3>
+                    <p>Set the tone — professional, casual, friendly, or creative. It asks you questions to match exactly what you want.</p>
                 </div>
                 <div class="feature">
                     <h3>Multiple Contacts</h3>
@@ -1608,24 +1608,20 @@
                     <p>Send a message yourself and the bot stops automatically. No need to go back to your laptop — just text back and you're in control.</p>
                 </div>
                 <div class="feature">
+                    <h3>Runs in Terminal</h3>
+                    <p>No app to download — runs right in your Mac's Terminal. Type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">ghostreply</code> to start, close the window to stop.</p>
+                </div>
+                <div class="feature">
+                    <h3>Free AI</h3>
+                    <p>Uses Groq — free, no credit card. Takes 30 seconds to set up.</p>
+                </div>
+                <div class="feature">
+                    <h3>Natural Conversation</h3>
+                    <p>Writes naturally enough that it blends into your real conversations. Stays in character — always.</p>
+                </div>
+                <div class="feature">
                     <h3>10 Free Replies</h3>
                     <p>Try it before you buy. No credit card, no sign up. Just type "trial" during setup. You get 10 auto-replies to see it in action.</p>
-                </div>
-                <div class="feature">
-                    <h3>Meeting Mode</h3>
-                    <p>Syncs with your Mac calendar. Auto-activates during meetings, sends quick "in a meeting" replies to small talk, and alerts you for anything important.</p>
-                </div>
-                <div class="feature">
-                    <h3>Smart Triage</h3>
-                    <p>Knows the difference between "lol" and "call me now." Casual texts get auto-replied. Urgent or sensitive messages get flagged to you instead.</p>
-                </div>
-                <div class="feature">
-                    <h3>Scheduled Hours</h3>
-                    <p>Set active hours so the bot only runs when you want. Or use meeting mode to auto-activate during calendar events.</p>
-                </div>
-                <div class="feature">
-                    <h3>Smart Setup</h3>
-                    <p>Detects if you're a student, professional, or casual user from your texts. Auto-configures language, modes, and schedule — zero extra questions.</p>
                 </div>
             </div>
         </div>
@@ -1643,7 +1639,7 @@
             <h2>FAQ</h2>
             <div class="faq-item">
                 <h3>Does it reply to everyone?</h3>
-                <p>No. You pick one person per tab. Want multiple? Open another Terminal tab and run <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:14px;">ghostreply</code> again — pick a different contact. Each tab runs independently.</p>
+                <p>You choose: one specific contact, your favorites, or everyone at once. Pick your targeting mode during setup.</p>
             </div>
             <div class="faq-item">
                 <h3>Does this work on Windows?</h3>
@@ -1651,7 +1647,7 @@
             </div>
             <div class="faq-item">
                 <h3>Can people tell it's a bot?</h3>
-                <p>It learns from hundreds of your real texts — your exact style, abbreviations, message length. It also knows your friends and what you talk about. Most people can't tell.</p>
+                <p>It learns from hundreds of your real texts — your exact style, abbreviations, and message length. It also knows your friends and what you talk about, so replies feel natural and on-topic.</p>
             </div>
             <div class="faq-item">
                 <h3>How does the free trial work?</h3>
@@ -1659,7 +1655,7 @@
             </div>
             <div class="faq-item">
                 <h3>Can I customize how the bot talks?</h3>
-                <p>Yes. During setup, the bot asks you questions to figure out the vibe — sarcastic, chill, flirty, angry, whatever. You can also tell it to obsess over specific topics or avoid certain things. Or skip it and just use your natural texting style.</p>
+                <p>Yes. During setup, it asks you questions to dial in the tone — professional, casual, friendly, whatever fits. You can also set specific topics to focus on or avoid. Or skip it and just use your natural texting style.</p>
             </div>
             <div class="faq-item">
                 <h3>How do I stop it?</h3>
@@ -2156,20 +2152,20 @@
                 imsgBody.innerHTML = '';
 
                 termBody.innerHTML =
-                    '<div class="tp-line"><span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Andrew</span><span class="t-white">.</span></div>' +
-                    '<div class="tp-line"><span class="t-gray">Type \'stop\' to quit, or just reply yourself.</span></div>' +
+                    '<div class="tp-line"><span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Sarah</span><span class="t-white">.</span></div>' +
+                    '<div class="tp-line"><span class="t-gray">Autopilot | Calendar: on</span></div>' +
                     '<div class="tp-line">&nbsp;</div>' +
-                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Yo wanna play rocket league</span></div>' +
-                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">Yeah gimme like 20 min</span></div>' +
-                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Did u do the history essay</span></div>' +
-                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">Nah not yet</span></div>' +
-                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Its due tmrw bro</span></div>' +
-                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">I know ill do it later lol</span></div>';
+                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Hey can you review the deck before 3?</span></div>' +
+                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">In a meeting til 2:30, will look right after</span></div>' +
+                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Perfect thanks</span></div>' +
+                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">Sounds good</span></div>' +
+                    '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Also wanna grab lunch tmrw?</span></div>' +
+                    '<div class="tp-line" style="padding-left:56px"><span class="t-green">you:</span>  <span class="t-white">Yeah I\'m down, where were you thinking</span></div>';
 
                 var replies = [
-                    { them: 'Yo wanna play rocket league', you: 'Yeah gimme like 20 min' },
-                    { them: 'Did u do the history essay', you: 'Nah not yet' },
-                    { them: 'Its due tmrw bro', you: 'I know ill do it later lol' }
+                    { them: 'Hey can you review the deck before 3?', you: 'In a meeting til 2:30, will look right after' },
+                    { them: 'Perfect thanks', you: 'Sounds good' },
+                    { them: 'Also wanna grab lunch tmrw?', you: 'Yeah I\'m down, where were you thinking' }
                 ];
 
                 replies.forEach(function(r) {
@@ -2202,7 +2198,7 @@
                     await player.output([
                         '',
                         '<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>',
-                        '<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.7.0</span>   <span class="t-green">\u2551</span>',
+                        '<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.8.0</span>   <span class="t-green">\u2551</span>',
                         '<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>',
                         ''
                     ]);
@@ -2249,22 +2245,22 @@
 
                 // Running state + replies
                 await player.output([
-                    '<span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Andrew</span><span class="t-white">.</span>',
-                    '<span class="t-gray">Type \'stop\' to quit, or just reply yourself.</span>',
+                    '<span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Sarah</span><span class="t-white">.</span>',
+                    '<span class="t-gray">Autopilot | Calendar: on</span>',
                     ''
                 ]);
                 if (player.aborted) return;
                 await player.wait(800);
 
-                await player.reply('Yo wanna play rocket league', 'Yeah gimme like 20 min');
+                await player.reply('Hey can you review the deck before 3?', 'In a meeting til 2:30, will look right after');
                 if (player.aborted) return;
                 await player.wait(500);
 
-                await player.reply('Did u do the history essay', 'Nah not yet');
+                await player.reply('Perfect thanks', 'Sounds good');
                 if (player.aborted) return;
                 await player.wait(500);
 
-                await player.reply('Its due tmrw bro', 'I know ill do it later lol');
+                await player.reply('Also wanna grab lunch tmrw?', 'Yeah I\'m down, where were you thinking');
 
                 skipBtn.style.display = 'none';
                 replayBtn.style.display = '';
@@ -2368,7 +2364,7 @@
                 await wait(600);
                 addLine('');
                 addLine('<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>');
-                addLine('<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.7.0</span>   <span class="t-green">\u2551</span>');
+                addLine('<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.8.0</span>   <span class="t-green">\u2551</span>');
                 addLine('<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>');
                 setProgress(25);
                 await wait(1500);
