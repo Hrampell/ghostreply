@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.9.4"
+VERSION = "1.9.5"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -138,35 +138,37 @@ BREAKUP_TONE = (
 )
 
 RIZZ_TONE = (
-    "You are flirting with this person. Be smooth, confident, and charming. "
-    "Drop subtle compliments, be playful, tease them a little. Use wit over "
-    "cheesy pickup lines. Be magnetic — make them want to keep texting. "
+    "You are flirting with this person. Be smooth, confident, and playfully bold. "
+    "Drop compliments that feel earned, not generic. Tease them — light push-pull energy. "
+    "Use wit over cheesy pickup lines. Be magnetic — make them want to keep texting. "
     "Don't be desperate or try too hard. Confidence is key. "
-    "Read the vibe and match their energy but always stay smooth."
+    "If they flirt back, escalate slightly. If they're neutral, stay charming but not pushy. "
+    "Example energy: 'you're trouble aren't you', 'not gonna lie that's actually impressive'"
 )
 
 DRUNK_TONE = (
-    "You are texting while drunk. Make typos, use random capitalization, "
-    "go on tangents, overshare, be overly emotional and sentimental. "
-    "Misspell some words, forget what you were saying mid-sentence. "
-    "Be chaotic but lovable. Sometimes send messages that don't fully make sense. "
-    "Occasionally repeat yourself."
+    "You are texting while WASTED. Make typos, random capitalization, misspell words. "
+    "Go on tangents, overshare, be overly emotional and sentimental out of nowhere. "
+    "Forget what you were saying mid-sentence. Send messages that barely make sense. "
+    "Be chaotic but lovable. Occasionally repeat yourself or circle back to random topics. "
+    "Example: 'bro i love u sm ur the best', 'waittt what were we talkign about', 'DUUUDE'"
 )
 
 SOPHISTICATED_TONE = (
-    "Take the user's natural voice and make it more polished. "
-    "Keep their personality and warmth, but clean up the grammar, use full sentences, "
-    "proper capitalization, and no slang or abbreviations. No 'lol', 'nah', 'gonna', "
+    "Take the user's natural voice and make it NOTICEABLY more polished and articulate. "
+    "Full sentences, proper grammar, no slang or abbreviations. No 'lol', 'nah', 'gonna', "
     "'u', 'rn', 'ngl'. NEVER swear — even if the user normally does. "
-    "It should still sound like THEM, just the professional version. "
-    "Example: if they'd say 'yeah ill check it out' → 'Sounds good, I'll take a look this afternoon.'"
+    "Use more thoughtful vocabulary than the user normally would — sound educated and composed. "
+    "It should still feel like their personality, just elevated. "
+    "Example: 'yeah ill check it out' → 'Sounds good, I'll take a look this afternoon.' "
+    "Example: 'idk maybe' → 'I'm not sure yet, let me think about it.'"
 )
 
 BUSY_TONE = (
-    "Keep the user's natural voice but make every reply ultra-short — 3-8 words MAX. "
-    "Same vibe as them, just compressed. No pleasantries, no filler. "
-    "Acknowledge + defer. Fragments are fine. "
-    "Examples: 'In a meeting, after 3', 'Can't rn, later', 'Busy til 5 will text you'. "
+    "Make every reply ULTRA short — 3-8 words MAX. Bare minimum acknowledgment. "
+    "No pleasantries, no filler, no warmth. Acknowledge + defer. Fragments are fine. "
+    "Sound like someone typing one-handed in a meeting. "
+    "Examples: 'In a meeting, after 3', 'Can't rn later', 'Busy til 5 will text you', 'k sounds good'. "
     "If urgent, give ONE brief helpful line then cut off. "
     "NEVER write more than one short sentence. Blunt but not rude."
 )
@@ -1106,7 +1108,6 @@ def apply_persona_defaults():
     persona = profile.get("life_profile", {}).get("persona", "casual")
     config.setdefault("persona", persona)
     if persona == "professional":
-        config.setdefault("safe_mode", True)
         config.setdefault("swearing", "never")
         config.setdefault("calendar_sync", True)
         config.setdefault("schedule_mode", "meetings")
@@ -1488,26 +1489,63 @@ def build_system_prompt(contact_name: str = "") -> str:
                 "\n".join(f"- {n}" for n in notes)
             )
 
-    # Safe mode — keep everything appropriate (per-contact or legacy global)
-    safe_contacts = config.get("safe_contacts", [])
-    is_safe = config.get("safe_mode", False)  # legacy global fallback
-    if not is_safe and contact_name and safe_contacts:
-        is_safe = any(s.lower() in contact_name.lower() or contact_name.lower() in s.lower() for s in safe_contacts)
-    if is_safe:
+    # Tone / formality — adapt to the relationship with this contact
+    # Check contact notes and conversation history for formality signals
+    _formal_keywords = {"boss", "manager", "professor", "teacher", "formal", "professional", "coworker", "colleague", "supervisor", "client", "work"}
+    _casual_keywords = {"close friend", "best friend", "casual", "swearing is normal", "informal", "bro", "homie"}
+    notes_lower = " ".join(n.lower() for n in (notes if notes else []))
+    is_formal_contact = any(k in notes_lower for k in _formal_keywords)
+    is_casual_contact = any(k in notes_lower for k in _casual_keywords)
+
+    # Also check friend details for formality hints
+    for f in friends:
+        if isinstance(f, dict) and contact_name and f.get("name", "").lower() in contact_name.lower():
+            details_lower = f.get("details", "").lower()
+            if any(k in details_lower for k in _formal_keywords):
+                is_formal_contact = True
+            if any(k in details_lower for k in _casual_keywords):
+                is_casual_contact = True
+
+    # Analyze actual conversation history for formality (if no notes yet)
+    if not is_formal_contact and not is_casual_contact and target_handle:
+        _swear_words = {"fuck", "shit", "damn", "bitch", "ass", "wtf", "stfu", "lmfao"}
+        history = conversation_history.get(target_handle, [])
+        their_msgs = [m["content"].lower() for m in history if m.get("role") == "user"]
+        our_msgs = [m["content"].lower() for m in history if m.get("role") == "assistant"]
+        all_msgs = " ".join(their_msgs + our_msgs)
+        convo_has_swearing = any(w in all_msgs for w in _swear_words)
+        convo_is_formal = not convo_has_swearing and all(
+            m[0:1].isupper() or not m[0:1].isalpha() for m in their_msgs[:5] if m.strip()
+        ) if their_msgs else False
+        if convo_is_formal and len(their_msgs) >= 3:
+            is_formal_contact = True
+        elif convo_has_swearing:
+            is_casual_contact = True
+
+    if is_formal_contact:
         parts.append(
-            "\nSAFE MODE (CRITICAL): Keep ALL replies completely appropriate. "
-            "No swearing, no sexual jokes, no crude humor, no insults, nothing inappropriate. "
-            "Be friendly and respectful. This person could be anyone — keep it clean."
+            "\nTONE WITH THIS CONTACT: This is a FORMAL relationship (boss, colleague, professional). "
+            "NEVER swear. Use proper grammar, full sentences. Be polite and respectful. "
+            "No slang, no crude humor. Keep it professional even in casual small talk."
+        )
+    elif is_casual_contact:
+        parts.append(
+            "\nTONE WITH THIS CONTACT: This is a close/casual relationship. "
+            "You can swear naturally if it fits your texting style. Be yourself — relaxed and informal."
         )
     else:
-        # Swearing rules
+        # Fall back to general swearing setting, but add context awareness
         swear_setting = config.get("swearing", "on")
         if swear_setting == "never":
             parts.append("\nSWEARING: NEVER swear. Do not use any profanity or curse words under any circumstances.")
         elif swear_setting == "off":
             parts.append("\nSWEARING: Do not swear or use profanity in your replies.")
         else:
-            parts.append("\nSWEARING: You can swear naturally if it fits your texting style. Don't force it.")
+            parts.append(
+                "\nTONE: Match the formality of how the conversation has been going. "
+                "If the conversation is casual and they're swearing, you can too. "
+                "If it's been polite/professional, stay clean. Read the room."
+            )
 
     # Anti-AI detection (always)
     parts.append(
@@ -1550,8 +1588,11 @@ def extract_contact_notes(handle: str, messages: list[dict]):
     prompt = (
         f"Extract any NEW facts about {contact_name} from this conversation. "
         f"Already known:\n{existing_str}\n\n"
-        "Return ONLY a JSON array of short new facts (e.g. [\"has a cat named Luna\", \"going to Hawaii next week\"]). "
-        "Return [] if nothing new or noteworthy. Only include facts about THEM, not you."
+        "Return ONLY a JSON array of short new facts. Include:\n"
+        "- Facts about them (e.g. \"has a cat named Luna\", \"going to Hawaii next week\")\n"
+        "- Relationship/tone observations (e.g. \"formal relationship - uses proper grammar\", "
+        "\"close friend - casual/swearing is normal\", \"boss/manager\", \"family member\")\n"
+        "Return [] if nothing new or noteworthy. Only include facts about THEM or the relationship, not about you."
     )
 
     history_str = "\n".join(
@@ -1885,17 +1926,12 @@ def first_time_setup():
     persona_labels = {"student": "Student", "professional": "Professional", "casual": "Casual"}
     print(f"  {GRAY}Detected profile: {GREEN}{persona_labels.get(persona, 'Casual')}{RESET}")
 
-    # --- Step 6: Swearing detection + safe contacts ---
+    # --- Step 6: Swearing detection ---
     if persona == "professional":
-        # Professional persona — auto-set clean mode
         config["swearing"] = "never"
-        config["safe_mode"] = True
-        config["safe_contacts"] = []
         print(f"\n  {GREEN}✓{RESET} Professional mode — keeping it clean with all contacts.{RESET}")
     elif config.get("swearing"):
-        # Persona already set swearing preference
         print(f"\n  {GREEN}✓{RESET} Swearing: {config['swearing']}{RESET}")
-        config.setdefault("safe_contacts", [])
     else:
         _SWEAR_WORDS = {"fuck", "shit", "damn", "ass", "bitch", "hell", "dick", "piss", "crap", "bastard", "wtf", "stfu", "lmao", "lmfao"}
         swears_detected = False
@@ -1904,27 +1940,11 @@ def first_time_setup():
             swears_detected = bool(sample_words & _SWEAR_WORDS)
         if swears_detected:
             config["swearing"] = "on"
-            print(f"\n  {GREEN}✓{RESET} Detected you swear in your texts — GhostReply will match that.{RESET}")
-            print()
-            safe_choice = select_option("Any contacts to keep it clean with?", [
-                {"label": "Yes", "color": GREEN},
-                {"label": "No", "color": GRAY},
-            ])
-            if safe_choice == 0:
-                print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
-                names_input = input(f"  {WHITE}> {RESET}").strip()
-                safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
-                config["safe_contacts"] = safe_contacts
-                if safe_contacts:
-                    print(wrap(f"  {GREEN}✓{RESET} Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}", 2))
-                else:
-                    config["safe_contacts"] = []
-            else:
-                config["safe_contacts"] = []
+            print(f"\n  {GREEN}✓{RESET} Swearing adapts per contact — formal contacts stay clean automatically.{RESET}")
         else:
             config["swearing"] = "never"
-            config["safe_contacts"] = []
-    config.pop("safe_mode", None) if persona != "professional" else None
+    config.pop("safe_mode", None)
+    config.pop("safe_contacts", None)
     save_config(config)
 
     # --- Step 6b: Calendar sync ---
@@ -2944,14 +2964,25 @@ def get_ai_response(contact: str) -> str:
     if custom_tone:
         if custom_tone in _FUN_TONES:
             prompt += (
-                f"\n\nCUSTOM PERSONALITY (follow this closely): {custom_tone}\n"
-                "EXAGGERATE this personality trait. Go over the top with it."
+                f"\n\nCUSTOM PERSONALITY (OVERRIDE — follow this closely): {custom_tone}\n"
+                "EXAGGERATE this personality trait. Go over the top with it. "
+                "This mode OVERRIDES the normal tone rules above."
             )
-        elif custom_tone in _PRODUCTIVITY_TONES:
+        elif custom_tone == BUSY_TONE:
             prompt += (
-                f"\n\nCUSTOM PERSONALITY (adjust your style to match this): {custom_tone}\n"
-                "Keep the user's personality but adapt it to this tone. "
-                "It should still sound like them — just a different mode."
+                f"\n\nBUSY MODE (OVERRIDE — this is the #1 priority): {custom_tone}\n"
+                "This OVERRIDES everything about message length above. "
+                "3-8 words MAX. No exceptions. Even if you normally write longer, keep it brutally short. "
+                "But STILL respect the formality level for this contact — "
+                "formal contacts get clean short replies, casual contacts get casual short replies."
+            )
+        elif custom_tone == SOPHISTICATED_TONE:
+            prompt += (
+                f"\n\nFORMAL MODE (OVERRIDE — elevate your language): {custom_tone}\n"
+                "This OVERRIDES the normal texting style rules above. "
+                "Write noticeably more polished than you normally would. Full sentences, "
+                "proper grammar, no abbreviations, no slang. NEVER swear in this mode. "
+                "The reply should sound distinctly more articulate than your usual texts."
             )
         else:
             prompt += (
