@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.9.2"
+VERSION = "1.9.3"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -1795,7 +1795,7 @@ def first_time_setup():
             email = input(f"{GRAY}(optional, press Enter to skip):{RESET} ").strip()
             if email and "@" in email:
                 config["email"] = email
-                print(f"  {GREEN}✓{RESET} {GRAY}We'll remind you before it expires.{RESET}")
+                print(f"  {GREEN}✓{RESET} We'll remind you before it expires.{RESET}")
             break
         # Friend keys (grf_<name>_<sig>) — validated locally, no API call
         if _verify_friend_key(key):
@@ -1839,7 +1839,7 @@ def first_time_setup():
     # --- Step 4: Scan messages + conversations (fully automatic) ---
     print()
     print(f"\n{BLUE}●{RESET} {BOLD}Scanning Your Messages{RESET}")
-    print(f"{GRAY}Reading your iMessage history to learn how you text...{RESET}")
+    print(f"  Reading your iMessage history to learn how you text.")
     print()
 
     # 4a: Scan sent messages for style
@@ -1868,7 +1868,7 @@ def first_time_setup():
     # --- Step 5: Build life profile from conversations ---
     if convos:
         print()
-        print(f"{GRAY}Building your profile from your conversations...{RESET}", end=" ", flush=True)
+        print(f"  Building your profile...", end=" ", flush=True)
         user_name = profile.get("name", mac_name or "")
         life = build_life_profile(my_texts or [], convos, user_name)
         profile["life_profile"] = life
@@ -1877,7 +1877,7 @@ def first_time_setup():
             profile["name"] = life["name"]
         print(f"{GREEN}done!{RESET}")
 
-    print(f"  {GREEN}✓{RESET} {GRAY}Profile built from your messages.{RESET}")
+    print(f"  {GREEN}✓{RESET} Profile built from your messages.{RESET}")
 
     # Apply persona-based defaults
     apply_persona_defaults()
@@ -1891,10 +1891,10 @@ def first_time_setup():
         config["swearing"] = "never"
         config["safe_mode"] = True
         config["safe_contacts"] = []
-        print(f"\n  {GREEN}✓{RESET} {GRAY}Professional mode — keeping it clean with all contacts.{RESET}")
+        print(f"\n  {GREEN}✓{RESET} Professional mode — keeping it clean with all contacts.{RESET}")
     elif config.get("swearing"):
         # Persona already set swearing preference
-        print(f"\n  {GREEN}✓{RESET} {GRAY}Swearing: {config['swearing']}{RESET}")
+        print(f"\n  {GREEN}✓{RESET} Swearing: {config['swearing']}{RESET}")
         config.setdefault("safe_contacts", [])
     else:
         _SWEAR_WORDS = {"fuck", "shit", "damn", "ass", "bitch", "hell", "dick", "piss", "crap", "bastard", "wtf", "stfu", "lmao", "lmfao"}
@@ -1904,7 +1904,7 @@ def first_time_setup():
             swears_detected = bool(sample_words & _SWEAR_WORDS)
         if swears_detected:
             config["swearing"] = "on"
-            print(f"\n  {GREEN}✓{RESET} {GRAY}Detected you swear in your texts — GhostReply will match that.{RESET}")
+            print(f"\n  {GREEN}✓{RESET} Detected you swear in your texts — GhostReply will match that.{RESET}")
             print()
             safe_choice = select_option("Any contacts to keep it clean with?", [
                 {"label": "Yes", "color": GREEN},
@@ -1916,7 +1916,7 @@ def first_time_setup():
                 safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
                 config["safe_contacts"] = safe_contacts
                 if safe_contacts:
-                    print(wrap(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}", 2))
+                    print(wrap(f"  {GREEN}✓{RESET} Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}", 2))
                 else:
                     config["safe_contacts"] = []
             else:
@@ -1930,7 +1930,7 @@ def first_time_setup():
     # --- Step 6b: Calendar sync ---
     if config.get("calendar_sync"):
         # Already auto-enabled by persona defaults
-        print(f"\n  {GREEN}✓{RESET} {GRAY}Calendar sync enabled.{RESET}")
+        print(f"\n  {GREEN}✓{RESET} Calendar sync enabled.{RESET}")
         warm_calendar_cache()
     else:
         print()
@@ -1955,7 +1955,7 @@ def first_time_setup():
     # --- Step 6c: Scheduled hours ---
     if config.get("schedule_mode") == "meetings":
         # Already set by persona defaults
-        print(f"\n  {GREEN}✓{RESET} {GRAY}Meeting mode — auto-activates during calendar events.{RESET}")
+        print(f"\n  {GREEN}✓{RESET} Meeting mode — auto-activates during calendar events.{RESET}")
     else:
         print()
         sched_options = [
@@ -2010,7 +2010,7 @@ def first_time_setup():
             fav_names = ", ".join(f.get("name", f["handle"]) for f in existing_favs[:3])
             if len(existing_favs) > 3:
                 fav_names += f" +{len(existing_favs)-3} more"
-            print(f"\n  {GRAY}Current favorites: {BLUE}{fav_names}{RESET}")
+            print(f"\n  {WHITE}Current favorites: {BLUE}{fav_names}{RESET}")
             fav_action = select_option("Favorites:", [
                 {"label": "Keep these",  "desc": f"{len(existing_favs)} contacts",  "color": GREEN},
                 {"label": "Add more",    "desc": "select additional contacts",      "color": BLUE},
@@ -2091,7 +2091,7 @@ def first_time_setup():
                 {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
                 {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
                 {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
-            ], allow_back=True)
+            ])
             if prank == -1:
                 # Re-show mode selection
                 if persona == "professional":
@@ -2104,7 +2104,7 @@ def first_time_setup():
             pro = select_option("Choose a style:", [
                 {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
                 {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
-            ], allow_back=True)
+            ])
             if pro == -1:
                 if persona == "professional":
                     mode = select_option("Choose a reply mode:", mode_options)
@@ -2188,7 +2188,7 @@ def first_time_setup():
     save_config(config)
 
     print()
-    print(f"\n{GREEN}✔{RESET} {BOLD}Setup complete!{RESET} {DIM}Everything was learned from your messages.{RESET}")
+    print(f"\n{GREEN}✔{RESET} {BOLD}Setup complete!{RESET}")
     print()
 
 
@@ -2332,22 +2332,19 @@ def format_contact_list(contacts: list[dict]) -> list[str]:
     return result
 
 
-def select_option(prompt: str, options: list[dict], allow_back: bool = False) -> int:
+def select_option(prompt: str, options: list[dict]) -> int:
     """Arrow-key selector. Returns the index of the chosen option.
-    Returns -1 if allow_back is True and user selects '← Back'.
+    Returns -1 if user presses Backspace (go back).
 
     Each option dict has keys: label, color.
     """
     HIDE_CUR = "\033[?25l"
     SHOW_CUR = "\033[?25h"
     selected = 0
-    opts = list(options)
-    if allow_back:
-        opts.append({"label": "← Back", "desc": "go back", "color": DIM})
-    total = len(opts)
+    total = len(options)
 
     def _render():
-        for i, opt in enumerate(opts):
+        for i, opt in enumerate(options):
             desc = f"  {GRAY}{opt['desc']}{RESET}" if i == selected and opt.get("desc") else ""
             if i == selected:
                 sys.stdout.write(f"\033[2K {opt['color']}❯ {opt['label']}{desc}{RESET}\r\n")
@@ -2357,16 +2354,16 @@ def select_option(prompt: str, options: list[dict], allow_back: bool = False) ->
 
     # Initial draw + hide cursor
     sys.stdout.write(HIDE_CUR)
-    has_submenu = any(">>" in opt.get("label", "") for opt in opts)
+    has_submenu = any(">>" in opt.get("label", "") for opt in options)
     sub_hint = ", >> = submenu" if has_submenu else ""
-    hint = f"  {DIM}↑/↓ to move, Enter to select{sub_hint}{RESET}"
+    hint = f"  {DIM}↑/↓ move, Enter select, Backspace back{sub_hint}{RESET}"
     prompt_line = f"\n{BLUE}?{RESET} {BOLD}{prompt}{RESET}"
     if _visible_len(prompt_line) + _visible_len(hint) > term_width():
         print(prompt_line)
         print(f"  {hint.lstrip()}")
     else:
         print(f"{prompt_line}{hint}")
-    for i, opt in enumerate(opts):
+    for i, opt in enumerate(options):
         desc = f"  {GRAY}{opt['desc']}{RESET}" if i == selected and opt.get("desc") else ""
         if i == selected:
             print(f" {opt['color']}❯ {opt['label']}{desc}{RESET}")
@@ -2381,6 +2378,11 @@ def select_option(prompt: str, options: list[dict], allow_back: bool = False) ->
             ch = sys.stdin.read(1)
             if ch in ("\r", "\n"):
                 break
+            if ch == "\x7f":  # Backspace — go back
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                sys.stdout.write(f"\033[{total + 1}A\r\033[J{SHOW_CUR}")
+                sys.stdout.flush()
+                return -1
             if ch == "\x03":  # Ctrl-C
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
                 sys.stdout.write(SHOW_CUR)
@@ -2401,14 +2403,8 @@ def select_option(prompt: str, options: list[dict], allow_back: bool = False) ->
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-    # Handle back selection — clear prompt without ✔ line
-    if allow_back and selected == total - 1:
-        sys.stdout.write(f"\033[{total + 1}A\r\033[J{SHOW_CUR}")
-        sys.stdout.flush()
-        return -1
-
     # Collapse to single line: ✔ prompt  answer
-    chosen = opts[selected]
+    chosen = options[selected]
     sys.stdout.write(f"\033[{total + 1}A\r")
     sys.stdout.write(f"\033[2K{GREEN}✔{RESET} {BOLD}{prompt}{RESET} {chosen['color']}{chosen['label']}{RESET}\n")
     sys.stdout.write(f"\033[J{SHOW_CUR}")
@@ -3759,7 +3755,7 @@ def main():
                 life = build_life_profile(my_texts or [], convos, user_name)
                 profile["life_profile"] = life
             save_profile(profile)
-            print(f"  {GREEN}✓{RESET} {GRAY}Profile ready.{RESET}")
+            print(f"  {GREEN}✓{RESET} Profile ready.{RESET}")
 
         # Validate license or trial
         if config.get("trial_started_at"):
@@ -3872,6 +3868,8 @@ def main():
                     {"label": "Favorites",   "desc": "pick multiple",      "color": SOFT_PINK},
                 ])
 
+                if target_choice == -1:  # Backspace on first step — just re-show
+                    continue
                 if target_choice == 0:  # One person
                     selected = pick_contact()
                     target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
@@ -3897,7 +3895,7 @@ def main():
                         fav_names = ", ".join(f.get("name", f["handle"]) for f in existing_favs[:3])
                         if len(existing_favs) > 3:
                             fav_names += f" +{len(existing_favs)-3} more"
-                        print(f"\n  {GRAY}Current favorites: {BLUE}{fav_names}{RESET}")
+                        print(f"\n  {WHITE}Current favorites: {BLUE}{fav_names}{RESET}")
                         fav_action = select_option("Favorites:", [
                             {"label": "Keep these",  "desc": f"{len(existing_favs)} contacts",  "color": GREEN},
                             {"label": "Add more",    "desc": "select additional contacts",      "color": BLUE},
@@ -3949,14 +3947,14 @@ def main():
                         {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
                         {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
                     ]
-                    mode = select_option("Choose a reply mode:", _mode_opts, allow_back=True)
+                    mode = select_option("Choose a reply mode:", _mode_opts)
                 else:
                     mode = select_option("Choose a reply mode:", [
                         {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
                         {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
                         {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
                         {"label": "Fun >>",          "desc": "creative reply modes",  "color": YELLOW},
-                    ], allow_back=True)
+                    ])
 
                 if mode == -1:
                     _setup_step = 0; continue
@@ -3967,7 +3965,7 @@ def main():
                         {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
                         {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
                         {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
-                    ], allow_back=True)
+                    ])
                     if prank == -1:
                         continue  # Re-show mode selection
                     mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
@@ -3975,7 +3973,7 @@ def main():
                     pro = select_option("Choose a style:", [
                         {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
                         {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
-                    ], allow_back=True)
+                    ])
                     if pro == -1:
                         continue  # Re-show mode selection
                     mode = 6 if pro == 0 else 7
@@ -4004,7 +4002,7 @@ def main():
                 cal_choice = select_option(f"Calendar sync is {cal_status}. Change?", [
                     {"label": "Keep " + cal_status, "color": GREEN},
                     {"label": "Turn " + ("off" if config.get("calendar_sync") else "on"), "color": BLUE},
-                ], allow_back=True)
+                ])
                 if cal_choice == -1:
                     _setup_step = 1; continue
                 if cal_choice == 1:
@@ -4024,7 +4022,7 @@ def main():
                 ]
                 if config.get("calendar_sync"):
                     sched_options.append({"label": "Meetings only", "desc": "only reply during calendar events", "color": BLUE})
-                sched_choice = select_option(f"Schedule ({sched_labels.get(current_sched, 'Always on')}):", sched_options, allow_back=True)
+                sched_choice = select_option(f"Schedule ({sched_labels.get(current_sched, 'Always on')}):", sched_options)
                 if sched_choice == -1:
                     _setup_step = 2; continue
                 if sched_choice == 0:
@@ -4126,16 +4124,12 @@ def main():
 
     if target_mode == "single":
         print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-        print(f"  {GRAY}{info_str}{RESET}")
-        print()
-        print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
-        print(f"  {GRAY}Or just reply to {target_name} yourself — it'll stop automatically.{RESET}")
+        print(f"  {WHITE}{info_str}{RESET}")
+        print(f"  {DIM}Type {WHITE}stop{DIM} or {WHITE}Ctrl+C{DIM} to quit. Reply yourself to auto-stop.{RESET}")
     else:
         print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
-        print(f"  {GRAY}{info_str}{RESET}")
-        print()
-        print(f"  {GRAY}To stop: type {WHITE}stop{GRAY} and hit Enter, or press {WHITE}Ctrl+C{RESET}")
-        print(f"  {GRAY}Text someone yourself and that contact auto-pauses for 30 min.{RESET}")
+        print(f"  {WHITE}{info_str}{RESET}")
+        print(f"  {DIM}Type {WHITE}stop{DIM} or {WHITE}Ctrl+C{DIM} to quit. Reply yourself to auto-pause.{RESET}")
     print()
 
     # Wait for any setup-sent messages to land in chat.db
@@ -4187,14 +4181,14 @@ def uninstall():
                 while new_lines and new_lines[-1].strip() == "":
                     new_lines.pop()
                 rc_file.write_text("\n".join(new_lines) + "\n")
-                print(f"  {GREEN}✓{RESET} {GRAY}Removed alias from {rc_file.name}{RESET}")
+                print(f"  {GREEN}✓{RESET} Removed alias from {rc_file.name}{RESET}")
             except Exception:
                 print(f"  {YELLOW}Could not clean {rc_file.name} — remove the 'ghostreply' alias manually.{RESET}")
 
     # Remove ~/.ghostreply/
     if CONFIG_DIR.exists():
         shutil.rmtree(CONFIG_DIR)
-        print(f"  {GREEN}✓{RESET} {GRAY}Removed ~/.ghostreply/{RESET}")
+        print(f"  {GREEN}✓{RESET} Removed ~/.ghostreply/{RESET}")
 
     print()
     print(f"  {GREEN}GhostReply uninstalled.{RESET} Restart your terminal to finish.")
