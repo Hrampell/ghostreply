@@ -1326,6 +1326,91 @@
 
             .feedback-btn { bottom: 16px; right: 16px; width: 42px; height: 42px; font-size: 20px; }
         }
+
+        /* ===== How It Works ===== */
+        .how-it-works {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-top: 40px;
+        }
+        .hiw-step {
+            text-align: center;
+            padding: 32px 20px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .hiw-icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+        }
+        .hiw-step h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .hiw-step p {
+            color: #888;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        @media (max-width: 768px) {
+            .how-it-works { grid-template-columns: 1fr; gap: 16px; }
+        }
+
+        /* ===== Use Cases ===== */
+        .use-cases {
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+            margin-top: 40px;
+        }
+        .use-case {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+        .use-case:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+        .use-case-text {
+            flex: 1;
+        }
+        .use-case-text h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .use-case-text p {
+            color: #888;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .use-case .imessage-demo {
+            flex: 0 0 300px;
+            margin: 0;
+        }
+        @media (max-width: 768px) {
+            .use-case, .use-case:nth-child(even) {
+                flex-direction: column;
+            }
+            .use-case .imessage-demo {
+                flex: none;
+                width: 100%;
+            }
+        }
+
+        /* ===== Feature Groups ===== */
+        .feature-group {
+            margin-bottom: 36px;
+        }
+        .feature-group-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #4ade80;
+            margin-bottom: 16px;
+        }
     </style>
 </head>
 <body>
@@ -1344,7 +1429,7 @@
             <div class="glow-orb glow-orb-hero"></div>
             <div class="logo">👻</div>
             <h1>GhostReply</h1>
-            <p class="subtitle">Smart auto-replies for iMessage. It learns your texting style, handles small talk, triages important messages, and knows your schedule.</p>
+            <p class="subtitle">In meetings. Driving. Deep in work. Your texts pile up.<br>GhostReply handles them — learns your style, reads your calendar, and knows what matters.</p>
 
             <div class="price-tag">
                 <span class="price">$4.99</span>
@@ -1382,112 +1467,95 @@
 
     </div><!-- end container -->
 
-    <!-- ===== Sticky Scroll Sequence ===== -->
-    <section class="sticky-sequence" id="sticky-seq">
-        <div class="sticky-frame">
-            <div class="sticky-images">
-                <img src="assets/ph1_hero.png" class="seq-img active" data-step="0" alt="GhostReply running">
-                <img src="assets/ph4_contact.png" class="seq-img" data-step="1" alt="GhostReply contact picker">
-                <img src="assets/ph5_personality.png" class="seq-img" data-step="2" alt="GhostReply personality chat">
-                <img src="assets/ph2_setup.png" class="seq-img" data-step="3" alt="GhostReply setup flow">
-            </div>
-            <div class="sticky-text">
-                <div class="seq-caption active" data-step="0">
-                    <h3>It runs quietly in your terminal</h3>
-                    <p>GhostReply monitors your iMessages and replies as you. Your friends see blue bubbles. You see a log of everything it sends.</p>
-                    <div class="seq-dots">
-                        <div class="seq-dot active" data-dot="0"></div>
-                        <div class="seq-dot" data-dot="1"></div>
-                        <div class="seq-dot" data-dot="2"></div>
-                        <div class="seq-dot" data-dot="3"></div>
-                    </div>
-                </div>
-                <div class="seq-caption" data-step="1">
-                    <h3>Pick a contact, pick a mode</h3>
-                    <p>Choose who to reply to — one person, favorites, or everyone. Then pick Autopilot, Custom, Productivity, or Fun mode.</p>
-                    <div class="seq-dots">
-                        <div class="seq-dot" data-dot="0"></div>
-                        <div class="seq-dot active" data-dot="1"></div>
-                        <div class="seq-dot" data-dot="2"></div>
-                        <div class="seq-dot" data-dot="3"></div>
-                    </div>
-                </div>
-                <div class="seq-caption" data-step="2">
-                    <h3>Customize the personality</h3>
-                    <p>Tell it how to text — professional, casual, friendly — or just let it match your natural style from your messages.</p>
-                    <div class="seq-dots">
-                        <div class="seq-dot" data-dot="0"></div>
-                        <div class="seq-dot" data-dot="1"></div>
-                        <div class="seq-dot active" data-dot="2"></div>
-                        <div class="seq-dot" data-dot="3"></div>
-                    </div>
-                </div>
-                <div class="seq-caption" data-step="3">
-                    <h3>Zero config. It learns from you.</h3>
-                    <p>First run scans your message history, learns your texting style, and reads your conversations for context. No setup, no training — it just works.</p>
-                    <div class="seq-dots">
-                        <div class="seq-dot" data-dot="0"></div>
-                        <div class="seq-dot" data-dot="1"></div>
-                        <div class="seq-dot" data-dot="2"></div>
-                        <div class="seq-dot active" data-dot="3"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
+    <!-- ===== How It Works ===== -->
     <div class="container">
-
-        <!-- Example conversations -->
-        <div class="section" style="padding-top:20px;">
-            <h2>See It In Action</h2>
-            <p style="text-align:center; color:#888; margin-bottom:8px;">Real examples of GhostReply handling your messages.</p>
-
-            <div class="demos-row" style="display:flex; gap:16px; overflow-x:auto; padding-bottom:8px;">
-
-            <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
-                <div class="demo-header"><strong>Sarah</strong>iMessage</div>
-                <div class="anim-msg anim-gray">Hey are you free to hop on a call?</div>
-                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-label">GhostReply:</div>
-                <div class="anim-msg anim-blue">In a meeting til 3, can I call you after?</div>
-                <div style="clear:both"></div>
-                <div class="anim-msg anim-gray">Yeah that works, no rush</div>
-                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-msg anim-blue">Sounds good</div>
-                <div style="clear:both"></div>
-            </div>
-
-            <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
-                <div class="demo-header"><strong>Jake</strong>iMessage</div>
-                <div class="anim-msg anim-gray">When are you free this week?</div>
-                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-label">GhostReply:</div>
-                <div class="anim-msg anim-blue">I'm open Thursday after 2 and all day Friday</div>
-                <div style="clear:both"></div>
-                <div class="anim-msg anim-gray">Thursday at 3 work?</div>
-                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-msg anim-blue">Yeah that works, want to grab coffee?</div>
-                <div style="clear:both"></div>
-            </div>
-
-            <div class="imessage-demo" data-animated style="flex:1; min-width:280px; margin:24px 0;">
-                <div class="demo-header"><strong>Mom</strong>iMessage</div>
-                <div class="anim-msg anim-gray">When are you coming home for dinner?</div>
-                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-label">GhostReply:</div>
-                <div class="anim-msg anim-blue">Like 6 probably</div>
-                <div style="clear:both"></div>
-                <div class="anim-msg anim-gray">Ok I'm making pasta</div>
-                <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
-                <div class="anim-msg anim-blue">Sounds good</div>
-                <div style="clear:both"></div>
-            </div>
-
+        <div class="section">
+            <h2>How It Works</h2>
+            <div class="how-it-works">
+                <div class="hiw-step">
+                    <div class="hiw-icon">📱</div>
+                    <h3>Learns Your Style</h3>
+                    <p>Scans hundreds of your real texts to learn how you type — abbreviations, slang, message length, capitalization.</p>
+                </div>
+                <div class="hiw-step">
+                    <div class="hiw-icon">📅</div>
+                    <h3>Reads Your Calendar</h3>
+                    <p>Syncs with Calendar.app to know when you're in meetings, when you're free, and what to tell people.</p>
+                </div>
+                <div class="hiw-step">
+                    <div class="hiw-icon">💬</div>
+                    <h3>Handles Your Texts</h3>
+                    <p>Auto-replies to small talk, sends busy replies during meetings, and flags anything urgent or important.</p>
+                </div>
             </div>
         </div>
+    </div>
 
-    </div><!-- end container -->
+    <!-- ===== Use Cases ===== -->
+    <div class="container">
+        <div class="section">
+            <h2>Built For Your Day</h2>
+
+            <div class="use-cases">
+                <div class="use-case">
+                    <div class="use-case-text">
+                        <h3>During Meetings</h3>
+                        <p>Meeting mode auto-activates from your calendar. Small talk gets quick busy replies. Important messages get flagged — you stay focused.</p>
+                    </div>
+                    <div class="imessage-demo" data-animated>
+                        <div class="demo-header"><strong>Sarah</strong>iMessage</div>
+                        <div class="anim-msg anim-gray">Hey are you free to hop on a call?</div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-label">GhostReply:</div>
+                        <div class="anim-msg anim-blue">In a meeting til 3, can I call you after?</div>
+                        <div style="clear:both"></div>
+                        <div class="anim-msg anim-gray">Yeah that works, no rush</div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-msg anim-blue">Sounds good</div>
+                        <div style="clear:both"></div>
+                    </div>
+                </div>
+
+                <div class="use-case">
+                    <div class="use-case-text">
+                        <h3>While You're Working</h3>
+                        <p>Someone asks when you're free? GhostReply checks your calendar and responds with your actual availability. No context switching.</p>
+                    </div>
+                    <div class="imessage-demo" data-animated>
+                        <div class="demo-header"><strong>Jake</strong>iMessage</div>
+                        <div class="anim-msg anim-gray">When are you free this week?</div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-label">GhostReply:</div>
+                        <div class="anim-msg anim-blue">I'm open Thursday after 2 and all day Friday</div>
+                        <div style="clear:both"></div>
+                        <div class="anim-msg anim-gray">Thursday at 3 work?</div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-msg anim-blue">Yeah that works, want to grab coffee?</div>
+                        <div style="clear:both"></div>
+                    </div>
+                </div>
+
+                <div class="use-case">
+                    <div class="use-case-text">
+                        <h3>Everyday Texts</h3>
+                        <p>Quick confirmations, casual check-ins, simple questions — the stuff you'd reply to anyway. GhostReply handles it exactly like you would.</p>
+                    </div>
+                    <div class="imessage-demo" data-animated>
+                        <div class="demo-header"><strong>Mom</strong>iMessage</div>
+                        <div class="anim-msg anim-gray">When are you coming home for dinner?</div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-label">GhostReply:</div>
+                        <div class="anim-msg anim-blue">Like 6 probably</div>
+                        <div style="clear:both"></div>
+                        <div class="anim-msg anim-gray">Ok I'm making pasta</div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-msg anim-blue">Sounds good</div>
+                        <div style="clear:both"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
 
@@ -1566,62 +1634,78 @@
         <!-- Features -->
         <div class="section">
             <h2>Features</h2>
-            <div class="features">
-                <div class="feature">
-                    <h3>Smart Triage</h3>
-                    <p>Knows the difference between "lol" and "call me now." Casual texts get auto-replied. Urgent or sensitive messages get flagged to you instead.</p>
+
+            <div class="feature-group">
+                <h3 class="feature-group-label">Smart</h3>
+                <div class="features">
+                    <div class="feature">
+                        <h3>Smart Triage</h3>
+                        <p>Knows the difference between "lol" and "call me now." Casual texts get auto-replied. Urgent or sensitive messages get flagged to you.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Meeting Mode</h3>
+                        <p>Syncs with your Mac calendar. Auto-activates during meetings, sends quick busy replies, and alerts you for anything important.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Scheduled Hours</h3>
+                        <p>Set active hours so it only runs when you want. Or use meeting mode to auto-activate during calendar events.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Smart Setup</h3>
+                        <p>Detects if you're a student, professional, or casual user from your texts. Auto-configures everything — zero extra questions.</p>
+                    </div>
                 </div>
-                <div class="feature">
-                    <h3>Meeting Mode</h3>
-                    <p>Syncs with your Mac calendar. Auto-activates during meetings, sends quick "in a meeting" replies to small talk, and alerts you for anything important.</p>
+            </div>
+
+            <div class="feature-group">
+                <h3 class="feature-group-label">Personalized</h3>
+                <div class="features">
+                    <div class="feature">
+                        <h3>Learns Your Style</h3>
+                        <p>Scans your real texts to match how you actually type. Your abbreviations, your slang, your vibe.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Knows Your Life</h3>
+                        <p>Reads your conversations to learn your friends, interests, and what you talk about. Replies with context.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Customize the Personality</h3>
+                        <p>Set the tone — professional, casual, friendly, or creative. It asks you questions to match exactly what you want.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Natural Timing</h3>
+                        <p>Replies faster to questions, slower late at night, defers messages at 3am. Feels human, not robotic.</p>
+                    </div>
                 </div>
-                <div class="feature">
-                    <h3>Learns Your Style</h3>
-                    <p>Scans your real texts to match how you actually type. Your abbreviations, your slang, your vibe.</p>
-                </div>
-                <div class="feature">
-                    <h3>Knows Your Life</h3>
-                    <p>Reads your conversations to learn your friends, interests, and what you talk about. Replies with context.</p>
-                </div>
-                <div class="feature">
-                    <h3>Smart Setup</h3>
-                    <p>Detects if you're a student, professional, or casual user from your texts. Auto-configures language, modes, and schedule — zero extra questions.</p>
-                </div>
-                <div class="feature">
-                    <h3>Scheduled Hours</h3>
-                    <p>Set active hours so the bot only runs when you want. Or use meeting mode to auto-activate during calendar events.</p>
-                </div>
-                <div class="feature">
-                    <h3>Natural Timing</h3>
-                    <p>Replies faster to questions, slower late at night, and defers messages that come in at 3am. Feels human, not robotic.</p>
-                </div>
-                <div class="feature">
-                    <h3>Customize the Personality</h3>
-                    <p>Set the tone — professional, casual, friendly, or creative. It asks you questions to match exactly what you want.</p>
-                </div>
-                <div class="feature">
-                    <h3>Multiple Contacts</h3>
-                    <p>Reply to one person, your favorites, or everyone at once. Pick your targeting mode during setup — no extra tabs needed.</p>
-                </div>
-                <div class="feature">
-                    <h3>Auto-Stops When You Reply</h3>
-                    <p>Send a message yourself and the bot stops automatically. No need to go back to your laptop — just text back and you're in control.</p>
-                </div>
-                <div class="feature">
-                    <h3>Runs in Terminal</h3>
-                    <p>No app to download — runs right in your Mac's Terminal. Type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">ghostreply</code> to start, close the window to stop.</p>
-                </div>
-                <div class="feature">
-                    <h3>Free AI</h3>
-                    <p>Uses Groq — free, no credit card. Takes 30 seconds to set up.</p>
-                </div>
-                <div class="feature">
-                    <h3>Natural Conversation</h3>
-                    <p>Writes naturally enough that it blends into your real conversations. Stays in character — always.</p>
-                </div>
-                <div class="feature">
-                    <h3>10 Free Replies</h3>
-                    <p>Try it before you buy. No credit card, no sign up. Just type "trial" during setup. You get 10 auto-replies to see it in action.</p>
+            </div>
+
+            <div class="feature-group">
+                <h3 class="feature-group-label">Flexible</h3>
+                <div class="features">
+                    <div class="feature">
+                        <h3>Multiple Contacts</h3>
+                        <p>Reply to one person, your favorites, or everyone at once. Pick your targeting mode during setup.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Auto-Stops When You Reply</h3>
+                        <p>Text back yourself and it stops automatically. You're always in control.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Natural Conversation</h3>
+                        <p>Writes naturally enough that it blends into your real conversations. Stays in character — always.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Runs in Terminal</h3>
+                        <p>No app to download. Type <code style="background:#222; padding:2px 6px; border-radius:4px; font-size:13px; color:#4ade80;">ghostreply</code> to start, close the window to stop.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>Free AI</h3>
+                        <p>Uses Groq — free, no credit card. Takes 30 seconds to set up.</p>
+                    </div>
+                    <div class="feature">
+                        <h3>10 Free Replies</h3>
+                        <p>Try it before you buy. No sign up. Just type "trial" during setup.</p>
+                    </div>
                 </div>
             </div>
         </div>
