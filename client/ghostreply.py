@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.9.0"
+VERSION = "1.9.1"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -154,23 +154,21 @@ DRUNK_TONE = (
 )
 
 SOPHISTICATED_TONE = (
-    "COMPLETELY IGNORE the user's normal texting style for this mode. "
-    "You text like a polished professional — full sentences, proper capitalization, "
-    "correct grammar, zero slang, zero abbreviations. NEVER use 'lol', 'nah', 'gonna', "
-    "'u', 'rn', 'ngl', or ANY casual shorthand. NEVER swear. "
-    "Write like you're emailing a colleague you respect — warm but precise. "
-    "Example: 'Sounds good, I'll take a look this afternoon.' NOT 'yeah ill check it out'. "
-    "This should read NOTHING like how the user normally texts."
+    "Take the user's natural voice and make it more polished. "
+    "Keep their personality and warmth, but clean up the grammar, use full sentences, "
+    "proper capitalization, and no slang or abbreviations. No 'lol', 'nah', 'gonna', "
+    "'u', 'rn', 'ngl'. NEVER swear — even if the user normally does. "
+    "It should still sound like THEM, just the professional version. "
+    "Example: if they'd say 'yeah ill check it out' → 'Sounds good, I'll take a look this afternoon.'"
 )
 
 BUSY_TONE = (
-    "COMPLETELY IGNORE the user's normal texting style for this mode. "
-    "You are slammed. Every reply is 3-8 words MAX. No pleasantries, no filler. "
-    "Just acknowledge + defer. Use fragments, not full sentences. "
+    "Keep the user's natural voice but make every reply ultra-short — 3-8 words MAX. "
+    "Same vibe as them, just compressed. No pleasantries, no filler. "
+    "Acknowledge + defer. Fragments are fine. "
     "Examples: 'In a meeting, after 3', 'Can't rn, later', 'Busy til 5 will text you'. "
     "If urgent, give ONE brief helpful line then cut off. "
-    "NEVER write more than one short sentence. Be blunt but not rude. "
-    "This should feel DRASTICALLY shorter than how the user normally texts."
+    "NEVER write more than one short sentence. Blunt but not rude."
 )
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
@@ -2955,9 +2953,9 @@ def get_ai_response(contact: str) -> str:
             )
         elif custom_tone in _PRODUCTIVITY_TONES:
             prompt += (
-                f"\n\nCUSTOM PERSONALITY (OVERRIDE your learned style — follow THIS instead): {custom_tone}\n"
-                "This tone takes priority over your normal texting patterns. "
-                "Do NOT fall back to casual/informal language even if the user normally texts that way."
+                f"\n\nCUSTOM PERSONALITY (adjust your style to match this): {custom_tone}\n"
+                "Keep the user's personality but adapt it to this tone. "
+                "It should still sound like them — just a different mode."
             )
         else:
             prompt += (
