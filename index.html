@@ -330,7 +330,7 @@
             padding: 10px 14px;
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 8px;
             flex: 1;
             overflow-y: auto;
             text-align: left;
@@ -542,7 +542,7 @@
             border-radius: 18px;
             font-size: 15px;
             line-height: 1.4;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
             clear: both;
         }
 
@@ -1032,7 +1032,7 @@
             border-bottom-left-radius: 4px;
             font-size: 15px;
             line-height: 1.4;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
             background: #333;
             color: #fff;
             float: left;
@@ -1045,7 +1045,7 @@
             border-bottom-right-radius: 4px;
             font-size: 15px;
             line-height: 1.4;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
             background: #0b84fe;
             color: #fff;
             float: right;
@@ -1453,7 +1453,7 @@
                         </div>
                         <!-- iMessage side -->
                         <div class="hero-imsg">
-                            <div class="imsg-header"><strong>Sarah</strong><span>iMessage</span></div>
+                            <div class="imsg-header"><strong>Harrison</strong><span>iMessage</span></div>
                             <div class="imsg-body" id="hero-imsg-body"></div>
                         </div>
                     </div>
@@ -1466,6 +1466,60 @@
         </div>
 
     </div><!-- end container -->
+
+    <!-- ===== Sticky Scroll Sequence ===== -->
+    <section class="sticky-sequence" id="sticky-seq">
+        <div class="sticky-frame">
+            <div class="sticky-images">
+                <img src="assets/ph1_hero.png" class="seq-img active" data-step="0" alt="GhostReply running">
+                <img src="assets/ph4_contact.png" class="seq-img" data-step="1" alt="GhostReply contact picker">
+                <img src="assets/ph5_personality.png" class="seq-img" data-step="2" alt="GhostReply personality chat">
+                <img src="assets/ph2_setup.png" class="seq-img" data-step="3" alt="GhostReply setup flow">
+            </div>
+            <div class="sticky-text">
+                <div class="seq-caption active" data-step="0">
+                    <h3>It runs quietly in your terminal</h3>
+                    <p>GhostReply monitors your iMessages and replies as you. Your friends see blue bubbles. You see a log of everything it sends.</p>
+                    <div class="seq-dots">
+                        <div class="seq-dot active" data-dot="0"></div>
+                        <div class="seq-dot" data-dot="1"></div>
+                        <div class="seq-dot" data-dot="2"></div>
+                        <div class="seq-dot" data-dot="3"></div>
+                    </div>
+                </div>
+                <div class="seq-caption" data-step="1">
+                    <h3>Pick a contact, pick a mode</h3>
+                    <p>Choose who to reply to — one person, favorites, or everyone. Then pick Autopilot, Custom, Productivity, or Fun mode.</p>
+                    <div class="seq-dots">
+                        <div class="seq-dot" data-dot="0"></div>
+                        <div class="seq-dot active" data-dot="1"></div>
+                        <div class="seq-dot" data-dot="2"></div>
+                        <div class="seq-dot" data-dot="3"></div>
+                    </div>
+                </div>
+                <div class="seq-caption" data-step="2">
+                    <h3>Customize the personality</h3>
+                    <p>Tell it how to text — professional, casual, friendly — or just let it match your natural style from your messages.</p>
+                    <div class="seq-dots">
+                        <div class="seq-dot" data-dot="0"></div>
+                        <div class="seq-dot" data-dot="1"></div>
+                        <div class="seq-dot active" data-dot="2"></div>
+                        <div class="seq-dot" data-dot="3"></div>
+                    </div>
+                </div>
+                <div class="seq-caption" data-step="3">
+                    <h3>Zero config. It learns from you.</h3>
+                    <p>First run scans your message history, learns your texting style, and reads your conversations for context. No setup, no training — it just works.</p>
+                    <div class="seq-dots">
+                        <div class="seq-dot" data-dot="0"></div>
+                        <div class="seq-dot" data-dot="1"></div>
+                        <div class="seq-dot" data-dot="2"></div>
+                        <div class="seq-dot active" data-dot="3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- ===== How It Works ===== -->
     <div class="container">
@@ -1503,7 +1557,7 @@
                         <p>Meeting mode auto-activates from your calendar. Small talk gets quick busy replies. Important messages get flagged — you stay focused.</p>
                     </div>
                     <div class="imessage-demo" data-animated>
-                        <div class="demo-header"><strong>Sarah</strong>iMessage</div>
+                        <div class="demo-header"><strong>Harrison</strong>iMessage</div>
                         <div class="anim-msg anim-gray">Hey are you free to hop on a call?</div>
                         <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
                         <div class="anim-label">GhostReply:</div>
@@ -1522,7 +1576,7 @@
                         <p>Someone asks when you're free? GhostReply checks your calendar and responds with your actual availability. No context switching.</p>
                     </div>
                     <div class="imessage-demo" data-animated>
-                        <div class="demo-header"><strong>Jake</strong>iMessage</div>
+                        <div class="demo-header"><strong>Andrew</strong>iMessage</div>
                         <div class="anim-msg anim-gray">When are you free this week?</div>
                         <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
                         <div class="anim-label">GhostReply:</div>
@@ -1541,7 +1595,7 @@
                         <p>Quick confirmations, casual check-ins, simple questions — the stuff you'd reply to anyway. GhostReply handles it exactly like you would.</p>
                     </div>
                     <div class="imessage-demo" data-animated>
-                        <div class="demo-header"><strong>Mom</strong>iMessage</div>
+                        <div class="demo-header"><strong>Kieran</strong>iMessage</div>
                         <div class="anim-msg anim-gray">When are you coming home for dinner?</div>
                         <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
                         <div class="anim-label">GhostReply:</div>
@@ -2236,7 +2290,7 @@
                 imsgBody.innerHTML = '';
 
                 termBody.innerHTML =
-                    '<div class="tp-line"><span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Sarah</span><span class="t-white">.</span></div>' +
+                    '<div class="tp-line"><span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Harrison</span><span class="t-white">.</span></div>' +
                     '<div class="tp-line"><span class="t-gray">Autopilot | Calendar: on</span></div>' +
                     '<div class="tp-line">&nbsp;</div>' +
                     '<div class="tp-line"><span class="t-gray">[REPLY]</span> <span class="t-lgray">them:</span> <span class="t-white">Hey can you review the deck before 3?</span></div>' +
@@ -2329,7 +2383,7 @@
 
                 // Running state + replies
                 await player.output([
-                    '<span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Sarah</span><span class="t-white">.</span>',
+                    '<span class="t-green t-bold">GhostReply is running!</span> <span class="t-white">Replying to</span> <span class="t-cyan">Harrison</span><span class="t-white">.</span>',
                     '<span class="t-gray">Autopilot | Calendar: on</span>',
                     ''
                 ]);
