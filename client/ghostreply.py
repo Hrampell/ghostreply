@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -154,19 +154,23 @@ DRUNK_TONE = (
 )
 
 SOPHISTICATED_TONE = (
-    "You are articulate and well-spoken. Use proper grammar and punctuation. "
-    "Be clear and concise — say what you mean without rambling. No slang, "
-    "no abbreviations, no lowercase-only texts. Keep replies short and direct, "
-    "like professional texting. One to two sentences max unless the topic "
-    "genuinely needs more. You sound put-together and competent."
+    "COMPLETELY IGNORE the user's normal texting style for this mode. "
+    "You text like a polished professional — full sentences, proper capitalization, "
+    "correct grammar, zero slang, zero abbreviations. NEVER use 'lol', 'nah', 'gonna', "
+    "'u', 'rn', 'ngl', or ANY casual shorthand. NEVER swear. "
+    "Write like you're emailing a colleague you respect — warm but precise. "
+    "Example: 'Sounds good, I'll take a look this afternoon.' NOT 'yeah ill check it out'. "
+    "This should read NOTHING like how the user normally texts."
 )
 
 BUSY_TONE = (
-    "You are busy right now. Keep ALL replies extremely brief — 1 sentence max. "
-    "Acknowledge their message, let them know you're unavailable, and say when "
-    "you'll be free (check your schedule). Examples: 'In a meeting til 3, I'll "
-    "text you after', 'Driving rn ttyl', 'Hey can't talk rn, free after lunch'. "
-    "If it's genuinely urgent, give a brief helpful answer. Otherwise, defer."
+    "COMPLETELY IGNORE the user's normal texting style for this mode. "
+    "You are slammed. Every reply is 3-8 words MAX. No pleasantries, no filler. "
+    "Just acknowledge + defer. Use fragments, not full sentences. "
+    "Examples: 'In a meeting, after 3', 'Can't rn, later', 'Busy til 5 will text you'. "
+    "If urgent, give ONE brief helpful line then cut off. "
+    "NEVER write more than one short sentence. Be blunt but not rude. "
+    "This should feel DRASTICALLY shorter than how the user normally texts."
 )
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
@@ -1957,35 +1961,14 @@ def first_time_setup():
     else:
         print()
         sched_options = [
-            {"label": "Always on",      "desc": "no schedule",               "color": GREEN},
-            {"label": "Set hours",      "desc": "auto on/off by time",       "color": BLUE},
+            {"label": "Always on",      "desc": "replies 24/7, stop anytime in terminal",  "color": GREEN},
         ]
         if config.get("calendar_sync"):
-            sched_options.append({"label": "Meetings only", "desc": "on during calendar events", "color": BLUE})
-        sched_choice = select_option("Set active hours?", sched_options)
+            sched_options.append({"label": "Meetings only", "desc": "only reply during calendar events", "color": BLUE})
+        sched_choice = select_option("When should GhostReply be active?", sched_options)
         if sched_choice == 0:
             config["schedule_mode"] = "always"
         elif sched_choice == 1:
-            start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
-            end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
-            valid = True
-            for ts in (start_str, end_str):
-                try:
-                    h, m = map(int, ts.split(":"))
-                    if not (0 <= h <= 23 and 0 <= m <= 59):
-                        valid = False
-                except (ValueError, AttributeError):
-                    valid = False
-            if valid:
-                config["schedule_mode"] = "hours"
-                config["schedule_start"] = start_str
-                config["schedule_end"] = end_str
-                config["schedule_days"] = list(range(7))
-                print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
-            else:
-                print(f"  {YELLOW}Invalid format. Running always.{RESET}")
-                config["schedule_mode"] = "always"
-        elif sched_choice == 2:
             config["schedule_mode"] = "meetings"
             config["calendar_sync"] = True
             warm_calendar_cache()
@@ -2023,7 +2006,31 @@ def first_time_setup():
         config["target_name"] = "everyone"
         print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}all incoming messages{RESET}")
     else:  # Favorites
-        favorites = pick_contacts_multi()
+        existing_favs = config.get("target_contacts", [])
+        has_saved = config.get("target_mode") == "favorites" and existing_favs
+        if has_saved:
+            fav_names = ", ".join(f.get("name", f["handle"]) for f in existing_favs[:3])
+            if len(existing_favs) > 3:
+                fav_names += f" +{len(existing_favs)-3} more"
+            print(f"\n  {GRAY}Current favorites: {BLUE}{fav_names}{RESET}")
+            fav_action = select_option("Favorites:", [
+                {"label": "Keep these",  "desc": f"{len(existing_favs)} contacts",  "color": GREEN},
+                {"label": "Add more",    "desc": "select additional contacts",      "color": BLUE},
+                {"label": "Start over",  "desc": "re-pick from scratch",            "color": YELLOW},
+            ])
+            if fav_action == 0:
+                favorites = existing_favs
+            elif fav_action == 1:
+                new_picks = pick_contacts_multi()
+                existing_handles = {f["handle"] for f in existing_favs}
+                for p in new_picks:
+                    if p["handle"] not in existing_handles:
+                        existing_favs.append(p)
+                favorites = existing_favs
+            else:
+                favorites = pick_contacts_multi()
+        else:
+            favorites = pick_contacts_multi()
         if not favorites:
             print(f"  {YELLOW}No contacts selected. Defaulting to everyone.{RESET}")
             config["target_mode"] = "all"
@@ -2078,23 +2085,39 @@ def first_time_setup():
         ]
         mode = select_option("Choose a reply mode:", mode_options)
 
-    if mode == 3 and persona != "professional":  # Fun → submenu
-        prank = select_option("Choose a mode:", [
-            {"label": "Ragebait", "desc": "antagonistic replies",       "color": RED},
-            {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
-            {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
-            {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
-        ])
-        mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
-    elif mode == 2:  # Productivity → submenu
-        pro = select_option("Choose a style:", [
-            {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
-            {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
-        ])
-        mode = 6 if pro == 0 else 7
-        if mode == 7:
-            config["calendar_sync"] = True
-            warm_calendar_cache()
+    _fts_mode_done = False
+    while not _fts_mode_done:
+        if mode == 3 and persona != "professional":  # Fun → submenu
+            prank = select_option("Choose a mode:", [
+                {"label": "Ragebait", "desc": "antagonistic replies",       "color": RED},
+                {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
+                {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
+                {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
+            ], allow_back=True)
+            if prank == -1:
+                # Re-show mode selection
+                if persona == "professional":
+                    mode = select_option("Choose a reply mode:", mode_options)
+                else:
+                    mode = select_option("Choose a reply mode:", mode_options)
+                continue
+            mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
+        elif mode == 2:  # Productivity → submenu
+            pro = select_option("Choose a style:", [
+                {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
+                {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
+            ], allow_back=True)
+            if pro == -1:
+                if persona == "professional":
+                    mode = select_option("Choose a reply mode:", mode_options)
+                else:
+                    mode = select_option("Choose a reply mode:", mode_options)
+                continue
+            mode = 6 if pro == 0 else 7
+            if mode == 7:
+                config["calendar_sync"] = True
+                warm_calendar_cache()
+        _fts_mode_done = True
 
     auto_opener = False
     if mode in _PRESET_TONES:
@@ -2311,18 +2334,22 @@ def format_contact_list(contacts: list[dict]) -> list[str]:
     return result
 
 
-def select_option(prompt: str, options: list[dict]) -> int:
+def select_option(prompt: str, options: list[dict], allow_back: bool = False) -> int:
     """Arrow-key selector. Returns the index of the chosen option.
+    Returns -1 if allow_back is True and user selects '← Back'.
 
     Each option dict has keys: label, color.
     """
     HIDE_CUR = "\033[?25l"
     SHOW_CUR = "\033[?25h"
     selected = 0
-    total = len(options)
+    opts = list(options)
+    if allow_back:
+        opts.append({"label": "← Back", "desc": "go back", "color": DIM})
+    total = len(opts)
 
     def _render():
-        for i, opt in enumerate(options):
+        for i, opt in enumerate(opts):
             desc = f"  {GRAY}{opt['desc']}{RESET}" if i == selected and opt.get("desc") else ""
             if i == selected:
                 sys.stdout.write(f"\033[2K {opt['color']}❯ {opt['label']}{desc}{RESET}\r\n")
@@ -2332,7 +2359,7 @@ def select_option(prompt: str, options: list[dict]) -> int:
 
     # Initial draw + hide cursor
     sys.stdout.write(HIDE_CUR)
-    has_submenu = any(">>" in opt.get("label", "") for opt in options)
+    has_submenu = any(">>" in opt.get("label", "") for opt in opts)
     sub_hint = ", >> = submenu" if has_submenu else ""
     hint = f"  {DIM}↑/↓ to move, Enter to select{sub_hint}{RESET}"
     prompt_line = f"\n{BLUE}?{RESET} {BOLD}{prompt}{RESET}"
@@ -2341,7 +2368,7 @@ def select_option(prompt: str, options: list[dict]) -> int:
         print(f"  {hint.lstrip()}")
     else:
         print(f"{prompt_line}{hint}")
-    for i, opt in enumerate(options):
+    for i, opt in enumerate(opts):
         desc = f"  {GRAY}{opt['desc']}{RESET}" if i == selected and opt.get("desc") else ""
         if i == selected:
             print(f" {opt['color']}❯ {opt['label']}{desc}{RESET}")
@@ -2376,8 +2403,14 @@ def select_option(prompt: str, options: list[dict]) -> int:
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
+    # Handle back selection — clear prompt without ✔ line
+    if allow_back and selected == total - 1:
+        sys.stdout.write(f"\033[{total + 1}A\r\033[J{SHOW_CUR}")
+        sys.stdout.flush()
+        return -1
+
     # Collapse to single line: ✔ prompt  answer
-    chosen = options[selected]
+    chosen = opts[selected]
     sys.stdout.write(f"\033[{total + 1}A\r")
     sys.stdout.write(f"\033[2K{GREEN}✔{RESET} {BOLD}{prompt}{RESET} {chosen['color']}{chosen['label']}{RESET}\n")
     sys.stdout.write(f"\033[J{SHOW_CUR}")
@@ -2426,7 +2459,7 @@ def pick_contacts_multi() -> list[dict]:
     if not contacts:
         print(f"{RED}✗{RESET} No iMessage conversations found.")
         sys.exit(1)
-    recent = contacts[:10]
+    recent = contacts[:5]
     display = format_contact_list(recent)
 
     HIDE_CUR = "\033[?25l"
@@ -2446,7 +2479,7 @@ def pick_contacts_multi() -> list[dict]:
         sys.stdout.flush()
 
     sys.stdout.write(HIDE_CUR)
-    print(f"\n{BLUE}?{RESET} {BOLD}Pick your favorites:{RESET}  {DIM}↑/↓ move, Space toggle, Enter confirm{RESET}")
+    print(f"\n{BLUE}?{RESET} {BOLD}Pick your favorites:{RESET}  {DIM}↑/↓ move, Space to select, Enter confirm{RESET}")
     _render()
 
     fd = sys.stdin.fileno()
@@ -2491,7 +2524,39 @@ def pick_contacts_multi() -> list[dict]:
     sys.stdout.write(f"\033[2K{GREEN}✔{RESET} {BOLD}Favorites:{RESET} {BLUE}{names}{RESET}\n")
     sys.stdout.write(f"\033[J{SHOW_CUR}")
     sys.stdout.flush()
-    return [recent[i] for i in sorted(selected)]
+    result = [recent[i] for i in sorted(selected)]
+
+    # Search-and-add loop for contacts not in the top 5
+    while True:
+        query = input(f"\n  {BLUE}?{RESET} Search for more contacts? {DIM}(type a name, or Enter to skip):{RESET} ").strip()
+        if not query:
+            break
+        matches = local_find_contact(query, contacts)
+        if not matches:
+            matches = ai_find_contact(query, contacts)
+        if not matches:
+            print(f"  {GRAY}No matches found. Try again.{RESET}")
+            continue
+        if len(matches) == 1:
+            chosen = matches[0]
+        else:
+            match_display = format_contact_list(matches[:5])
+            for idx, name in enumerate(match_display):
+                print(f"  {WHITE}{idx+1}.{RESET} {BLUE}{name}{RESET}")
+            pick = input(f"  {BLUE}?{RESET} Which one? {DIM}(type #):{RESET} ").strip()
+            if pick.isdigit() and 1 <= int(pick) <= len(matches[:5]):
+                chosen = matches[int(pick) - 1]
+            else:
+                continue
+        if any(c["handle"] == chosen["handle"] for c in result):
+            cname = chosen.get("name") or chosen["handle"]
+            print(f"  {GRAY}{cname} is already selected.{RESET}")
+        else:
+            result.append(chosen)
+            cname = chosen.get("name") or chosen["handle"]
+            print(f"  {GREEN}✓{RESET} Added {BLUE}{cname}{RESET}")
+
+    return result
 
 
 def local_find_contact(query: str, contacts: list[dict]) -> list[dict]:
@@ -2881,11 +2946,18 @@ def get_ai_response(contact: str) -> str:
     prompt = build_system_prompt(contact_name)
 
     _FUN_TONES = {RAGEBAIT_TONE, BREAKUP_TONE, RIZZ_TONE, DRUNK_TONE}
+    _PRODUCTIVITY_TONES = {SOPHISTICATED_TONE, BUSY_TONE}
     if custom_tone:
         if custom_tone in _FUN_TONES:
             prompt += (
                 f"\n\nCUSTOM PERSONALITY (follow this closely): {custom_tone}\n"
                 "EXAGGERATE this personality trait. Go over the top with it."
+            )
+        elif custom_tone in _PRODUCTIVITY_TONES:
+            prompt += (
+                f"\n\nCUSTOM PERSONALITY (OVERRIDE your learned style — follow THIS instead): {custom_tone}\n"
+                "This tone takes priority over your normal texting patterns. "
+                "Do NOT fall back to casual/informal language even if the user normally texts that way."
             )
         else:
             prompt += (
@@ -3779,60 +3851,7 @@ def main():
                 parts.append(f"~{week_saved} min saved")
             print(f"  {', '.join(parts)}{RESET}")
 
-        # Always re-pick contact / targeting mode
-        print()
-        print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply reply to?{RESET}")
-        print()
-        target_choice = select_option("Choose targeting mode:", [
-            {"label": "One person",  "desc": "pick a contact",     "color": BLUE},
-            {"label": "Everyone",    "desc": "all 1-on-1 chats",   "color": GREEN},
-            {"label": "Favorites",   "desc": "pick multiple",      "color": SOFT_PINK},
-        ])
-
-        if target_choice == 0:  # One person
-            selected = pick_contact()
-            target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
-            config["target_mode"] = "single"
-            config["target_contacts"] = [{"handle": selected["handle"], "name": target_first}]
-            config["target_contact"] = selected["handle"]
-            config["target_name"] = target_first
-            save_config(config)
-            print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
-            # Load conversation history
-            recent_convo = load_recent_conversation(selected["handle"], limit=20)
-            if recent_convo:
-                conversation_history[selected["handle"]] = recent_convo
-        elif target_choice == 1:  # Everyone
-            config["target_mode"] = "all"
-            config["target_contacts"] = []
-            config["target_name"] = "everyone"
-            save_config(config)
-            print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}all incoming messages{RESET}")
-        else:  # Favorites
-            favorites = pick_contacts_multi()
-            if not favorites:
-                print(f"  {YELLOW}No contacts selected. Defaulting to everyone.{RESET}")
-                config["target_mode"] = "all"
-                config["target_contacts"] = []
-                config["target_name"] = "everyone"
-            else:
-                config["target_mode"] = "favorites"
-                config["target_contacts"] = favorites
-                names = ", ".join(f.get("name", f["handle"]) for f in favorites[:3])
-                if len(favorites) > 3:
-                    names += f" +{len(favorites)-3} more"
-                config["target_name"] = names
-                print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{names}{RESET}")
-                for fav in favorites:
-                    recent_convo = load_recent_conversation(fav["handle"], limit=20)
-                    if recent_convo:
-                        conversation_history[fav["handle"]] = recent_convo
-            save_config(config)
-
-        selected_handle = config["target_contacts"][0]["handle"] if config.get("target_contacts") else None
-        target_first = config.get("target_name", "?")
-
-        # Customize?
+        # Setup flow with back navigation
         _PRESET_TONES = {
             2: RAGEBAIT_TONE,
             3: BREAKUP_TONE,
@@ -3847,105 +3866,187 @@ def main():
             3: "(Start a normal casual conversation — don't mention the breakup yet, ease into it naturally over time.)",
             4: "(Start a flirty conversation. Send a smooth, confident opener — not a cheesy pickup line.)",
         }
-
-        _persona = config.get("persona", "casual")
-        if _persona == "professional":
-            _mode_opts = [
-                {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
-                {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-                {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
-            ]
-            mode = select_option("Choose a reply mode:", _mode_opts)
-        else:
-            mode = select_option("Choose a reply mode:", [
-                {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
-                {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-                {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
-                {"label": "Fun >>",          "desc": "creative reply modes",  "color": YELLOW},
-            ])
-
-        if mode == 3 and _persona != "professional":  # Fun → submenu
-            prank = select_option("Choose a mode:", [
-                {"label": "Ragebait", "desc": "antagonistic replies",       "color": RED},
-                {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
-                {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
-                {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
-            ])
-            mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
-        elif mode == 2:  # Productivity → submenu
-            pro = select_option("Choose a style:", [
-                {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
-                {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
-            ])
-            mode = 6 if pro == 0 else 7
-            if mode == 7:
-                config["calendar_sync"] = True
-                warm_calendar_cache()
-
         auto_opener = False
-        if mode in _PRESET_TONES:
-            custom_tone = _PRESET_TONES[mode]
-            config["custom_tone"] = custom_tone
-            auto_opener = mode in _AUTO_OPENER_MODES
-            save_config(config)
-        elif mode == 1:
-            tone = run_personality_chat(target_first)
-            if tone:
-                custom_tone = tone
-                config["custom_tone"] = tone
-                save_config(config)
+        mode = 0
+        _setup_step = 0
 
-        # Calendar toggle
-        cal_status = "on" if config.get("calendar_sync") else "off"
-        cal_choice = select_option(f"Calendar sync is {cal_status}. Change?", [
-            {"label": "Keep " + cal_status, "color": GREEN},
-            {"label": "Turn " + ("off" if config.get("calendar_sync") else "on"), "color": BLUE},
-        ])
-        if cal_choice == 1:
-            config["calendar_sync"] = not config.get("calendar_sync", False)
-            if config["calendar_sync"]:
-                warm_calendar_cache()  # warm cache in background
-            save_config(config)
+        while _setup_step <= 3:
+            # ── Step 0: Targeting mode ──
+            if _setup_step == 0:
+                print()
+                print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply reply to?{RESET}")
+                print()
+                target_choice = select_option("Choose targeting mode:", [
+                    {"label": "One person",  "desc": "pick a contact",     "color": BLUE},
+                    {"label": "Everyone",    "desc": "all 1-on-1 chats",   "color": GREEN},
+                    {"label": "Favorites",   "desc": "pick multiple",      "color": SOFT_PINK},
+                ])
 
-        # Schedule toggle
-        current_sched = config.get("schedule_mode", "always")
-        sched_labels = {"always": "Always on", "hours": "Set hours", "meetings": "Meetings only"}
-        sched_options = [
-            {"label": "Always on",      "desc": "no schedule",               "color": GREEN},
-            {"label": "Set hours",      "desc": "auto on/off by time",       "color": BLUE},
-        ]
-        if config.get("calendar_sync"):
-            sched_options.append({"label": "Meetings only", "desc": "on during calendar events", "color": BLUE})
-        sched_choice = select_option(f"Schedule ({sched_labels.get(current_sched, 'Always on')}):", sched_options)
-        if sched_choice == 0:
-            config["schedule_mode"] = "always"
-            save_config(config)
-        elif sched_choice == 1:
-            start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
-            end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
-            valid = True
-            for ts in (start_str, end_str):
-                try:
-                    h, m = map(int, ts.split(":"))
-                    if not (0 <= h <= 23 and 0 <= m <= 59):
-                        valid = False
-                except (ValueError, AttributeError):
-                    valid = False
-            if valid:
-                config["schedule_mode"] = "hours"
-                config["schedule_start"] = start_str
-                config["schedule_end"] = end_str
-                config["schedule_days"] = list(range(7))
-                print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
-            else:
-                print(f"  {YELLOW}Invalid format. Schedule unchanged.{RESET}")
-            save_config(config)
-        elif sched_choice == 2:
-            config["schedule_mode"] = "meetings"
-            config["calendar_sync"] = True
-            warm_calendar_cache()
-            print(f"  {GREEN}✓{RESET} Meeting mode — auto-activates during calendar events")
-            save_config(config)
+                if target_choice == 0:  # One person
+                    selected = pick_contact()
+                    target_first = selected["name"].split()[0] if selected["name"] and selected["name"].strip() else selected["handle"]
+                    config["target_mode"] = "single"
+                    config["target_contacts"] = [{"handle": selected["handle"], "name": target_first}]
+                    config["target_contact"] = selected["handle"]
+                    config["target_name"] = target_first
+                    save_config(config)
+                    print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{target_first}{RESET}")
+                    recent_convo = load_recent_conversation(selected["handle"], limit=20)
+                    if recent_convo:
+                        conversation_history[selected["handle"]] = recent_convo
+                elif target_choice == 1:  # Everyone
+                    config["target_mode"] = "all"
+                    config["target_contacts"] = []
+                    config["target_name"] = "everyone"
+                    save_config(config)
+                    print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}all incoming messages{RESET}")
+                else:  # Favorites
+                    existing_favs = config.get("target_contacts", [])
+                    has_saved = config.get("target_mode") == "favorites" and existing_favs
+                    if has_saved:
+                        fav_names = ", ".join(f.get("name", f["handle"]) for f in existing_favs[:3])
+                        if len(existing_favs) > 3:
+                            fav_names += f" +{len(existing_favs)-3} more"
+                        print(f"\n  {GRAY}Current favorites: {BLUE}{fav_names}{RESET}")
+                        fav_action = select_option("Favorites:", [
+                            {"label": "Keep these",  "desc": f"{len(existing_favs)} contacts",  "color": GREEN},
+                            {"label": "Add more",    "desc": "select additional contacts",      "color": BLUE},
+                            {"label": "Start over",  "desc": "re-pick from scratch",            "color": YELLOW},
+                        ])
+                        if fav_action == 0:
+                            favorites = existing_favs
+                        elif fav_action == 1:
+                            new_picks = pick_contacts_multi()
+                            existing_handles = {f["handle"] for f in existing_favs}
+                            for np in new_picks:
+                                if np["handle"] not in existing_handles:
+                                    existing_favs.append(np)
+                            favorites = existing_favs
+                        else:
+                            favorites = pick_contacts_multi()
+                    else:
+                        favorites = pick_contacts_multi()
+                    if not favorites:
+                        print(f"  {YELLOW}No contacts selected. Defaulting to everyone.{RESET}")
+                        config["target_mode"] = "all"
+                        config["target_contacts"] = []
+                        config["target_name"] = "everyone"
+                    else:
+                        config["target_mode"] = "favorites"
+                        config["target_contacts"] = favorites
+                        names = ", ".join(f.get("name", f["handle"]) for f in favorites[:3])
+                        if len(favorites) > 3:
+                            names += f" +{len(favorites)-3} more"
+                        config["target_name"] = names
+                        print(f"\n  {GREEN}✓{RESET} Auto-replying to {BLUE}{names}{RESET}")
+                        for fav in favorites:
+                            recent_convo = load_recent_conversation(fav["handle"], limit=20)
+                            if recent_convo:
+                                conversation_history[fav["handle"]] = recent_convo
+                    save_config(config)
+                _setup_step = 1
+                continue
+
+            selected_handle = config["target_contacts"][0]["handle"] if config.get("target_contacts") else None
+            target_first = config.get("target_name", "?")
+
+            # ── Step 1: Reply mode ──
+            if _setup_step == 1:
+                _persona = config.get("persona", "casual")
+                if _persona == "professional":
+                    _mode_opts = [
+                        {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
+                        {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
+                        {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
+                    ]
+                    mode = select_option("Choose a reply mode:", _mode_opts, allow_back=True)
+                else:
+                    mode = select_option("Choose a reply mode:", [
+                        {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
+                        {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
+                        {"label": "Productivity >>", "desc": "focused & efficient",   "color": WHITE},
+                        {"label": "Fun >>",          "desc": "creative reply modes",  "color": YELLOW},
+                    ], allow_back=True)
+
+                if mode == -1:
+                    _setup_step = 0; continue
+
+                if mode == 3 and _persona != "professional":  # Fun → submenu
+                    prank = select_option("Choose a mode:", [
+                        {"label": "Ragebait", "desc": "antagonistic replies",       "color": RED},
+                        {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
+                        {"label": "Rizz",     "desc": "flirty smooth-talker",       "color": HOT_PINK},
+                        {"label": "Drunk",    "desc": "texts like you're hammered", "color": YELLOW},
+                    ], allow_back=True)
+                    if prank == -1:
+                        continue  # Re-show mode selection
+                    mode = prank + 2  # 2=Ragebait, 3=Breakup, 4=Rizz, 5=Drunk
+                elif mode == 2:  # Productivity → submenu
+                    pro = select_option("Choose a style:", [
+                        {"label": "Formal",   "desc": "clean & concise",           "color": WHITE},
+                        {"label": "Busy",     "desc": "auto-defer, ultra-short",   "color": GRAY},
+                    ], allow_back=True)
+                    if pro == -1:
+                        continue  # Re-show mode selection
+                    mode = 6 if pro == 0 else 7
+                    if mode == 7:
+                        config["calendar_sync"] = True
+                        warm_calendar_cache()
+
+                auto_opener = False
+                if mode in _PRESET_TONES:
+                    custom_tone = _PRESET_TONES[mode]
+                    config["custom_tone"] = custom_tone
+                    auto_opener = mode in _AUTO_OPENER_MODES
+                    save_config(config)
+                elif mode == 1:
+                    tone = run_personality_chat(target_first)
+                    if tone:
+                        custom_tone = tone
+                        config["custom_tone"] = tone
+                        save_config(config)
+                _setup_step = 2
+                continue
+
+            # ── Step 2: Calendar toggle ──
+            if _setup_step == 2:
+                cal_status = "on" if config.get("calendar_sync") else "off"
+                cal_choice = select_option(f"Calendar sync is {cal_status}. Change?", [
+                    {"label": "Keep " + cal_status, "color": GREEN},
+                    {"label": "Turn " + ("off" if config.get("calendar_sync") else "on"), "color": BLUE},
+                ], allow_back=True)
+                if cal_choice == -1:
+                    _setup_step = 1; continue
+                if cal_choice == 1:
+                    config["calendar_sync"] = not config.get("calendar_sync", False)
+                    if config["calendar_sync"]:
+                        warm_calendar_cache()
+                    save_config(config)
+                _setup_step = 3
+                continue
+
+            # ── Step 3: Schedule toggle ──
+            if _setup_step == 3:
+                current_sched = config.get("schedule_mode", "always")
+                sched_labels = {"always": "Always on", "meetings": "Meetings only"}
+                sched_options = [
+                    {"label": "Always on",      "desc": "replies 24/7, stop anytime in terminal",  "color": GREEN},
+                ]
+                if config.get("calendar_sync"):
+                    sched_options.append({"label": "Meetings only", "desc": "only reply during calendar events", "color": BLUE})
+                sched_choice = select_option(f"Schedule ({sched_labels.get(current_sched, 'Always on')}):", sched_options, allow_back=True)
+                if sched_choice == -1:
+                    _setup_step = 2; continue
+                if sched_choice == 0:
+                    config["schedule_mode"] = "always"
+                    save_config(config)
+                elif sched_choice == 1:
+                    config["schedule_mode"] = "meetings"
+                    config["calendar_sync"] = True
+                    warm_calendar_cache()
+                    print(f"  {GREEN}✓{RESET} Meeting mode — auto-activates during calendar events")
+                    save_config(config)
+                _setup_step = 4  # Exit loop
 
         # Send first message? (single-contact mode only)
         if config.get("target_mode") == "single" and selected_handle:

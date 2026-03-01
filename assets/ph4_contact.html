@@ -54,25 +54,18 @@ body {
     color: #fff;
 }
 
-/* Terminal colors */
 .green { color: #5fff87; }
 .cyan { color: #5fffff; }
 .gray { color: #8a8a8a; }
 .white { color: #fff; }
 .bold { color: #fff; font-weight: 700; }
-.input-text { color: #5fffff; }
 
-/* Arrow selector styles */
 .selector {
     margin: 2px 0;
     padding-left: 24px;
 }
-.selector-option {
-    color: #8a8a8a;
-}
-.selector-active {
-    color: #5fffff;
-}
+.selector-option { color: #8a8a8a; }
+.selector-active { color: #5fffff; }
 .arrow { color: #5fffff; }
 </style>
 </head>
@@ -80,7 +73,7 @@ body {
 
 <div class="heading">
     <h2>Pick a contact. Pick a mode.</h2>
-    <p>Choose who to reply to and how the bot should talk.</p>
+    <p>Choose who to reply to and how GhostReply should text.</p>
 </div>
 
 <div class="terminal">
@@ -91,22 +84,23 @@ body {
         <div class="titlebar-text">Terminal &mdash; ghostreply</div>
     </div>
     <div class="content">
-        <span class="green" style="font-weight:700;">●</span> <span class="bold">Who should GhostReply text for you?</span><br>
+        <span class="green" style="font-weight:700;">&bull;</span> <span class="bold">Who should GhostReply text for you?</span><br>
         <br>
-        <span class="gray">&nbsp;&nbsp;1.</span> <span class="white">Andrew</span><br>
-        <span class="gray">&nbsp;&nbsp;2.</span> <span class="white">Mom</span><br>
+        <span class="gray">&nbsp;&nbsp;1.</span> <span class="white">Harrison</span><br>
+        <span class="gray">&nbsp;&nbsp;2.</span> <span class="white">Andrew</span><br>
         <span class="gray">&nbsp;&nbsp;3.</span> <span class="white">Kieran</span><br>
-        <span class="gray">&nbsp;&nbsp;4.</span> <span class="white">Jake</span><br>
-        <span class="gray">&nbsp;&nbsp;5.</span> <span class="white">Sophie</span><br>
+        <span class="gray">&nbsp;&nbsp;4.</span> <span class="white">Sophie</span><br>
+        <span class="gray">&nbsp;&nbsp;5.</span> <span class="white">Jake</span><br>
         <br>
-        <span class="cyan">?</span> <span class="white">Pick a contact (type # or name, hit Enter):</span> <span class="input-text">1</span><br>
-        <span class="green">&nbsp;&nbsp;✓</span> <span class="white">Auto-replying to</span> <span class="cyan">Andrew</span><br>
+        <span class="cyan">?</span> <span class="white">Pick a contact (type # or name, hit Enter):</span> <span class="cyan">1</span><br>
+        <span class="green">&nbsp;&nbsp;✓</span> <span class="white">Auto-replying to</span> <span class="cyan">Harrison</span><br>
         <br>
         <span class="cyan">?</span> <span class="bold">Choose a reply mode:</span><br>
         <div class="selector">
-            <span class="arrow">❯</span> <span class="selector-active">Normal</span> <span class="gray">&nbsp;texts like you</span><br>
+            <span class="arrow">❯</span> <span class="selector-active">Autopilot</span> <span class="gray">&nbsp;texts like you</span><br>
             <span>&nbsp;&nbsp;</span><span class="selector-option">Custom</span> <span class="gray">&nbsp;set a persona</span><br>
-            <span>&nbsp;&nbsp;</span><span class="selector-option">Ragebait</span> <span class="gray">&nbsp;troll mode</span><br>
+            <span>&nbsp;&nbsp;</span><span class="selector-option">Productivity >></span> <span class="gray">&nbsp;focused & efficient</span><br>
+            <span>&nbsp;&nbsp;</span><span class="selector-option">Fun >></span> <span class="gray">&nbsp;creative reply modes</span><br>
         </div>
     </div>
 </div>

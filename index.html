@@ -518,6 +518,8 @@
             border-radius: 20px;
             padding: 24px 16px;
             will-change: transform, opacity;
+            display: flex;
+            flex-direction: column;
         }
 
         .imessage-demo .demo-header {
@@ -1014,6 +1016,7 @@
         }
 
         /* ===== Animated Demo Bubbles ===== */
+        /* Hidden state: opacity:0 so elements reserve space (stable container height) */
         .imessage-demo[data-animated] .anim-msg,
         .imessage-demo[data-animated] .anim-typing {
             opacity: 0;
@@ -1032,11 +1035,10 @@
             border-bottom-left-radius: 4px;
             font-size: 15px;
             line-height: 1.4;
-            margin-bottom: 10px;
+            margin-top: 8px;
             background: #333;
             color: #fff;
-            float: left;
-            clear: both;
+            align-self: flex-start;
         }
         .anim-msg.anim-blue {
             max-width: 80%;
@@ -1045,29 +1047,27 @@
             border-bottom-right-radius: 4px;
             font-size: 15px;
             line-height: 1.4;
-            margin-bottom: 10px;
+            margin-top: 8px;
             background: #0b84fe;
             color: #fff;
-            float: right;
-            clear: both;
+            align-self: flex-end;
         }
         .anim-typing {
-            clear: both;
-            margin-bottom: 6px;
-        }
-        .anim-typing .typing-dots {
-            float: right;
+            align-self: flex-end;
+            margin-top: 4px;
+            transition: opacity 0.3s ease, max-height 0.3s ease, margin 0.3s ease;
+            max-height: 30px;
+            overflow: hidden;
         }
         .anim-label {
             font-size: 11px;
             color: #666;
-            margin-bottom: 4px;
-            margin-top: 12px;
-            clear: both;
-            text-align: right;
+            align-self: flex-end;
+            margin-top: 2px;
             opacity: 0;
             transition: opacity 0.3s ease;
         }
+        .demo-header + .anim-msg { margin-top: 4px; }
 
         /* ===== Install Walkthrough ===== */
         .install-walkthrough {
@@ -1418,7 +1418,7 @@
 
     <div class="page-content">
     <div class="top-bar">
-        <span>Harrison Rampell &middot; v1.8.0</span>
+        <span>Harrison Rampell &middot; v1.9.0</span>
         <a href="#" onclick="event.preventDefault();document.getElementById('feedback-overlay').classList.add('open')" style="margin-left:12px;">Feedback</a>
     </div>
 
@@ -1471,15 +1471,15 @@
     <section class="sticky-sequence" id="sticky-seq">
         <div class="sticky-frame">
             <div class="sticky-images">
-                <img src="assets/ph1_hero.png" class="seq-img active" data-step="0" alt="GhostReply running">
-                <img src="assets/ph4_contact.png" class="seq-img" data-step="1" alt="GhostReply contact picker">
-                <img src="assets/ph5_personality.png" class="seq-img" data-step="2" alt="GhostReply personality chat">
-                <img src="assets/ph2_setup.png" class="seq-img" data-step="3" alt="GhostReply setup flow">
+                <img src="assets/ph1_hero.png" class="seq-img active" data-step="0" alt="GhostReply productivity mode">
+                <img src="assets/ph_calendar.png" class="seq-img" data-step="1" alt="GhostReply calendar sync">
+                <img src="assets/ph4_contact.png" class="seq-img" data-step="2" alt="GhostReply contact and mode picker">
+                <img src="assets/ph5_personality.png" class="seq-img" data-step="3" alt="GhostReply personality customization">
             </div>
             <div class="sticky-text">
                 <div class="seq-caption active" data-step="0">
-                    <h3>It runs quietly in your terminal</h3>
-                    <p>GhostReply monitors your iMessages and replies as you. Your friends see blue bubbles. You see a log of everything it sends.</p>
+                    <h3>Handles your texts while you work</h3>
+                    <p>GhostReply runs in your terminal and auto-replies to iMessages. It learns your texting style, knows your schedule, and replies like you would.</p>
                     <div class="seq-dots">
                         <div class="seq-dot active" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
@@ -1488,8 +1488,8 @@
                     </div>
                 </div>
                 <div class="seq-caption" data-step="1">
-                    <h3>Pick a contact, pick a mode</h3>
-                    <p>Choose who to reply to — one person, favorites, or everyone. Then pick Autopilot, Custom, Productivity, or Fun mode.</p>
+                    <h3>Syncs with your calendar</h3>
+                    <p>Reads Calendar.app to know when you're in meetings, when you're free, and what to tell people. Auto-sends busy replies during events.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot active" data-dot="1"></div>
@@ -1498,8 +1498,8 @@
                     </div>
                 </div>
                 <div class="seq-caption" data-step="2">
-                    <h3>Customize the personality</h3>
-                    <p>Tell it how to text — professional, casual, friendly — or just let it match your natural style from your messages.</p>
+                    <h3>Pick a contact, pick a mode</h3>
+                    <p>Reply to one person, your favorites, or everyone. Choose Autopilot to match your style, Productivity for work, or Custom to set any tone.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
@@ -1508,8 +1508,8 @@
                     </div>
                 </div>
                 <div class="seq-caption" data-step="3">
-                    <h3>Zero config. It learns from you.</h3>
-                    <p>First run scans your message history, learns your texting style, and reads your conversations for context. No setup, no training — it just works.</p>
+                    <h3>Customize or let it learn</h3>
+                    <p>Tell it exactly how to text — professional, casual, friendly — or skip it and let GhostReply match your natural style from your messages.</p>
                     <div class="seq-dots">
                         <div class="seq-dot" data-dot="0"></div>
                         <div class="seq-dot" data-dot="1"></div>
@@ -1520,30 +1520,6 @@
             </div>
         </div>
     </section>
-
-    <!-- ===== How It Works ===== -->
-    <div class="container">
-        <div class="section">
-            <h2>How It Works</h2>
-            <div class="how-it-works">
-                <div class="hiw-step">
-                    <div class="hiw-icon">📱</div>
-                    <h3>Learns Your Style</h3>
-                    <p>Scans hundreds of your real texts to learn how you type — abbreviations, slang, message length, capitalization.</p>
-                </div>
-                <div class="hiw-step">
-                    <div class="hiw-icon">📅</div>
-                    <h3>Reads Your Calendar</h3>
-                    <p>Syncs with Calendar.app to know when you're in meetings, when you're free, and what to tell people.</p>
-                </div>
-                <div class="hiw-step">
-                    <div class="hiw-icon">💬</div>
-                    <h3>Handles Your Texts</h3>
-                    <p>Auto-replies to small talk, sends busy replies during meetings, and flags anything urgent or important.</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- ===== Use Cases ===== -->
     <div class="container">
@@ -1559,14 +1535,12 @@
                     <div class="imessage-demo" data-animated>
                         <div class="demo-header"><strong>Harrison</strong>iMessage</div>
                         <div class="anim-msg anim-gray">Hey are you free to hop on a call?</div>
-                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                         <div class="anim-label">GhostReply:</div>
                         <div class="anim-msg anim-blue">In a meeting til 3, can I call you after?</div>
-                        <div style="clear:both"></div>
                         <div class="anim-msg anim-gray">Yeah that works, no rush</div>
-                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                         <div class="anim-msg anim-blue">Sounds good</div>
-                        <div style="clear:both"></div>
                     </div>
                 </div>
 
@@ -1578,14 +1552,12 @@
                     <div class="imessage-demo" data-animated>
                         <div class="demo-header"><strong>Andrew</strong>iMessage</div>
                         <div class="anim-msg anim-gray">When are you free this week?</div>
-                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                         <div class="anim-label">GhostReply:</div>
                         <div class="anim-msg anim-blue">I'm open Thursday after 2 and all day Friday</div>
-                        <div style="clear:both"></div>
                         <div class="anim-msg anim-gray">Thursday at 3 work?</div>
-                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                         <div class="anim-msg anim-blue">Yeah that works, want to grab coffee?</div>
-                        <div style="clear:both"></div>
                     </div>
                 </div>
 
@@ -1597,14 +1569,12 @@
                     <div class="imessage-demo" data-animated>
                         <div class="demo-header"><strong>Kieran</strong>iMessage</div>
                         <div class="anim-msg anim-gray">When are you coming home for dinner?</div>
-                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                         <div class="anim-label">GhostReply:</div>
                         <div class="anim-msg anim-blue">Like 6 probably</div>
-                        <div style="clear:both"></div>
                         <div class="anim-msg anim-gray">Ok I'm making pasta</div>
-                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div><div style="clear:both"></div></div>
+                        <div class="anim-typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>
                         <div class="anim-msg anim-blue">Sounds good</div>
-                        <div style="clear:both"></div>
                     </div>
                 </div>
             </div>
@@ -2101,12 +2071,30 @@
             });
         };
 
+        function smoothScroll(el, duration) {
+            if (!el) return;
+            var target = el.scrollHeight - el.clientHeight;
+            var start = el.scrollTop;
+            var diff = target - start;
+            if (diff <= 0) return;
+            duration = duration || 200;
+            var startTime = null;
+            function step(ts) {
+                if (!startTime) startTime = ts;
+                var progress = Math.min((ts - startTime) / duration, 1);
+                var ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+                el.scrollTop = start + diff * ease;
+                if (progress < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
         TerminalPlayer.prototype.scrollToBottom = function() {
-            this.term.scrollTop = this.term.scrollHeight;
+            smoothScroll(this.term, 200);
         };
 
         TerminalPlayer.prototype.imsgScrollToBottom = function() {
-            if (this.imsg) this.imsg.scrollTop = this.imsg.scrollHeight;
+            smoothScroll(this.imsg, 200);
         };
 
         TerminalPlayer.prototype.typeCommand = function(text, prompt) {
@@ -2253,7 +2241,7 @@
                             // iMessage: blue bubble
                             var blueRow = document.createElement('div');
                             blueRow.className = 'msg-row msg-out';
-                            blueRow.innerHTML = '<div class="ghost-tag">GHOSTREPLY</div><div class="msg-bubble blue-b">' + yourMsg + '</div>';
+                            blueRow.innerHTML = '<div class="msg-bubble blue-b">' + yourMsg + '</div>';
                             blueRow.style.opacity = '0';
                             self.imsg.appendChild(blueRow);
 
@@ -2309,7 +2297,7 @@
                 replies.forEach(function(r) {
                     imsgBody.innerHTML +=
                         '<div class="msg-row msg-in"><div class="msg-bubble gray-b">' + r.them + '</div></div>' +
-                        '<div class="msg-row msg-out"><div class="ghost-tag">GHOSTREPLY</div><div class="msg-bubble blue-b">' + r.you + '</div></div>';
+                        '<div class="msg-row msg-out"><div class="msg-bubble blue-b">' + r.you + '</div></div>';
                 });
 
                 skipBtn.style.display = 'none';
@@ -2336,7 +2324,7 @@
                     await player.output([
                         '',
                         '<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>',
-                        '<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.8.0</span>   <span class="t-green">\u2551</span>',
+                        '<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.9.0</span>   <span class="t-green">\u2551</span>',
                         '<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>',
                         ''
                     ]);
@@ -2502,7 +2490,7 @@
                 await wait(600);
                 addLine('');
                 addLine('<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>');
-                addLine('<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.8.0</span>   <span class="t-green">\u2551</span>');
+                addLine('<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v1.9.0</span>   <span class="t-green">\u2551</span>');
                 addLine('<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>');
                 setProgress(25);
                 await wait(1500);
@@ -2597,6 +2585,8 @@
             demos.forEach(function(demo) { observer.observe(demo); });
 
             function animateDemo(demo) {
+                // Lock height so collapsing typing indicators don't shrink the container
+                demo.style.minHeight = demo.offsetHeight + 'px';
                 var items = demo.querySelectorAll('.anim-msg, .anim-typing');
                 var delay = 0;
                 items.forEach(function(item, i) {
@@ -2613,13 +2603,17 @@
                     }
 
                     setTimeout(function() {
+                        // Smoothly collapse typing indicator when blue reply appears
                         if (isBlue && i > 0) {
                             var prev = items[i - 1];
                             if (prev && prev.classList.contains('anim-typing')) {
                                 prev.classList.remove('visible');
+                                prev.style.maxHeight = '0';
+                                prev.style.marginTop = '0';
                             }
                         }
                         item.classList.add('visible');
+                        // Show label if present
                         var prevSib = item.previousElementSibling;
                         if (prevSib && prevSib.classList.contains('anim-label')) {
                             prevSib.style.opacity = '1';
