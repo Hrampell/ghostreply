@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.9.3"
+VERSION = "1.9.4"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -3856,12 +3856,14 @@ def main():
         mode = 0
         _setup_step = 0
 
+        _showed_target_heading = False
         while _setup_step <= 3:
             # ── Step 0: Targeting mode ──
             if _setup_step == 0:
-                print()
-                print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply reply to?{RESET}")
-                print()
+                if not _showed_target_heading:
+                    print()
+                    print(f"\n{BLUE}●{RESET} {BOLD}Who should GhostReply reply to?{RESET}")
+                    _showed_target_heading = True
                 target_choice = select_option("Choose targeting mode:", [
                     {"label": "One person",  "desc": "pick a contact",     "color": BLUE},
                     {"label": "Everyone",    "desc": "all 1-on-1 chats",   "color": GREEN},
@@ -4015,13 +4017,18 @@ def main():
 
             # ── Step 3: Schedule toggle ──
             if _setup_step == 3:
+                # Skip if calendar is off — only option would be "Always on"
+                if not config.get("calendar_sync"):
+                    config["schedule_mode"] = "always"
+                    save_config(config)
+                    _setup_step = 4
+                    continue
                 current_sched = config.get("schedule_mode", "always")
                 sched_labels = {"always": "Always on", "meetings": "Meetings only"}
                 sched_options = [
                     {"label": "Always on",      "desc": "replies 24/7, stop anytime in terminal",  "color": GREEN},
+                    {"label": "Meetings only",  "desc": "only reply during calendar events",       "color": BLUE},
                 ]
-                if config.get("calendar_sync"):
-                    sched_options.append({"label": "Meetings only", "desc": "only reply during calendar events", "color": BLUE})
                 sched_choice = select_option(f"Schedule ({sched_labels.get(current_sched, 'Always on')}):", sched_options)
                 if sched_choice == -1:
                     _setup_step = 2; continue
