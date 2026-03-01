@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -435,6 +435,9 @@ def load_config() -> dict:
         if "target_contact" in decrypted and "target_mode" not in decrypted:
             decrypted["target_mode"] = "single"
             decrypted["target_contacts"] = [{"handle": decrypted["target_contact"], "name": decrypted.get("target_name", "")}]
+        # Migrate schedule_enabled → schedule_mode
+        if "schedule_enabled" in decrypted and "schedule_mode" not in decrypted:
+            decrypted["schedule_mode"] = "hours" if decrypted["schedule_enabled"] else "always"
         return decrypted
     return {}
 
@@ -1065,7 +1068,10 @@ def build_life_profile(my_texts: list[str], convos: dict, user_name: str) -> dic
         '  "topics": ["things they frequently talk about"],\n'
         '  "personality": "brief description of their personality based on how they communicate",\n'
         '  "places": ["places they mention — schools, restaurants, locations"],\n'
-        '  "other_facts": ["any other specific facts about their life — family, events, etc."]\n'
+        '  "other_facts": ["any other specific facts about their life — family, events, etc."],\n'
+        '  "persona": "one of: student, professional, casual — based on their life stage. '
+        'student = school-age or college. professional = working adult with career/clients. '
+        'casual = neither clearly fits"\n'
         "}\n\n"
         "Be SPECIFIC. Use real names, real details from the messages. Don't make anything up — "
         "only include things you can actually see in the messages. "
@@ -1091,6 +1097,21 @@ def build_life_profile(my_texts: list[str], convos: dict, user_name: str) -> dic
             "topics": [],
             "personality": "",
         }
+
+
+def apply_persona_defaults():
+    """Auto-configure settings based on detected persona (student/professional/casual)."""
+    persona = profile.get("life_profile", {}).get("persona", "casual")
+    config.setdefault("persona", persona)
+    if persona == "professional":
+        config.setdefault("safe_mode", True)
+        config.setdefault("swearing", "never")
+        config.setdefault("calendar_sync", True)
+        config.setdefault("schedule_mode", "meetings")
+    elif persona == "student":
+        pass  # keep defaults — ask about swearing in setup
+    else:  # casual
+        config.setdefault("swearing", "on")
 
 
 # ============================================================
@@ -1243,6 +1264,58 @@ def _get_calendar_events_applescript() -> str:
         return ""
 
 
+_meeting_cache: dict = {"data": None, "expires": 0}
+
+
+def get_current_meeting() -> tuple | None:
+    """Return (event_name, end_time_str) if currently in a meeting, else None."""
+    now = time.time()
+    if _meeting_cache["expires"] > now and _meeting_cache["data"] is not None:
+        return _meeting_cache["data"] if _meeting_cache["data"] != "none" else None
+
+    if not _CALENDAR_DB.exists():
+        _meeting_cache["data"] = "none"
+        _meeting_cache["expires"] = now + 60
+        return None
+
+    try:
+        now_utc = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        now_apple = (now_utc - _APPLE_EPOCH).total_seconds()
+        local_offset = datetime.datetime.now().astimezone().utcoffset().total_seconds()
+
+        conn = sqlite3.connect(str(_CALENDAR_DB), timeout=5)
+        cur = conn.execute("""
+            SELECT ci.summary, ci.end_date
+            FROM CalendarItem ci
+            WHERE ci.start_date <= ? AND ci.end_date >= ?
+              AND ci.all_day = 0
+              AND ci.summary IS NOT NULL
+            ORDER BY ci.end_date ASC
+            LIMIT 1
+        """, (now_apple, now_apple))
+        row = cur.fetchone()
+        conn.close()
+
+        if not row:
+            _meeting_cache["data"] = "none"
+            _meeting_cache["expires"] = now + 60
+            return None
+
+        summary = row[0]
+        end_utc = _APPLE_EPOCH + datetime.timedelta(seconds=row[1])
+        end_local = end_utc + datetime.timedelta(seconds=local_offset)
+        end_str = end_local.strftime("%-I:%M %p")
+
+        result = (summary, end_str)
+        _meeting_cache["data"] = result
+        _meeting_cache["expires"] = now + 60
+        return result
+    except Exception:
+        _meeting_cache["data"] = "none"
+        _meeting_cache["expires"] = now + 60
+        return None
+
+
 def warm_calendar_cache():
     """Pre-fetch calendar events in a background thread so replies aren't blocked."""
     threading.Thread(target=get_calendar_events, daemon=True).start()
@@ -1371,6 +1444,17 @@ def build_system_prompt(contact_name: str = "") -> str:
         else:
             parts.append(
                 "\nYour calendar is empty for today and tomorrow — you're free."
+            )
+
+    # Meeting mode context
+    if config.get("schedule_mode") == "meetings":
+        meeting = get_current_meeting()
+        if meeting:
+            m_name, m_end = meeting
+            parts.append(
+                f'\nYou are IN A MEETING: "{m_name}" (ends at {m_end}). '
+                "Keep replies ULTRA short — acknowledge and defer. "
+                "Examples: 'in a meeting ttyl', 'cant talk rn free after " + m_end.lower().replace(' ', '') + "'"
             )
 
     # Contact-specific context
@@ -1800,87 +1884,119 @@ def first_time_setup():
 
     print(f"  {GREEN}✓{RESET} {GRAY}Profile built from your messages.{RESET}")
 
+    # Apply persona-based defaults
+    apply_persona_defaults()
+    persona = config.get("persona", "casual")
+    persona_labels = {"student": "Student", "professional": "Professional", "casual": "Casual"}
+    print(f"  {GRAY}Detected profile: {GREEN}{persona_labels.get(persona, 'Casual')}{RESET}")
+
     # --- Step 6: Swearing detection + safe contacts ---
-    _SWEAR_WORDS = {"fuck", "shit", "damn", "ass", "bitch", "hell", "dick", "piss", "crap", "bastard", "wtf", "stfu", "lmao", "lmfao"}
-    swears_detected = False
-    if my_texts:
-        sample_words = set(" ".join(my_texts).lower().split())
-        swears_detected = bool(sample_words & _SWEAR_WORDS)
-    if swears_detected:
-        config["swearing"] = "on"
-        print(f"\n  {GREEN}✓{RESET} {GRAY}Detected you swear in your texts — GhostReply will match that.{RESET}")
-        print()
-        safe_choice = select_option("Any contacts to keep it clean with?", [
-            {"label": "Yes", "color": GREEN},
-            {"label": "No", "color": GRAY},
-        ])
-        if safe_choice == 0:
-            print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
-            names_input = input(f"  {WHITE}> {RESET}").strip()
-            safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
-            config["safe_contacts"] = safe_contacts
-            if safe_contacts:
-                print(wrap(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}", 2))
+    if persona == "professional":
+        # Professional persona — auto-set clean mode
+        config["swearing"] = "never"
+        config["safe_mode"] = True
+        config["safe_contacts"] = []
+        print(f"\n  {GREEN}✓{RESET} {GRAY}Professional mode — keeping it clean with all contacts.{RESET}")
+    elif config.get("swearing"):
+        # Persona already set swearing preference
+        print(f"\n  {GREEN}✓{RESET} {GRAY}Swearing: {config['swearing']}{RESET}")
+        config.setdefault("safe_contacts", [])
+    else:
+        _SWEAR_WORDS = {"fuck", "shit", "damn", "ass", "bitch", "hell", "dick", "piss", "crap", "bastard", "wtf", "stfu", "lmao", "lmfao"}
+        swears_detected = False
+        if my_texts:
+            sample_words = set(" ".join(my_texts).lower().split())
+            swears_detected = bool(sample_words & _SWEAR_WORDS)
+        if swears_detected:
+            config["swearing"] = "on"
+            print(f"\n  {GREEN}✓{RESET} {GRAY}Detected you swear in your texts — GhostReply will match that.{RESET}")
+            print()
+            safe_choice = select_option("Any contacts to keep it clean with?", [
+                {"label": "Yes", "color": GREEN},
+                {"label": "No", "color": GRAY},
+            ])
+            if safe_choice == 0:
+                print(f"\n{GRAY}Type the names of contacts to keep it clean with (comma-separated):{RESET}")
+                names_input = input(f"  {WHITE}> {RESET}").strip()
+                safe_contacts = [n.strip() for n in names_input.split(",") if n.strip()]
+                config["safe_contacts"] = safe_contacts
+                if safe_contacts:
+                    print(wrap(f"  {GREEN}✓{RESET} {GRAY}Got it — GhostReply will keep it clean with: {', '.join(safe_contacts)}{RESET}", 2))
+                else:
+                    config["safe_contacts"] = []
             else:
                 config["safe_contacts"] = []
         else:
+            config["swearing"] = "never"
             config["safe_contacts"] = []
-    else:
-        config["swearing"] = "never"
-        config["safe_contacts"] = []
-    config.pop("safe_mode", None)
+    config.pop("safe_mode", None) if persona != "professional" else None
     save_config(config)
 
     # --- Step 6b: Calendar sync ---
-    print()
-    cal_choice = select_option("Sync your calendar so the bot knows your schedule?", [
-        {"label": "Yes", "desc": "reads Apple Calendar",  "color": GREEN},
-        {"label": "No",  "desc": "skip for now",          "color": GRAY},
-    ])
-    if cal_choice == 0:
-        # Test calendar access (reads Calendar DB directly — no permission prompt needed)
-        print(f"  {DIM}Testing calendar access...{RESET}", end=" ", flush=True)
-        events = get_calendar_events()
-        config["calendar_sync"] = True
-        print(f"{GREEN}✓{RESET}")
-        if events:
-            count = len(events.strip().split("\n"))
-            print(f"  {GRAY}Found {count} upcoming event{'s' if count != 1 else ''}.{RESET}")
-        else:
-            print(f"  {GRAY}No upcoming events found (calendar is empty or access was denied).{RESET}")
+    if config.get("calendar_sync"):
+        # Already auto-enabled by persona defaults
+        print(f"\n  {GREEN}✓{RESET} {GRAY}Calendar sync enabled.{RESET}")
+        warm_calendar_cache()
     else:
-        config["calendar_sync"] = False
+        print()
+        cal_choice = select_option("Sync your calendar so the bot knows your schedule?", [
+            {"label": "Yes", "desc": "reads Apple Calendar",  "color": GREEN},
+            {"label": "No",  "desc": "skip for now",          "color": GRAY},
+        ])
+        if cal_choice == 0:
+            print(f"  {DIM}Testing calendar access...{RESET}", end=" ", flush=True)
+            events = get_calendar_events()
+            config["calendar_sync"] = True
+            print(f"{GREEN}✓{RESET}")
+            if events:
+                count = len(events.strip().split("\n"))
+                print(f"  {GRAY}Found {count} upcoming event{'s' if count != 1 else ''}.{RESET}")
+            else:
+                print(f"  {GRAY}No upcoming events found (calendar is empty or access was denied).{RESET}")
+        else:
+            config["calendar_sync"] = False
     save_config(config)
 
     # --- Step 6c: Scheduled hours ---
-    print()
-    sched_choice = select_option("Set active hours?", [
-        {"label": "Run now",    "desc": "no schedule",     "color": GREEN},
-        {"label": "Set hours",  "desc": "auto on/off",     "color": BLUE},
-    ])
-    if sched_choice == 1:
-        start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
-        end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
-        # Validate format
-        valid = True
-        for ts in (start_str, end_str):
-            try:
-                h, m = map(int, ts.split(":"))
-                if not (0 <= h <= 23 and 0 <= m <= 59):
-                    valid = False
-            except (ValueError, AttributeError):
-                valid = False
-        if valid:
-            config["schedule_enabled"] = True
-            config["schedule_start"] = start_str
-            config["schedule_end"] = end_str
-            config["schedule_days"] = list(range(7))  # all days by default
-            print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
-        else:
-            print(f"  {YELLOW}Invalid format. Skipping schedule.{RESET}")
-            config["schedule_enabled"] = False
+    if config.get("schedule_mode") == "meetings":
+        # Already set by persona defaults
+        print(f"\n  {GREEN}✓{RESET} {GRAY}Meeting mode — auto-activates during calendar events.{RESET}")
     else:
-        config["schedule_enabled"] = False
+        print()
+        sched_options = [
+            {"label": "Always on",      "desc": "no schedule",               "color": GREEN},
+            {"label": "Set hours",      "desc": "auto on/off by time",       "color": BLUE},
+        ]
+        if config.get("calendar_sync"):
+            sched_options.append({"label": "Meetings only", "desc": "on during calendar events", "color": BLUE})
+        sched_choice = select_option("Set active hours?", sched_options)
+        if sched_choice == 0:
+            config["schedule_mode"] = "always"
+        elif sched_choice == 1:
+            start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
+            end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
+            valid = True
+            for ts in (start_str, end_str):
+                try:
+                    h, m = map(int, ts.split(":"))
+                    if not (0 <= h <= 23 and 0 <= m <= 59):
+                        valid = False
+                except (ValueError, AttributeError):
+                    valid = False
+            if valid:
+                config["schedule_mode"] = "hours"
+                config["schedule_start"] = start_str
+                config["schedule_end"] = end_str
+                config["schedule_days"] = list(range(7))
+                print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
+            else:
+                print(f"  {YELLOW}Invalid format. Running always.{RESET}")
+                config["schedule_mode"] = "always"
+        elif sched_choice == 2:
+            config["schedule_mode"] = "meetings"
+            config["calendar_sync"] = True
+            warm_calendar_cache()
+            print(f"  {GREEN}✓{RESET} Meeting mode — auto-activates during calendar events")
 
     # Save profile now so it's not lost if user quits during contact selection
     save_profile(profile)
@@ -1953,13 +2069,25 @@ def first_time_setup():
         4: "(Start a flirty conversation. Send a smooth, confident opener — not a cheesy pickup line.)",
     }
 
-    mode = select_option("Choose a reply mode:", [
-        {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
-        {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-        {"label": "Pranks >>",       "desc": "mess with them",        "color": RED},
-        {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
-    ])
-    if mode == 2:  # Pranks → submenu
+    if persona == "professional":
+        mode_options = [
+            {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
+            {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
+            {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+        ]
+        mode = select_option("Choose a reply mode:", mode_options)
+        if mode == 2:
+            mode = 3  # map to Professional submenu handling below
+    else:
+        mode_options = [
+            {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
+            {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
+            {"label": "Pranks >>",       "desc": "mess with them",        "color": RED},
+            {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+        ]
+        mode = select_option("Choose a reply mode:", mode_options)
+
+    if mode == 2 and persona != "professional":  # Pranks → submenu
         prank = select_option("Choose a prank:", [
             {"label": "Ragebait", "desc": "troll mode",                 "color": RED},
             {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
@@ -2870,6 +2998,19 @@ def handle_batch(contact: str, texts: list[str]):
     # Smart triage — skip or hold for urgent/sensitive messages
     triage = triage_message(texts[-1])
     contact_name = get_contact_display_name(contact)
+    in_meeting = (config.get("schedule_mode") == "meetings" and get_current_meeting() is not None)
+
+    # During meetings: skip ALL non-casual messages (no holding reply either)
+    if in_meeting and triage != "casual":
+        meeting_info = get_current_meeting()
+        meeting_name = meeting_info[0] if meeting_info else "a meeting"
+        send_notification(f"Message during {meeting_name}", f"{contact_name}: {texts[-1][:100]}")
+        print(f"  {YELLOW}⚠{RESET} {GRAY}Non-casual message from {contact_name} during meeting — notification sent{RESET}")
+        reply_log.append({"contact": contact, "contact_name": contact_name,
+                          "them": texts[-1], "you": f"[SKIPPED - IN MEETING: {meeting_name}]",
+                          "triage": triage, "time": time.time()})
+        return
+
     if triage == "urgent":
         send_notification("Urgent message", f"{contact_name}: {texts[-1][:100]}")
         print(f"  {YELLOW}⚠{RESET} {GRAY}Urgent message from {contact_name} — skipped auto-reply, sent notification{RESET}")
@@ -2896,6 +3037,12 @@ def handle_batch(contact: str, texts: list[str]):
     for text in texts:
         add_to_history(contact, "user", text)
 
+    # Force busy tone during meetings
+    global custom_tone
+    _saved_tone = custom_tone
+    if in_meeting:
+        custom_tone = BUSY_TONE
+
     reply = ""
     for attempt in range(3):
         reply = get_ai_response(contact)
@@ -2903,6 +3050,10 @@ def handle_batch(contact: str, texts: list[str]):
             break
         if attempt < 2:
             time.sleep(1)
+
+    # Restore original tone
+    custom_tone = _saved_tone
+
     if not reply:
         print(f"{YELLOW}!{RESET} {GRAY}AI failed after 3 attempts for {contact}, skipping{RESET}")
         return
@@ -3140,7 +3291,13 @@ def send_notification(title: str, message: str):
 def is_within_schedule() -> bool:
     """Check if current time is within scheduled active hours.
     Returns True if no schedule is configured (always active)."""
-    if not config.get("schedule_enabled"):
+    mode = config.get("schedule_mode", "always")
+    if mode == "always":
+        return True
+    if mode == "meetings":
+        return get_current_meeting() is not None
+    # mode == "hours" — check day/time range below
+    if not config.get("schedule_start"):
         return True
     now = datetime.datetime.now()
     day_of_week = now.weekday()  # 0=Mon..6=Sun
@@ -3186,6 +3343,15 @@ def poll_loop():
     else:
         print(f"{GRAY}[INFO]{RESET} Listening for {BLUE}all incoming messages{RESET}...")
         print(f"{GRAY}[INFO]{RESET} {GRAY}Auto-pauses contacts you text manually.{RESET}")
+
+    # Meeting mode status
+    if config.get("schedule_mode") == "meetings":
+        meeting = get_current_meeting()
+        if meeting:
+            m_name, m_end = meeting
+            print(f"{GRAY}[INFO]{RESET} In {BLUE}\"{m_name}\"{RESET} until {m_end} — small talk only")
+        else:
+            print(f"{GRAY}[INFO]{RESET} {GRAY}Meeting mode — waiting for next calendar event...{RESET}")
     print()
 
     pending: dict[str, list[str]] = {}
@@ -3675,13 +3841,25 @@ def main():
             4: "(Start a flirty conversation. Send a smooth, confident opener — not a cheesy pickup line.)",
         }
 
-        mode = select_option("Choose a reply mode:", [
-            {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
-            {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
-            {"label": "Pranks >>",       "desc": "mess with them",        "color": RED},
-            {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
-        ])
-        if mode == 2:  # Pranks → submenu
+        _persona = config.get("persona", "casual")
+        if _persona == "professional":
+            _mode_opts = [
+                {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
+                {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
+                {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+            ]
+            mode = select_option("Choose a reply mode:", _mode_opts)
+            if mode == 2:
+                mode = 3  # map to Professional submenu
+        else:
+            mode = select_option("Choose a reply mode:", [
+                {"label": "Autopilot",       "desc": "texts like you",        "color": GREEN},
+                {"label": "Custom",          "desc": "set a persona",         "color": BLUE},
+                {"label": "Pranks >>",       "desc": "mess with them",        "color": RED},
+                {"label": "Professional >>", "desc": "clean & concise",       "color": WHITE},
+            ])
+
+        if mode == 2 and _persona != "professional":  # Pranks → submenu
             prank = select_option("Choose a prank:", [
                 {"label": "Ragebait", "desc": "troll mode",                 "color": RED},
                 {"label": "Breakup",  "desc": "end things gradually",       "color": SOFT_PINK},
@@ -3725,35 +3903,44 @@ def main():
             save_config(config)
 
         # Schedule toggle
-        sched_status = "on" if config.get("schedule_enabled") else "off"
-        sched_choice = select_option(f"Scheduled hours is {sched_status}. Change?", [
-            {"label": "Keep " + sched_status, "color": GREEN},
-            {"label": "Turn " + ("off" if config.get("schedule_enabled") else "on"), "color": BLUE},
-        ])
-        if sched_choice == 1:
-            if config.get("schedule_enabled"):
-                config["schedule_enabled"] = False
-                save_config(config)
-            else:
-                start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
-                end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
-                valid = True
-                for ts in (start_str, end_str):
-                    try:
-                        h, m = map(int, ts.split(":"))
-                        if not (0 <= h <= 23 and 0 <= m <= 59):
-                            valid = False
-                    except (ValueError, AttributeError):
+        current_sched = config.get("schedule_mode", "always")
+        sched_labels = {"always": "Always on", "hours": "Set hours", "meetings": "Meetings only"}
+        sched_options = [
+            {"label": "Always on",      "desc": "no schedule",               "color": GREEN},
+            {"label": "Set hours",      "desc": "auto on/off by time",       "color": BLUE},
+        ]
+        if config.get("calendar_sync"):
+            sched_options.append({"label": "Meetings only", "desc": "on during calendar events", "color": BLUE})
+        sched_choice = select_option(f"Schedule ({sched_labels.get(current_sched, 'Always on')}):", sched_options)
+        if sched_choice == 0:
+            config["schedule_mode"] = "always"
+            save_config(config)
+        elif sched_choice == 1:
+            start_str = input(f"  {DIM}Start time (HH:MM, e.g. 09:00):{RESET} ").strip()
+            end_str = input(f"  {DIM}End time (HH:MM, e.g. 17:00):{RESET} ").strip()
+            valid = True
+            for ts in (start_str, end_str):
+                try:
+                    h, m = map(int, ts.split(":"))
+                    if not (0 <= h <= 23 and 0 <= m <= 59):
                         valid = False
-                if valid:
-                    config["schedule_enabled"] = True
-                    config["schedule_start"] = start_str
-                    config["schedule_end"] = end_str
-                    config["schedule_days"] = list(range(7))
-                    print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
-                else:
-                    print(f"  {YELLOW}Invalid format. Schedule unchanged.{RESET}")
-                save_config(config)
+                except (ValueError, AttributeError):
+                    valid = False
+            if valid:
+                config["schedule_mode"] = "hours"
+                config["schedule_start"] = start_str
+                config["schedule_end"] = end_str
+                config["schedule_days"] = list(range(7))
+                print(f"  {GREEN}✓{RESET} Active {start_str} – {end_str} daily")
+            else:
+                print(f"  {YELLOW}Invalid format. Schedule unchanged.{RESET}")
+            save_config(config)
+        elif sched_choice == 2:
+            config["schedule_mode"] = "meetings"
+            config["calendar_sync"] = True
+            warm_calendar_cache()
+            print(f"  {GREEN}✓{RESET} Meeting mode — auto-activates during calendar events")
+            save_config(config)
 
         # Send first message? (single-contact mode only)
         if config.get("target_mode") == "single" and selected_handle:
