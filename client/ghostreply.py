@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.9.5"
+VERSION = "1.10.0"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -1472,6 +1472,7 @@ def build_system_prompt(contact_name: str = "") -> str:
             target_handle = targets[0]["handle"]
     if not target_handle:
         target_handle = config.get("target_contact", "")
+    notes = []
     if contact_name:
         parts.append(f"\nYou are currently texting {contact_name}.")
         # If we have specific friend details for this contact, emphasize them
@@ -1487,6 +1488,14 @@ def build_system_prompt(contact_name: str = "") -> str:
             parts.append(
                 f"\nTHINGS YOU REMEMBER ABOUT {contact_name.upper()}:\n" +
                 "\n".join(f"- {n}" for n in notes)
+            )
+        # Per-contact texting style (how YOU specifically text this person)
+        contact_style = analyze_contact_style(target_handle) if target_handle else None
+        if contact_style:
+            parts.append(
+                f"\nHOW YOU TEXT {contact_name.upper()} SPECIFICALLY:\n{contact_style}\n"
+                "IMPORTANT: When texting this person, match THIS style — not your general style. "
+                "People text differently with different contacts."
             )
 
     # Tone / formality — adapt to the relationship with this contact
@@ -1580,7 +1589,7 @@ def save_contact_note(handle: str, notes: list[str]):
 
 
 def extract_contact_notes(handle: str, messages: list[dict]):
-    """Background: ask AI to extract noteworthy facts from recent messages."""
+    """Background: ask AI to extract noteworthy facts + relationship style from recent messages."""
     contact_name = get_contact_display_name(handle)
     existing = get_contact_notes(handle)
     existing_str = "\n".join(f"- {n}" for n in existing) if existing else "(none yet)"
@@ -1590,9 +1599,10 @@ def extract_contact_notes(handle: str, messages: list[dict]):
         f"Already known:\n{existing_str}\n\n"
         "Return ONLY a JSON array of short new facts. Include:\n"
         "- Facts about them (e.g. \"has a cat named Luna\", \"going to Hawaii next week\")\n"
-        "- Relationship/tone observations (e.g. \"formal relationship - uses proper grammar\", "
-        "\"close friend - casual/swearing is normal\", \"boss/manager\", \"family member\")\n"
-        "Return [] if nothing new or noteworthy. Only include facts about THEM or the relationship, not about you."
+        "- Relationship type (e.g. \"boss/manager\", \"close friend\", \"family member\", \"coworker\")\n"
+        "- How formal/casual the relationship is (e.g. \"formal relationship - proper grammar, no slang\", "
+        "\"casual - lots of swearing and slang\", \"friendly but professional\")\n"
+        "Return [] if nothing new or noteworthy. Only include facts about THEM or the relationship."
     )
 
     history_str = "\n".join(
@@ -1610,6 +1620,63 @@ def extract_contact_notes(handle: str, messages: list[dict]):
             save_contact_note(handle, notes)
     except Exception:
         pass
+
+
+def analyze_contact_style(handle: str) -> str | None:
+    """Analyze how the user texts a SPECIFIC contact. Returns a style summary or None."""
+    contact_name = get_contact_display_name(handle)
+    # Check if we already have a per-contact style cached
+    existing = profile.get("contact_styles", {}).get(handle)
+    if existing:
+        return existing
+
+    # Load the user's messages TO this contact from chat.db
+    conn = get_db_connection()
+    try:
+        cur = conn.execute("""
+            SELECT m.text, m.attributedBody
+            FROM message m
+            JOIN handle h ON m.handle_id = h.ROWID
+            WHERE h.id = ? AND m.is_from_me = 1
+              AND (m.text IS NOT NULL OR m.attributedBody IS NOT NULL)
+            ORDER BY m.ROWID DESC
+            LIMIT 50
+        """, (handle,))
+        my_msgs = []
+        for row in cur.fetchall():
+            text = row["text"]
+            if text is None and row["attributedBody"] is not None:
+                text = extract_text_from_attributed_body(row["attributedBody"])
+            if text and text.strip() and len(text.strip()) < 300:
+                my_msgs.append(text.strip())
+    finally:
+        conn.close()
+
+    if len(my_msgs) < 5:
+        return None  # Not enough data
+
+    sample = "\n".join(f"- {m}" for m in my_msgs[:30])
+    prompt = (
+        f"Here are real texts the user sent to {contact_name} on iMessage:\n\n{sample}\n\n"
+        "In 2-3 sentences, describe how the user texts THIS specific person. "
+        "Include: formality level, typical message length, slang/abbreviations used, "
+        "swearing frequency, capitalization, punctuation, overall vibe. "
+        "Be specific — compare to a general casual style if helpful. "
+        "Return ONLY the description, no JSON."
+    )
+
+    try:
+        result = ai_call([{"role": "user", "content": prompt}], max_tokens=200)
+        result = result.strip()
+        if result and len(result) > 20:
+            if "contact_styles" not in profile:
+                profile["contact_styles"] = {}
+            profile["contact_styles"][handle] = result
+            save_profile(profile)
+            return result
+    except Exception:
+        pass
+    return None
 
 
 # ============================================================
@@ -2990,6 +3057,17 @@ def get_ai_response(contact: str) -> str:
                 "Follow this personality naturally. Don't overdo it — be authentic."
             )
 
+    if not custom_tone:
+        # Autopilot — the #1 priority is sounding exactly like the user
+        prompt += (
+            "\n\nAUTOPILOT MODE: Your ONLY job is to sound exactly like this person. "
+            "Match their per-contact style if available, otherwise match their general style. "
+            "The reply should be indistinguishable from something they'd actually send. "
+            "Don't be more helpful, more polite, or more articulate than they normally are. "
+            "If they'd send 'yeah' — send 'yeah'. If they'd send 'lol ok' — send 'lol ok'. "
+            "Authenticity over helpfulness."
+        )
+
     is_busy = (custom_tone == BUSY_TONE)
     tokens = 40 if is_busy else 80
     messages = [{"role": "system", "content": prompt}] + history
@@ -4159,6 +4237,15 @@ def main():
     if config.get("calendar_sync"):
         sched_parts.append("Calendar: on")
     info_str = f" | ".join([mode_label] + sched_parts) if sched_parts else mode_label
+
+    # Pre-warm per-contact style analysis in background (so first reply is fast)
+    _target_handles = []
+    for t in config.get("target_contacts", []):
+        _target_handles.append(t["handle"])
+    if not _target_handles and config.get("target_contact"):
+        _target_handles.append(config["target_contact"])
+    for _h in _target_handles:
+        threading.Thread(target=analyze_contact_style, args=(_h,), daemon=True).start()
 
     if target_mode == "single":
         print(f"\n{GREEN}●{RESET} {BOLD}GhostReply is running!{RESET} Replying to {BLUE}{target_name}{RESET}.")
