@@ -101,7 +101,7 @@ LEMONSQUEEZY_API = "https://api.lemonsqueezy.com/v1/licenses"
 _FK_OBF = bytes([0xc0, 0xf5, 0xf8, 0xd4, 0x96, 0xc0, 0xc9, 0xf8, 0xcc, 0x94, 0xde, 0xf8, 0xcf, 0xd5, 0xc6, 0xca, 0xd7, 0xc2, 0xcb, 0xcb, 0xf8, 0x95, 0x97, 0x95, 0x91])
 _FK_KEY = bytes(b ^ 0xa7 for b in _FK_OBF)
 _REVOKED_KEYS: set[str] = {"gabagoolofficial"}
-VERSION = "1.9.1"
+VERSION = "1.9.2"
 _DEV_MACHINES = {"b558ce694a51a8396be736cb07f1c470"}
 
 # --- Runtime State ---
@@ -3262,11 +3262,7 @@ def print_session_digest():
     # Update persistent stats
     stats = update_session_stats()
 
-    # Time saved estimate (~30 sec per reply)
-    saved_min = max(1, (count * 30) // 60)
-    total_saved = max(1, (stats.get("total_replies", 0) * 30) // 60)
-    print(f"\n  {GREEN}~{saved_min} min saved{RESET} {GRAY}this session{RESET}")
-    print(f"  {GRAY}All time: {stats.get('total_replies', 0)} replies across {stats.get('total_sessions', 0)} sessions (~{total_saved} min saved){RESET}")
+    print(f"  {GRAY}All time: {stats.get('total_replies', 0)} replies across {stats.get('total_sessions', 0)} sessions{RESET}")
     print(f"{BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
 
 
@@ -3842,12 +3838,8 @@ def main():
         stats = load_stats()
         week_key = datetime.datetime.now().strftime("%Y-W%W")
         week_replies = stats.get("weekly", {}).get(week_key, 0)
-        if stats.get("total_replies", 0) > 0:
-            week_saved = max(1, (week_replies * 30) // 60) if week_replies > 0 else 0
-            parts = [f"{GRAY}This week: {GREEN}{week_replies}{GRAY} replies"]
-            if week_saved > 0:
-                parts.append(f"~{week_saved} min saved")
-            print(f"  {', '.join(parts)}{RESET}")
+        if week_replies > 0:
+            print(f"  {GRAY}This week: {GREEN}{week_replies}{GRAY} replies{RESET}")
 
         # Setup flow with back navigation
         _PRESET_TONES = {
