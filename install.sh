@@ -156,7 +156,7 @@ echo '# GhostReply - iMessage Auto-Reply' >> "$SHELL_RC"
 echo "alias ghostreply=\"$PYTHON ~/.ghostreply/ghostreply.py\"" >> "$SHELL_RC"
 
 echo "[2/4] Downloading GhostReply..."
-if ! curl -sfL https://raw.githubusercontent.com/Hrampell/ghostreply/main/client/ghostreply.py -o ~/.ghostreply/ghostreply.py; then
+if ! curl -sfL https://github.com/Hrampell/ghostreply/releases/latest/download/ghostreply.py -o ~/.ghostreply/ghostreply.py; then
     echo "  ERROR: Failed to download GhostReply. Check your internet connection."
     echo "  The 'ghostreply' command is set up — just run the install again."
     exit 1

@@ -1,3 +1,4 @@
 keygen.py
 __pycache__/
 *.pyc
+client/ghostreply.py
