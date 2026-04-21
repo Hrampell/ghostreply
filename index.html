@@ -31,18 +31,48 @@
     <!-- Canonical -->
     <link rel="canonical" href="https://ghostreply.lol/">
 
+    <!-- Geist Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+
     <style>
+        :root {
+            --brand: #4ade80;
+            --brand-dim: rgba(74, 222, 128, 0.10);
+            --bg: #000;
+            --surface: #111;
+            --surface-2: #1a1a1a;
+            --border: #1e1e1e;
+            --border-2: #2a2a2a;
+            --text-primary: #fff;
+            --text-secondary: #888;
+            --text-muted: #777;
+            --blue: #0b84fe;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
             background: #000;
             color: #fff;
             min-height: 100vh;
             overflow-x: hidden;
             background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
             background-size: 24px 24px;
+        }
+
+        /* ===== Screen-reader only utility ===== */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border: 0;
         }
 
         /* ===== Ghost Particle Canvas ===== */
@@ -105,6 +135,9 @@
 
         @media (prefers-reduced-motion: reduce) {
             .glow-orb { animation: none; }
+            .price-tag { animation: none; }
+            .hero-mockup-wrap::before { animation: none; }
+            .typing-dots span { animation: none; opacity: 0.7; }
         }
 
         .container {
@@ -137,9 +170,7 @@
             font-weight: 700;
             margin-bottom: 32px;
             text-align: center;
-            background: linear-gradient(135deg, #fff 40%, #4ade80 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #fff;
         }
 
         .subtitle {
@@ -154,19 +185,27 @@
         .section { padding: 60px 0; }
 
         /* ===== Price ===== */
-        @keyframes neon-pulse {
-            0%, 100% { box-shadow: 0 0 10px #4ade80, 0 0 30px rgba(74, 222, 128, 0.4), 0 0 60px rgba(74, 222, 128, 0.15); border-color: #4ade80; }
-            50% { box-shadow: 0 0 15px #4ade80, 0 0 40px rgba(74, 222, 128, 0.5), 0 0 80px rgba(74, 222, 128, 0.2); border-color: #6ee7a0; }
-        }
-
         .price-tag {
             display: inline-block;
             border-radius: 16px;
             padding: 16px 32px;
             margin-bottom: 24px;
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            border: 2px solid #4ade80;
-            animation: neon-pulse 2s ease-in-out infinite;
+            background: #0a110a;
+            border: 1px solid rgba(74, 222, 128, 0.5);
+            position: relative;
+        }
+        .price-tag::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.15);
+            pointer-events: none;
+            animation: price-glow 3s ease-in-out infinite;
+        }
+        @keyframes price-glow {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
         }
 
         .price { font-size: 36px; font-weight: 700; }
@@ -295,7 +334,8 @@
             background: #0f0f0f;
         }
         .hero-ctrl-btn {
-            padding: 6px 16px;
+            padding: 10px 16px;
+            min-height: 44px;
             border-radius: 6px;
             border: 1px solid #333;
             background: #1a1a1a;
@@ -449,7 +489,6 @@
             visibility: hidden;
             transition: none;
             box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-            will-change: transform, opacity;
         }
 
         .seq-img.active {
@@ -515,13 +554,10 @@
         .imessage-demo {
             max-width: none;
             margin: 24px 0;
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0d0d;
+            border: 1px solid #1e1e1e;
             border-radius: 20px;
             padding: 24px 16px;
-            will-change: transform, opacity;
             display: flex;
             flex-direction: column;
         }
@@ -570,7 +606,7 @@
 
         .bubble-label {
             font-size: 11px;
-            color: #666;
+            color: #777;
             margin-bottom: 4px;
             margin-top: 12px;
             clear: both;
@@ -638,15 +674,12 @@
 
         /* ===== Installer Boxes ===== */
         .installer-box {
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0d0d;
+            border: 1px solid #1e1e1e;
             border-radius: 16px;
             padding: 32px;
             text-align: center;
             margin: 40px 0;
-            will-change: transform, opacity;
         }
 
         .installer-box h3 { font-size: 20px; margin-bottom: 8px; }
@@ -709,15 +742,16 @@
         }
 
         .feature {
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0d0d;
+            border: 1px solid #1e1e1e;
             border-radius: 12px;
             padding: 20px;
             position: relative;
             overflow: hidden;
-            will-change: transform, opacity;
+            transition: border-color 0.2s;
+        }
+        .feature:hover {
+            border-color: #2a2a2a;
         }
 
         /* Spotlight hover glow — follows cursor */
@@ -779,7 +813,7 @@
         .footer {
             text-align: center;
             padding: 60px 0 40px;
-            color: #555;
+            color: #777;
             font-size: 14px;
         }
 
@@ -798,13 +832,13 @@
         }
 
         .top-bar span {
-            color: #555;
+            color: #777;
             font-size: 13px;
             letter-spacing: 0.5px;
         }
 
         .top-bar a {
-            color: #555;
+            color: #777;
             font-size: 13px;
             text-decoration: none;
             pointer-events: auto;
@@ -995,10 +1029,8 @@
         }
         .testimonial-card {
             flex: 1;
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0d0d;
+            border: 1px solid #1e1e1e;
             border-radius: 16px;
             padding: 24px;
         }
@@ -1016,7 +1048,7 @@
         }
         .testimonial-card .quote-author {
             font-size: 13px;
-            color: #666;
+            color: #777;
         }
 
         /* ===== Animated Demo Bubbles ===== */
@@ -1065,7 +1097,7 @@
         }
         .anim-label {
             font-size: 11px;
-            color: #666;
+            color: #777;
             align-self: flex-end;
             margin-top: 2px;
             opacity: 0;
@@ -1170,13 +1202,13 @@
         }
         .iw-step-info p {
             font-size: 12px;
-            color: #666;
+            color: #777;
             line-height: 1.3;
         }
 
         /* ===== Install Explainer ===== */
         .install-explainer summary {
-            color: #666;
+            color: #777;
             font-size: 13px;
             cursor: pointer;
             text-align: center;
@@ -1255,14 +1287,12 @@
 
             .testimonial-row { flex-direction: column; }
 
-            /* Glassmorphism mobile fallback */
+            /* Cards on mobile */
             .feature,
             .installer-box,
             .testimonial-card,
             .imessage-demo {
-                backdrop-filter: none;
-                -webkit-backdrop-filter: none;
-                background: #111;
+                background: #0d0d0d;
             }
 
             /* Install walkthrough stacks */
@@ -1342,8 +1372,8 @@
             text-align: center;
             padding: 32px 20px;
             border-radius: 16px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #0d0d0d;
+            border: 1px solid #1e1e1e;
         }
         .hiw-icon {
             font-size: 40px;
@@ -1421,10 +1451,11 @@
     <canvas id="ghost-particles"></canvas>
 
     <div class="page-content">
-    <div class="top-bar">
-        <span>Harrison Rampell &middot; v2.0.3</span>
-        <a href="#" onclick="event.preventDefault();document.getElementById('feedback-overlay').classList.add('open')" style="margin-left:12px;">Feedback</a>
-    </div>
+    <header class="top-bar">
+        <span>Harrison Rampell &middot; v2.1.0</span>
+        <a href="#" style="margin-left:12px;">Feedback</a>
+    </header>
+    <main id="main-content">
 
     <div class="container">
 
@@ -1739,7 +1770,7 @@
         </div>
 
         <!-- Privacy -->
-        <div style="margin:40px auto; background:linear-gradient(135deg, #0a1a0a, #111); border:1px solid #1a3a1a; border-radius:16px; padding:32px; text-align:center; max-width:700px;">
+        <div style="margin:40px auto; background:#0a0f0a; border:1px solid #1a2a1a; border-radius:16px; padding:32px; text-align:center; max-width:700px;">
             <h2 style="font-size:24px; margin-bottom:12px;">100% Local. 100% Private.</h2>
             <p style="color:#888; font-size:15px; line-height:1.7; max-width:520px; margin:0 auto;">
                 GhostReply runs entirely on your Mac. Your messages never touch our servers — they go straight from your Mac to Groq's AI and back. We can't see your texts, your contacts, or your conversations. Ever.
@@ -1791,8 +1822,8 @@
             </div>
         </div>
 
-        <!-- Live Counter -->
-        <div class="live-counter">
+        <!-- Live Counter (estimated from session data, aria-hidden so screen readers skip) -->
+        <div class="live-counter" aria-hidden="true">
             <div class="counter-number" id="live-counter">0</div>
             <div class="counter-label">replies sent by GhostReply</div>
         </div>
@@ -1810,29 +1841,32 @@
             <p style="color:#555; font-size:14px; margin-top:8px;">Works on any Mac with iMessage.</p>
         </div>
 
-        <div class="footer">
-            <p>GhostReply &copy; 2026 &middot; <a href="mailto:harrisonrampell@gmail.com">Support</a> &middot; <a href="#" onclick="event.preventDefault();document.getElementById('feedback-overlay').classList.add('open')">Feedback</a></p>
-        </div>
+        <footer class="footer">
+            <p>GhostReply &copy; 2026 &middot; <a href="mailto:harrisonrampell@gmail.com">Support</a> &middot; <a href="#">Feedback</a></p>
+        </footer>
 
         <!-- Floating feedback button -->
-        <div class="feedback-btn" onclick="document.getElementById('feedback-overlay').classList.add('open')" title="Send Feedback">💬</div>
+        <button type="button" class="feedback-btn" id="feedback-open-btn" aria-label="Send Feedback" aria-haspopup="dialog">💬</button>
 
         <!-- Feedback modal -->
-        <div class="feedback-overlay" id="feedback-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+        <div class="feedback-overlay" id="feedback-overlay" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
             <div class="feedback-modal">
-                <h3>Send Feedback</h3>
+                <h3 id="feedback-modal-title">Send Feedback</h3>
                 <p>Bug, feature request, or just wanna say something — send it here.</p>
                 <form id="feedback-form">
+                    <label for="fb-msg" class="sr-only">Message</label>
                     <textarea id="fb-msg" placeholder="What's on your mind?" required></textarea>
+                    <label for="fb-email" class="sr-only">Email (optional)</label>
                     <input type="email" id="fb-email" placeholder="Your email (optional)">
                     <div class="feedback-actions">
-                        <button type="button" class="fb-cancel" onclick="document.getElementById('feedback-overlay').classList.remove('open')">Cancel</button>
+                        <button type="button" class="fb-cancel" id="feedback-close-btn">Cancel</button>
                         <button type="submit" class="fb-send" id="fb-send-btn">Send</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+    </main>
     </div><!-- end page-content -->
 
     <!-- GSAP CDN -->
@@ -2332,7 +2366,7 @@
                     await player.output([
                         '',
                         '<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>',
-                        '<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v2.0.3</span>   <span class="t-green">\u2551</span>',
+                        '<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v2.1.0</span>   <span class="t-green">\u2551</span>',
                         '<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>',
                         ''
                     ]);
@@ -2498,7 +2532,7 @@
                 await wait(600);
                 addLine('');
                 addLine('<span class="t-green">\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557</span>');
-                addLine('<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v2.0.3</span>   <span class="t-green">\u2551</span>');
+                addLine('<span class="t-green">\u2551</span>   <span class="t-white t-bold">GhostReply Installer v2.1.0</span>   <span class="t-green">\u2551</span>');
                 addLine('<span class="t-green">\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D</span>');
                 setProgress(25);
                 await wait(1500);
@@ -2690,6 +2724,55 @@
 
             document.querySelectorAll('[data-scramble]').forEach(function(el) {
                 observer.observe(el);
+            });
+        })();
+
+        // ===== Feedback Modal: open/close/focus trap =====
+        (function() {
+            var overlay = document.getElementById('feedback-overlay');
+            var openBtn = document.getElementById('feedback-open-btn');
+            var closeBtn = document.getElementById('feedback-close-btn');
+            var firstFocus = document.getElementById('fb-msg');
+
+            function openModal() {
+                overlay.classList.add('open');
+                setTimeout(function() { if (firstFocus) firstFocus.focus(); }, 50);
+            }
+
+            function closeModal() {
+                overlay.classList.remove('open');
+                if (openBtn) openBtn.focus();
+            }
+
+            if (openBtn) openBtn.addEventListener('click', openModal);
+            if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+            // Close on backdrop click
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeModal();
+            });
+
+            // Escape key closes modal; Tab traps focus inside
+            overlay.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') { closeModal(); return; }
+                if (e.key !== 'Tab') return;
+                var focusable = overlay.querySelectorAll(
+                    'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'
+                );
+                var first = focusable[0];
+                var last = focusable[focusable.length - 1];
+                if (e.shiftKey) {
+                    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                } else {
+                    if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                }
+            });
+
+            // Top-bar and footer feedback links wire to openModal
+            document.querySelectorAll('a[href="#"]').forEach(function(a) {
+                if (a.textContent.trim() === 'Feedback') {
+                    a.addEventListener('click', function(e) { e.preventDefault(); openModal(); });
+                }
             });
         })();
 
